@@ -8,6 +8,7 @@ import {
   UNLINKABLE_WEBSITE_LABEL,
   websiteBadgeLabel,
 } from "@/lib/format";
+import { MAX_SCORE, PRIORITY_LABELS, type LeadScore } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 
 import { StatusToggle } from "./status-toggle";
@@ -18,7 +19,7 @@ import { StatusToggle } from "./status-toggle";
  * No "use client" directive: it holds no state, so it renders in whichever tree
  * imports it. It nests StatusToggle, which brings its own client boundary.
  */
-export function LeadCard({ lead }: { lead: Lead }) {
+export function LeadCard({ lead, score }: { lead: Lead; score: LeadScore }) {
   const { provider } = lead;
   const noWebsiteListed = provider.website === null;
   // Provider data is untrusted: only an allowlisted http(s) URL becomes a link.
@@ -49,6 +50,7 @@ export function LeadCard({ lead }: { lead: Lead }) {
           </dl>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            <PriorityBadge score={score} />
             <StatusBadge status={lead.status} />
             {/* Wording is deliberate: this describes what the provider
                 returned, never what the business does or does not have. */}
@@ -106,6 +108,31 @@ export function StatusBadge({ status }: { status: Lead["status"] }) {
       }
     >
       {status === "reviewed" ? "Reviewed" : "New"}
+    </span>
+  );
+}
+
+/**
+ * Compact score display.
+ *
+ * The number is always shown with its scale and what it means -- a bare "85"
+ * invites the reader to imagine it is a probability of a sale. The full factor
+ * breakdown lives on the detail page rather than cluttering every row.
+ */
+export function PriorityBadge({ score }: { score: LeadScore }) {
+  const tone =
+    score.priority === "high"
+      ? "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200"
+      : score.priority === "medium"
+        ? "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
+        : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
+      title="Opportunity score: a review-order hint based on provider signals"
+    >
+      Opportunity {score.total}/{MAX_SCORE} &middot; {PRIORITY_LABELS[score.priority]}
     </span>
   );
 }

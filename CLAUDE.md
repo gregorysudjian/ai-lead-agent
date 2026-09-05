@@ -98,6 +98,13 @@ hours, and place ID -> flag the ones with no website.
   by construction rather than by remembering to preserve them, and the caching
   policy above applies to exactly one subtree. Do not flatten this.
 
+- **Opportunity scores are deterministic derived data.** They are computed from
+  the current provider snapshot by a pure function, never persisted, never
+  AI-generated, and never influenced by application-owned fields such as
+  `status`. Storing a score would let it drift out of step with the provider
+  data it summarises. A score is a review-order hint, not a prediction of
+  purchase and not evidence about whether a business has a website.
+
 - **Server Components read the repository; Client Components call the API.**
   A page renders by calling `getLeadRepository()` directly -- never by fetching
   its own API over HTTP, which is a pointless round trip to the same process.
