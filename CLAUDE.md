@@ -91,6 +91,13 @@ hours, and place ID -> flag the ones with no website.
   each lead an internal ID that never changes; keep the name+address match to
   catch a business that reappears under a different Place ID; and make the
   Place ID field refreshable/replaceable without rewriting the lead's history.
+- **A lead keeps application-owned data and provider data structurally apart.**
+  `Lead` holds what we own at the top level (`id`, `status`, `createdAt`,
+  `updatedAt`) and the provider's latest snapshot under `lead.provider`.
+  Rediscovery replaces the `provider` subtree wholesale, so our fields survive
+  by construction rather than by remembering to preserve them, and the caching
+  policy above applies to exactly one subtree. Do not flatten this.
+
 - **Server-only modules are enforced, not just conventional.** Any module that
   reads environment variables or secrets, talks to a database, or calls a
   third-party server API imports the `server-only` package at the top. That

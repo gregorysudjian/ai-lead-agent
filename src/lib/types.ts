@@ -82,3 +82,54 @@ export interface BusinessSearchQuery {
   category: string;
   city: string;
 }
+
+// ---------------------------------------------------------------------------
+// Leads -- a business after it has entered OUR system
+// ---------------------------------------------------------------------------
+
+/**
+ * Application-owned lead status. Deliberately minimal: this is not a CRM state
+ * machine, and it should not become one without a real reason.
+ */
+export type LeadStatus = "new" | "reviewed";
+
+/**
+ * What a provider last told us about a business.
+ *
+ * Structurally identical to `DiscoveredBusiness` -- the alias exists to name the
+ * role this data plays once stored: a refreshable cache, overwritten wholesale
+ * on every rediscovery, never a source of truth we own.
+ */
+export type ProviderSnapshot = DiscoveredBusiness;
+
+/**
+ * A discovered business promoted into our own records.
+ *
+ * The nesting is the point. Everything we own sits at the top level; everything
+ * the provider told us sits under `provider` and is disposable. That split is
+ * what makes two rules mechanically enforceable rather than merely documented:
+ *
+ *   - Rediscovery replaces `provider` wholesale while `id`, `createdAt` and
+ *     `status` are untouched by construction, not by remembering to preserve
+ *     them field by field.
+ *   - The retention policy in CLAUDE.md applies to exactly one subtree, so
+ *     expiring cached provider data later means clearing `provider` -- our own
+ *     notes, status and history survive automatically.
+ *
+ * A flat record would leave both rules depending on developer discipline.
+ */
+export interface Lead {
+  /**
+   * Our own stable identifier, generated once and never changed -- not derived
+   * from `externalId`, because provider identifiers can be retired or replaced
+   * and anything we link to a lead must outlive that.
+   */
+  id: string;
+  status: LeadStatus;
+  /** ISO-8601. Set once when the lead first entered our system. */
+  createdAt: string;
+  /** ISO-8601. Changes whenever the stored record is written. */
+  updatedAt: string;
+  /** Refreshable cache of the latest discovery result. */
+  provider: ProviderSnapshot;
+}

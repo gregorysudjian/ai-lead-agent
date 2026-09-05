@@ -1,16 +1,18 @@
 import { z } from "zod";
 
-import { getPlacesProvider } from "@/server/places";
+import { discoverAndSaveLeads } from "@/server/discovery";
 
 /**
  * POST /api/search
  *
  * Body: { "category": string, "city": string }
  *
- * Runs a business-discovery search through the configured PlacesProvider. This
- * handler never touches fixture data directly -- it depends only on the
- * provider interface, so Phase 5 can swap in Google Places without editing this
- * file.
+ * Runs a business-discovery search and persists what it finds as leads.
+ *
+ * The handler stays a thin HTTP shell: it validates input, delegates to the
+ * discovery service, and serializes the result. It never touches fixture data
+ * or the lead store directly, so swapping either implementation leaves this
+ * file untouched.
  *
  * Route Handlers run exclusively on the server, which is what allows provider
  * credentials to stay out of the browser bundle.
@@ -52,19 +54,21 @@ export async function POST(request: Request): Promise<Response> {
   const query = parsed.data;
 
   try {
-    const provider = getPlacesProvider();
-    const results = await provider.search(query);
+    const { results, saved } = await discoverAndSaveLeads(query);
 
     // An empty result set is a successful search, not an error.
     return Response.json({
       query,
       count: results.length,
+      saved,
       results,
     });
   } catch (error) {
     // Log the detail server-side; return something deliberately vague. Provider
-    // errors can carry API keys, quota data and stack traces.
-    console.error("[POST /api/search] provider search failed:", error);
+    // and repository errors can carry API keys, quota data and filesystem paths.
+    // Persistence failures land here too: we never report success for a search
+    // whose results were not stored.
+    console.error("[POST /api/search] discovery failed:", error);
     return errorResponse("Search failed. Please try again.", 500);
   }
 }
