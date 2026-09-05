@@ -12,6 +12,7 @@ import {
   formatTimestamp,
   UNLINKABLE_WEBSITE_LABEL,
 } from "@/lib/format";
+import { MAX_SCORE, PRIORITY_LABELS, scoreLead } from "@/lib/scoring";
 import type { OpeningHours } from "@/lib/types";
 import { getLeadRepository } from "@/server/repo";
 
@@ -46,6 +47,8 @@ export default async function LeadDetailPage({
   if (!lead) notFound();
 
   const { provider } = lead;
+  // Derived on every render from the current snapshot. Never stored.
+  const score = scoreLead(lead);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
@@ -85,6 +88,58 @@ export default async function LeadDetailPage({
           <Field label="Created" value={formatTimestamp(lead.createdAt)} />
           <Field label="Last updated" value={formatTimestamp(lead.updatedAt)} />
         </dl>
+      </section>
+
+      <section
+        aria-labelledby="score"
+        className="mt-6 rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+      >
+        <h2 id="score" className="text-base font-semibold">
+          Opportunity score
+        </h2>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+          A review-order hint calculated from the provider signals below. It is not
+          a likelihood of purchase, and not evidence that this business needs or
+          lacks a website.
+        </p>
+
+        <table className="mt-4 w-full text-sm">
+          <caption className="sr-only">Opportunity score breakdown by factor</caption>
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              <th scope="col" className="py-1.5 text-left font-medium">Factor</th>
+              <th scope="col" className="py-1.5 text-right font-medium">Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {score.factors.map((factor) => (
+              <tr key={factor.key} className="border-b border-slate-200 dark:border-slate-800">
+                <td className="py-2 pr-3">
+                  <span className="font-medium">{factor.label}</span>
+                  <span className="block text-xs text-slate-600 dark:text-slate-400">
+                    {factor.reason}
+                  </span>
+                </td>
+                <td className="py-2 text-right align-top tabular-nums whitespace-nowrap">
+                  +{factor.points} / {factor.maxPoints}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" className="py-2 text-left font-semibold">
+                Total
+                <span className="block text-xs font-normal text-slate-600 dark:text-slate-400">
+                  {PRIORITY_LABELS[score.priority]}
+                </span>
+              </th>
+              <td className="py-2 text-right align-top font-semibold tabular-nums">
+                {score.total} / {MAX_SCORE}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </section>
 
       <section

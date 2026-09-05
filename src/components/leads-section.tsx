@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { hasNoListedWebsite } from "@/lib/format";
+import { rankLeads } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 
 import { LeadCard } from "./lead-card";
@@ -25,6 +26,10 @@ const FILTERS: { id: Filter; label: string }[] = [
  * `router.refresh()` rather than client-side cache surgery. Filtering the
  * already-loaded array is appropriate at development-data scale; real querying
  * belongs in the repository once there is a database behind it.
+ *
+ * Scores are computed here from the current provider snapshot, never read from
+ * storage -- ranking always reflects the data as it stands right now. Leads are
+ * ranked first and filtered afterwards, so every filter shows the same ordering.
  */
 export function LeadsSection({ leads }: { leads: Lead[] }) {
   const [filter, setFilter] = useState<Filter>("all");
@@ -39,18 +44,21 @@ export function LeadsSection({ leads }: { leads: Lead[] }) {
     [leads],
   );
 
+  // Score once, rank once. Filtering preserves the ranked order.
+  const ranked = useMemo(() => rankLeads(leads), [leads]);
+
   const visible = useMemo(() => {
     switch (filter) {
       case "new":
-        return leads.filter((l) => l.status === "new");
+        return ranked.filter((r) => r.lead.status === "new");
       case "reviewed":
-        return leads.filter((l) => l.status === "reviewed");
+        return ranked.filter((r) => r.lead.status === "reviewed");
       case "no-website":
-        return leads.filter(hasNoListedWebsite);
+        return ranked.filter((r) => hasNoListedWebsite(r.lead));
       default:
-        return leads;
+        return ranked;
     }
-  }, [leads, filter]);
+  }, [ranked, filter]);
 
   if (leads.length === 0) {
     return (
@@ -109,8 +117,8 @@ export function LeadsSection({ leads }: { leads: Lead[] }) {
         </p>
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
-          {visible.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} />
+          {visible.map(({ lead, score }) => (
+            <LeadCard key={lead.id} lead={lead} score={score} />
           ))}
         </ul>
       )}
