@@ -98,6 +98,15 @@ hours, and place ID -> flag the ones with no website.
   by construction rather than by remembering to preserve them, and the caching
   policy above applies to exactly one subtree. Do not flatten this.
 
+- **Server Components read the repository; Client Components call the API.**
+  A page renders by calling `getLeadRepository()` directly -- never by fetching
+  its own API over HTTP, which is a pointless round trip to the same process.
+  Interactivity (search, filters, status changes) lives in small Client
+  Components that POST/PATCH to a route handler and then call
+  `router.refresh()`, so the server stays the source of truth and the UI never
+  shows a state the store has not confirmed. Do not make the page one large
+  Client Component.
+
 - **Server-only modules are enforced, not just conventional.** Any module that
   reads environment variables or secrets, talks to a database, or calls a
   third-party server API imports the `server-only` package at the top. That
