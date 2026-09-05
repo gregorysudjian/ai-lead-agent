@@ -39,6 +39,11 @@ hours, and place ID -> flag the ones with no website.
    by those policies. Every record stores a `fetched_at` timestamp, and
    provider-sourced fields are treated as a refreshable cache kept separate
    from our own durable data (notes, status, approvals, generated copy).
+7. **Do not overstate provider data.** A missing website from a discovery
+   provider means "no website found or listed by that provider" -- not
+   "confirmed to have no website." The UI, scoring, and any generated copy
+   must preserve that distinction unless a later verification step actually
+   confirms it. The same caution applies to every other absent field.
 
 ## Working agreement
 
