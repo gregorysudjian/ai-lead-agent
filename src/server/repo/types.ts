@@ -6,7 +6,7 @@
  * development JSON store for Supabase in a later phase means writing one new
  * implementation and changing nothing upstream.
  */
-import type { DiscoveredBusiness, Lead } from "@/lib/types";
+import type { DiscoveredBusiness, Lead, LeadStatus } from "@/lib/types";
 
 /** Outcome of persisting one batch of discovered businesses. */
 export interface UpsertSummary {
@@ -33,6 +33,19 @@ export interface LeadRepository {
    * batch collapse together rather than producing two leads.
    */
   upsertDiscovered(businesses: readonly DiscoveredBusiness[]): Promise<UpsertSummary>;
+
+  /**
+   * Change the application-owned status of one lead.
+   *
+   * Returns the updated lead, or `null` when no lead has that id -- a missing
+   * lead is a normal outcome the caller reports as 404, not an exception.
+   *
+   * Status is the only mutable field. Provider data, `id` and `createdAt` are
+   * preserved; `updatedAt` changes. There is deliberately no general-purpose
+   * `update(lead)` method: a narrow operation cannot be misused to overwrite
+   * provider data or rewrite an id.
+   */
+  updateStatus(id: string, status: LeadStatus): Promise<Lead | null>;
 }
 
 /**

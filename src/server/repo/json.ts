@@ -5,7 +5,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { findExistingLead } from "@/lib/dedupe";
-import type { DiscoveredBusiness, Lead } from "@/lib/types";
+import type { DiscoveredBusiness, Lead, LeadStatus } from "@/lib/types";
 import { LeadRepositoryError, type LeadRepository, type UpsertSummary } from "./types";
 
 /**
@@ -188,6 +188,27 @@ class JsonLeadRepository implements LeadRepository {
       }
 
       return { created, updated, leads: touched };
+    });
+  }
+
+  async updateStatus(id: string, status: LeadStatus): Promise<Lead | null> {
+    return withLock(async () => {
+      const store = await readStore();
+      const index = store.leads.findIndex((lead) => lead.id === id);
+      if (index === -1) return null;
+
+      const existing = store.leads[index];
+      // Spread-then-override: provider data, id and createdAt carry over
+      // untouched, and only the two fields we mean to change are written.
+      const updated: Lead = {
+        ...existing,
+        status,
+        updatedAt: new Date().toISOString(),
+      };
+
+      store.leads[index] = updated;
+      await writeStore(store);
+      return updated;
     });
   }
 }
