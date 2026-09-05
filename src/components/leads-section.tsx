@@ -6,6 +6,7 @@ import { hasNoListedWebsite } from "@/lib/format";
 import { rankLeads } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 
+import { OsmAttribution } from "./attribution";
 import { LeadCard } from "./lead-card";
 
 type Filter = "all" | "new" | "reviewed" | "no-website";
@@ -33,6 +34,12 @@ const FILTERS: { id: Filter; label: string }[] = [
  */
 export function LeadsSection({ leads }: { leads: Lead[] }) {
   const [filter, setFilter] = useState<Filter>("all");
+
+  // Attribution is mandatory wherever OSM-derived data is displayed.
+  const showsOsmData = useMemo(
+    () => leads.some((lead) => lead.provider.source === "osm"),
+    [leads],
+  );
 
   const counts = useMemo(
     () => ({
@@ -122,6 +129,8 @@ export function LeadsSection({ leads }: { leads: Lead[] }) {
           ))}
         </ul>
       )}
+
+      {showsOsmData ? <OsmAttribution className="mt-6" /> : null}
     </section>
   );
 }

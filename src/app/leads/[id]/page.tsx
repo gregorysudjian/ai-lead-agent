@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { StatusBadge } from "@/components/lead-card";
 import { StatusToggle } from "@/components/status-toggle";
 import {
@@ -12,6 +13,7 @@ import {
   formatTimestamp,
   UNLINKABLE_WEBSITE_LABEL,
 } from "@/lib/format";
+import { osmObjectUrl } from "@/lib/osm/normalize";
 import { MAX_SCORE, PRIORITY_LABELS, scoreLead } from "@/lib/scoring";
 import type { OpeningHours } from "@/lib/types";
 import { getLeadRepository } from "@/server/repo";
@@ -49,6 +51,9 @@ export default async function LeadDetailPage({
   const { provider } = lead;
   // Derived on every render from the current snapshot. Never stored.
   const score = scoreLead(lead);
+  // Built only from a strictly validated "type/id" external id; null otherwise,
+  // and then no link is rendered.
+  const osmUrl = provider.source === "osm" ? osmObjectUrl(provider.externalId) : null;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
@@ -163,13 +168,38 @@ export default async function LeadDetailPage({
           <WebsiteField website={provider.website} />
           <Field label="Rating" value={formatRating(provider.rating)} />
           <Field label="Reviews" value={formatReviewCount(provider.reviewCount)} />
-          <Field label="Source" value={provider.source} />
+          <Field label="Source" value={SOURCE_LABELS[provider.source]} />
           <Field label="External ID" value={provider.externalId} mono />
           <Field label="Fetched" value={formatTimestamp(provider.fetchedAt)} />
         </dl>
 
+        {osmUrl ? (
+          <p className="mt-4 text-sm">
+            <a
+              href={osmUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-700 underline underline-offset-2 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-blue-400"
+            >
+              View on OpenStreetMap
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </p>
+        ) : null}
+
         <h3 className="mt-6 text-sm font-semibold">Opening hours</h3>
-        <OpeningHoursTable hours={provider.openingHours} />
+        {provider.source === "osm" && provider.openingHours === null ? (
+          // Do not say "Not listed" here: OpenStreetMap may well carry hours for
+          // this business. We simply do not import them yet, and claiming the
+          // provider listed nothing would misreport the data.
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+            Opening hours are not imported from OpenStreetMap in this version.
+          </p>
+        ) : (
+          <OpeningHoursTable hours={provider.openingHours} />
+        )}
+
+        {provider.source === "osm" ? <OsmAttribution className="mt-6" /> : null}
       </section>
     </main>
   );

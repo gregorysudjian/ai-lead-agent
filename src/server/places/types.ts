@@ -28,3 +28,34 @@ export interface PlacesProvider {
    */
   search(query: BusinessSearchQuery): Promise<DiscoveredBusiness[]>;
 }
+
+/**
+ * The caller asked for something we do not support (unknown city or category).
+ *
+ * A 400-class condition: the request is the problem, not the provider. The
+ * message is written to be safe to show a client -- it names only our own
+ * supported values, never upstream detail.
+ */
+export class ProviderValidationError extends Error {
+  readonly supported?: { cities?: string[]; categories?: string[] };
+
+  constructor(message: string, supported?: { cities?: string[]; categories?: string[] }) {
+    super(message);
+    this.name = "ProviderValidationError";
+    this.supported = supported;
+  }
+}
+
+/**
+ * The upstream provider could not be reached or failed.
+ *
+ * A 502/503-class condition: our request was fine, the dependency was not. The
+ * `message` is for server logs only and may contain upstream status detail; the
+ * route substitutes a generic message for the client.
+ */
+export class ProviderUnavailableError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "ProviderUnavailableError";
+  }
+}

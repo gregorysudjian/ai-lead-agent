@@ -10,7 +10,7 @@
  */
 
 /** Which adapter produced a record. `externalId` is only unique within a source. */
-export type BusinessSource = "mock" | "google";
+export type BusinessSource = "mock" | "osm" | "google";
 
 export type Weekday =
   | "monday"

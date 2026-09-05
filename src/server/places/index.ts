@@ -2,6 +2,7 @@ import "server-only";
 
 import { placesProviderName } from "@/server/env";
 import { mockPlacesProvider } from "./mock";
+import { openStreetMapPlacesProvider } from "./osm";
 import type { PlacesProvider } from "./types";
 
 /**
@@ -16,6 +17,8 @@ export function getPlacesProvider(): PlacesProvider {
   switch (name) {
     case "mock":
       return mockPlacesProvider;
+    case "osm":
+      return openStreetMapPlacesProvider;
     case "google":
       // Phase 5. Deliberately unimplemented: this throws rather than quietly
       // falling back to mock data, which would look like a working integration.
@@ -26,3 +29,4 @@ export function getPlacesProvider(): PlacesProvider {
 }
 
 export type { PlacesProvider } from "./types";
+export { ProviderUnavailableError, ProviderValidationError } from "./types";
