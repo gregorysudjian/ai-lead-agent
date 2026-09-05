@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { discoverAndSaveLeads } from "@/server/discovery";
+import { ProviderUnavailableError, ProviderValidationError } from "@/server/places";
 
 /**
  * POST /api/search
@@ -64,10 +65,30 @@ export async function POST(request: Request): Promise<Response> {
       results,
     });
   } catch (error) {
-    // Log the detail server-side; return something deliberately vague. Provider
-    // and repository errors can carry API keys, quota data and filesystem paths.
-    // Persistence failures land here too: we never report success for a search
-    // whose results were not stored.
+    // The caller asked for a city or category we do not support. Safe to echo:
+    // the message names only our own supported values, never upstream detail.
+    if (error instanceof ProviderValidationError) {
+      return Response.json(
+        { error: error.message, supported: error.supported },
+        { status: 400 },
+      );
+    }
+
+    // The upstream data provider failed or timed out. Report it honestly as a
+    // dependency failure rather than pretending the search succeeded -- and
+    // never leak the upstream body, which is HTML for Overpass errors.
+    if (error instanceof ProviderUnavailableError) {
+      console.error("[POST /api/search] provider unavailable:", error.message);
+      return errorResponse(
+        "Business data provider is temporarily unavailable. Try again shortly.",
+        503,
+      );
+    }
+
+    // Anything else: log the detail server-side, return something deliberately
+    // vague. Provider and repository errors can carry API keys, quota data and
+    // filesystem paths. Persistence failures land here too -- we never report
+    // success for a search whose results were not stored.
     console.error("[POST /api/search] discovery failed:", error);
     return errorResponse("Search failed. Please try again.", 500);
   }

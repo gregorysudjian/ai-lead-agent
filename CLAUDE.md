@@ -98,6 +98,23 @@ hours, and place ID -> flag the ones with no website.
   by construction rather than by remembering to preserve them, and the caching
   policy above applies to exactly one subtree. Do not flatten this.
 
+- **OpenStreetMap data carries its provenance and attribution.** OSM-derived
+  records keep `source: "osm"`, and any view showing them must credit
+  OpenStreetMap with a link to openstreetmap.org/copyright and make the ODbL
+  clear. Never present OSM data as though it came from another provider.
+- **Public Overpass is shared community infrastructure, not our capacity.** The
+  endpoint stays configurable (`OVERPASS_API_URL`), queries are bounded to one
+  registry-defined area and category, and requests happen only in response to an
+  explicit user search -- no crawling, polling, background refresh or retry
+  loops. Public Nominatim is not part of the discovery pipeline; cities resolve
+  through a curated registry instead.
+- **User input never becomes provider query syntax.** Cities and categories are
+  resolved against curated registries first, and unsupported values are rejected
+  before any network call. Only registry-derived tokens reach a query.
+- **Raw provider payloads are not persisted.** Provider responses pass through a
+  pure normalization layer, and only the normalized domain fields are stored --
+  never the upstream tag or record object.
+
 - **Opportunity scores are deterministic derived data.** They are computed from
   the current provider snapshot by a pure function, never persisted, never
   AI-generated, and never influenced by application-owned fields such as

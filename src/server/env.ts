@@ -8,9 +8,9 @@ import "server-only";
  * browser.
  */
 
-export type PlacesProviderName = "mock" | "google";
+export type PlacesProviderName = "mock" | "osm" | "google";
 
-const VALID_PLACES_PROVIDERS: readonly PlacesProviderName[] = ["mock", "google"];
+const VALID_PLACES_PROVIDERS: readonly PlacesProviderName[] = ["mock", "osm", "google"];
 
 /**
  * Which discovery provider to use. Defaults to "mock".
@@ -33,4 +33,29 @@ export function placesProviderName(): PlacesProviderName {
     );
   }
   return match;
+}
+
+/**
+ * Overpass endpoint for the OpenStreetMap provider.
+ *
+ * Configurable so the public community instance is never a hardcoded
+ * dependency: it is shared infrastructure, not production capacity, and a
+ * self-hosted or paid instance can be substituted without a code change.
+ */
+export const DEFAULT_OVERPASS_API_URL = "https://overpass-api.de/api/interpreter";
+
+export function overpassApiUrl(): string {
+  const raw = process.env.OVERPASS_API_URL?.trim();
+  if (!raw) return DEFAULT_OVERPASS_API_URL;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("Invalid OVERPASS_API_URL: must be an absolute http(s) URL.");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Invalid OVERPASS_API_URL: must use http or https.");
+  }
+  return parsed.href;
 }

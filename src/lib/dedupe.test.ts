@@ -149,3 +149,100 @@ describe("must NOT merge", () => {
     expect(findExistingLead([], business())).toBeNull();
   });
 });
+
+describe("OSM provider dedupe invariants", () => {
+  const osm = (over: Partial<DiscoveredBusiness> = {}): DiscoveredBusiness =>
+    business({
+      source: "osm",
+      externalId: "node/123",
+      name: "Salon Réel",
+      address: "100 Rue Test, Montreal, QC",
+      ...over,
+    });
+
+  const osmLead = (over: Partial<DiscoveredBusiness> = {}, id = "osm-lead-1"): Lead => ({
+    id,
+    status: "new",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    provider: osm(over),
+  });
+
+  it("rediscovering the same OSM object matches the same lead", () => {
+    const match = findExistingLead([osmLead()], osm());
+    expect(match?.reason).toBe("provider-id");
+    expect(match?.lead.id).toBe("osm-lead-1");
+  });
+
+  it("node/123 and way/123 are distinct external ids, not the same object", () => {
+    // Different businesses that happen to share a numeric id must NOT merge.
+    // Name and address differ here so the secondary rule cannot fire, isolating
+    // the primary key: it is the element-type prefix doing the work.
+    const other = osm({
+      externalId: "way/123",
+      name: "Completely Different Salon",
+      address: "999 Rue Autre, Montreal, QC",
+    });
+    expect(findExistingLead([osmLead({ externalId: "node/123" })], other)).toBeNull();
+
+    const third = osm({
+      externalId: "relation/123",
+      name: "Third Salon",
+      address: "12 Rue Troisieme, Montreal, QC",
+    });
+    expect(findExistingLead([osmLead({ externalId: "way/123" })], third)).toBeNull();
+  });
+
+  it("but the SAME business re-listed as a way does merge on name+address", () => {
+    // OSM legitimately re-maps a node as a building way. Identical name and
+    // address is exactly the evidence the secondary rule is designed for.
+    const match = findExistingLead(
+      [osmLead({ externalId: "node/123" })],
+      osm({ externalId: "way/123" }),
+    );
+    expect(match?.reason).toBe("name-and-address");
+    expect(match?.lead.id).toBe("osm-lead-1");
+  });
+
+  it("an OSM id never collides with a mock id carrying the same string", () => {
+    const mockLead = osmLead({ source: "mock", externalId: "node/123" });
+    // Same externalId string, different source -> primary match must not fire.
+    // Names and addresses differ, so no secondary match either.
+    expect(
+      findExistingLead([mockLead], osm({ name: "Different Salon", address: "9 Other St" })),
+    ).toBeNull();
+  });
+
+  it("an OSM object re-listed under a new element id still matches on name+address", () => {
+    const match = findExistingLead([osmLead()], osm({ externalId: "way/999" }));
+    expect(match?.reason).toBe("name-and-address");
+    expect(match?.lead.id).toBe("osm-lead-1");
+  });
+
+  it("OSM businesses without an address never merge on name alone", () => {
+    // Very common in OSM: many POIs carry a name but no addr:street.
+    expect(
+      findExistingLead(
+        [osmLead({ address: null })],
+        osm({ externalId: "node/456", address: null }),
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps two same-named OSM salons at different addresses separate", () => {
+    expect(
+      findExistingLead(
+        [osmLead()],
+        osm({ externalId: "node/456", address: "500 Rue Autre, Montreal, QC" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("matches a re-listed OSM business across accent and case differences", () => {
+    const match = findExistingLead(
+      [osmLead({ name: "Salon Réel", address: "100 Rue Test, Montreal, QC" })],
+      osm({ externalId: "node/789", name: "SALON REEL", address: "100 RUE TEST, MONTREAL, QC" }),
+    );
+    expect(match?.reason).toBe("name-and-address");
+  });
+});

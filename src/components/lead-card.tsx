@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SourceBadge } from "./attribution";
+
 import {
   classifyWebsite,
   displayOrNotListed,
@@ -52,6 +54,7 @@ export function LeadCard({ lead, score }: { lead: Lead; score: LeadScore }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <PriorityBadge score={score} />
             <StatusBadge status={lead.status} />
+            <SourceBadge source={provider.source} />
             {/* Wording is deliberate: this describes what the provider
                 returned, never what the business does or does not have. */}
             <span
