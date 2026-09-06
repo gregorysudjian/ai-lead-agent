@@ -18,6 +18,7 @@ import {
   formatReviewCount,
   formatTimestamp,
   UNLINKABLE_WEBSITE_LABEL,
+  websiteLabel,
 } from "@/lib/format";
 import { osmObjectUrl } from "@/lib/osm/normalize";
 import { MAX_SCORE, PRIORITY_LABELS, scoreLead } from "@/lib/scoring";
@@ -87,7 +88,6 @@ export default async function LeadDetailPage({
             <Field label="Business name" value={provider.name} />
             <Field label="Category" value={provider.category} />
             <Field label="City" value={provider.city} />
-            <Field label="Address" value={displayOrNotListed(provider.address)} />
             <Field label="Rating" value={formatRating(provider.rating)} />
             <Field label="Reviews" value={formatReviewCount(provider.reviewCount)} />
           </dl>
@@ -113,7 +113,7 @@ export default async function LeadDetailPage({
         <div className="mt-4">
           {website.kind === "none" ? (
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              No website listed by provider
+              {websiteLabel(provider.website)}
             </p>
           ) : null}
 
@@ -235,15 +235,10 @@ export default async function LeadDetailPage({
             <Field label="Last updated" value={formatTimestamp(lead.updatedAt)} />
           </dl>
 
-          <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
-            <h3 className="text-sm font-semibold">Review actions</h3>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-              Status is the only field you can change. Provider data is refreshed by search.
-            </p>
-            <div className="mt-3">
-              <StatusToggle leadId={lead.id} status={lead.status} />
-            </div>
-          </div>
+          <p className="mt-4 border-t border-slate-200 pt-4 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
+            Status is the only field you can change, using the control at the top of this
+            page. Provider data is refreshed by search.
+          </p>
         </Card>
       </div>
     </div>

@@ -5,7 +5,9 @@ import {
   displayOrNotListed,
   formatRating,
   formatReviewCount,
+  hasProviderReputation,
   UNLINKABLE_WEBSITE_LABEL,
+  websiteBadgeLabel,
 } from "@/lib/format";
 import { MAX_SCORE, PRIORITY_LABELS, type LeadScore } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
@@ -57,7 +59,7 @@ function WebPresence({ website }: { website: string | null }) {
   const rendering = classifyWebsite(website);
 
   if (rendering.kind === "none") {
-    return <Badge tone="amber">No website listed</Badge>;
+    return <Badge tone="amber">{websiteBadgeLabel(website)}</Badge>;
   }
 
   if (rendering.kind === "unlinkable") {
@@ -66,7 +68,7 @@ function WebPresence({ website }: { website: string | null }) {
         className="text-xs text-slate-600 dark:text-slate-400"
         title={UNLINKABLE_WEBSITE_LABEL}
       >
-        Website value unusable
+        {websiteBadgeLabel(website)}
       </span>
     );
   }
@@ -113,9 +115,14 @@ export function LeadRow({ lead, score }: { lead: Lead; score: LeadScore }) {
         <p className="whitespace-nowrap text-slate-700 dark:text-slate-300">
           {displayOrNotListed(provider.phone)}
         </p>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
-          {formatRating(provider.rating)} · {formatReviewCount(provider.reviewCount)}
-        </p>
+        {/* Omitted entirely when the provider supplied no reputation data --
+            otherwise every OSM row repeats the same empty statement. The detail
+            page still says explicitly that none was listed. */}
+        {hasProviderReputation(provider) ? (
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
+            {formatRating(provider.rating)} · {formatReviewCount(provider.reviewCount)}
+          </p>
+        ) : null}
       </td>
 
       <td className="px-4 py-3">

@@ -6,6 +6,7 @@ import {
   PriorityDistribution,
 } from "@/components/lead-summary";
 import { SearchPanel } from "@/components/search-panel";
+import { SystemStatus } from "@/components/system-status";
 import { Card, EmptyState, ErrorPanel, LINK, PageHeader, SectionHeading } from "@/components/ui/primitives";
 import { loadLeads } from "@/server/leads-page-data";
 
@@ -31,6 +32,8 @@ export default async function DashboardPage() {
         title="Dashboard"
         subtitle="Discover local businesses and review potential website leads."
       />
+
+      <SystemStatus />
 
       <SearchPanel />
 

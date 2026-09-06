@@ -1,5 +1,7 @@
 import type { BusinessSource } from "@/lib/types";
 
+import { Badge, FOCUS_RING } from "./ui/primitives";
+
 /**
  * Human-readable provider names. Shown so the UI never implies data came from
  * somewhere it did not.
@@ -26,7 +28,7 @@ export function OsmAttribution({ className = "" }: { className?: string }) {
         href="https://www.openstreetmap.org/copyright"
         target="_blank"
         rel="noopener noreferrer"
-        className="underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:hover:text-slate-100"
+        className={`underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100 ${FOCUS_RING}`}
       >
         OpenStreetMap
       </a>{" "}
@@ -35,7 +37,7 @@ export function OsmAttribution({ className = "" }: { className?: string }) {
         href="https://opendatacommons.org/licenses/odbl/1-0/"
         target="_blank"
         rel="noopener noreferrer"
-        className="underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:hover:text-slate-100"
+        className={`underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100 ${FOCUS_RING}`}
       >
         Open Database License (ODbL) 1.0
       </a>
@@ -47,8 +49,6 @@ export function OsmAttribution({ className = "" }: { className?: string }) {
 /** Small provenance label for a single lead. */
 export function SourceBadge({ source }: { source: BusinessSource }) {
   return (
-    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-      Source: {SOURCE_LABELS[source]}
-    </span>
+    <Badge tone="slate">Source: {SOURCE_LABELS[source]}</Badge>
   );
 }

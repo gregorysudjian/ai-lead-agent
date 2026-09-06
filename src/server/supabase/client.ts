@@ -36,8 +36,3 @@ export function getSupabaseClient(): SupabaseClient {
 
   return cached;
 }
-
-/** Test seam: drops the memoized client so configuration changes take effect. */
-export function resetSupabaseClient(): void {
-  cached = null;
-}

@@ -8,6 +8,7 @@
  * phrasing; putting the label in one function means no component can casually
  * render "has no website".
  */
+import { isUsableRating, isUsableReviewCount } from "./scoring";
 import type { Lead, OpeningHours, Weekday } from "./types";
 
 /** Placeholder for a field the provider did not return. */
@@ -114,6 +115,24 @@ export function websiteBadgeLabel(website: string | null): string {
   if (rendering.kind === "none") return "No website listed";
   if (rendering.kind === "unlinkable") return "Website value unusable";
   return "Website listed";
+}
+
+/**
+ * Whether the provider supplied any reputation data at all.
+ *
+ * Dense list views use this to omit a reputation line entirely rather than
+ * repeating "Unrated - Reviews unknown" on every row. OpenStreetMap never
+ * supplies either field, so without this every OSM row carries the same
+ * zero-information string.
+ *
+ * This hides an EMPTY line, never a value: detail views still state plainly
+ * that the provider listed no rating or review count.
+ */
+export function hasProviderReputation(provider: {
+  rating: number | null;
+  reviewCount: number | null;
+}): boolean {
+  return isUsableRating(provider.rating) || isUsableReviewCount(provider.reviewCount);
 }
 
 /** True when the provider returned no website. A signal, never a confirmed fact. */
