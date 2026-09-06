@@ -146,11 +146,15 @@ describe("service_role privileges are tightened to CRUD only", () => {
     expect(grant).toBeGreaterThan(revoke);
   });
 
-  it("does not revoke from, or grant to, anon or authenticated in the new migration", () => {
-    // They already hold nothing; this migration's blast radius is one role.
-    const revokes = sql.split("\n").filter((l) => l.startsWith("revoke "));
-    expect(revokes.some((r) => r.includes("service_role"))).toBe(true);
-    for (const revoke of revokes.filter((r) => r.includes("service_role"))) {
+  it("does not change anon or authenticated access to the leads TABLE", () => {
+    // They already hold nothing; the leads privilege migration touches one role.
+    // Scoped to direct table revokes: a separate migration legitimately revokes
+    // DEFAULT privileges from all three roles at once, and that is not this rule.
+    const tableRevokes = sql
+      .split("\n")
+      .filter((l) => l.startsWith("revoke ") && l.includes("on table public.leads"));
+    expect(tableRevokes.some((r) => r.includes("service_role"))).toBe(true);
+    for (const revoke of tableRevokes.filter((r) => r.includes("service_role"))) {
       expect(revoke).not.toContain("anon");
       expect(revoke).not.toContain("authenticated");
     }
@@ -163,6 +167,63 @@ describe("service_role privileges are tightened to CRUD only", () => {
 
   it("does not alter table data, columns or indexes", () => {
     for (const forbidden of ["drop table", "drop index", "alter column", "delete from", "truncate", "insert into"]) {
+      expect(sql).not.toContain(forbidden);
+    }
+  });
+});
+
+describe("future tables inherit no privileges", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("revokes default TABLE privileges from every API-facing role", () => {
+    // Without this, ALTER DEFAULT PRIVILEGES for schema public silently grants
+    // Dxtm (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN) on every new table.
+    expect(sql).toContain(
+      "alter default privileges for role postgres in schema public",
+    );
+    expect(sql).toContain("revoke all on tables from anon, authenticated, service_role");
+  });
+
+  it("revokes default SEQUENCE privileges from the same roles", () => {
+    expect(sql).toContain("revoke all on sequences from anon, authenticated, service_role");
+  });
+
+  it("uses REVOKE ALL rather than enumerating today's privilege letters", () => {
+    // Future-proofing: if a default grant ever widens, ALL still yields zero.
+    for (const narrow of [
+      "revoke truncate on tables",
+      "revoke references on tables",
+      "revoke trigger on tables",
+    ]) {
+      expect(sql).not.toContain(narrow);
+    }
+  });
+
+  it("never GRANTS a default privilege to an API role", () => {
+    const defaultGrants = sql
+      .split("\n")
+      .filter((l) => l.includes("alter default privileges") || l.startsWith("grant "));
+    for (const line of defaultGrants) {
+      if (!line.includes("alter default privileges")) continue;
+      expect(line).not.toContain("grant");
+    }
+  });
+
+  it("does not touch defaults owned by supabase_admin or other internal roles", () => {
+    // Those govern Supabase's own managed objects; changing them is out of scope.
+    expect(sql).not.toContain("for role supabase_admin");
+    expect(sql).not.toContain("for role supabase_auth_admin");
+    expect(sql).not.toContain("for role authenticator");
+  });
+
+  it("targets only schema public", () => {
+    const lines = sql.split("\n").filter((l) => l.includes("alter default privileges"));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line).toContain("in schema public");
+  });
+
+  it("changes no existing object", () => {
+    for (const forbidden of ["drop table", "alter table public.leads drop", "delete from", "insert into"]) {
       expect(sql).not.toContain(forbidden);
     }
   });
