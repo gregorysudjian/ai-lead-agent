@@ -120,3 +120,50 @@ describe("migration schema properties", () => {
     }
   });
 });
+
+describe("service_role privileges are tightened to CRUD only", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("revokes every direct privilege from service_role before re-granting", () => {
+    // Necessary because ALTER DEFAULT PRIVILEGES for schema public grants
+    // `Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN) to service_role on every new
+    // table. Granting CRUD alone would leave those extras in place.
+    expect(sql).toContain("revoke all on table public.leads from service_role");
+  });
+
+  it("re-grants exactly the four verbs the application uses", () => {
+    expect(sql).toContain(
+      "grant select, insert, update, delete on table public.leads to service_role",
+    );
+  });
+
+  it("the revoke precedes the grant, so CRUD survives", () => {
+    const revoke = sql.indexOf("revoke all on table public.leads from service_role");
+    const grant = sql.lastIndexOf(
+      "grant select, insert, update, delete on table public.leads to service_role",
+    );
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+  });
+
+  it("does not revoke from, or grant to, anon or authenticated in the new migration", () => {
+    // They already hold nothing; this migration's blast radius is one role.
+    const revokes = sql.split("\n").filter((l) => l.startsWith("revoke "));
+    expect(revokes.some((r) => r.includes("service_role"))).toBe(true);
+    for (const revoke of revokes.filter((r) => r.includes("service_role"))) {
+      expect(revoke).not.toContain("anon");
+      expect(revoke).not.toContain("authenticated");
+    }
+  });
+
+  it("never disables RLS or adds a policy", () => {
+    expect(sql).not.toContain("disable row level security");
+    expect(sql).not.toContain("create policy");
+  });
+
+  it("does not alter table data, columns or indexes", () => {
+    for (const forbidden of ["drop table", "drop index", "alter column", "delete from", "truncate", "insert into"]) {
+      expect(sql).not.toContain(forbidden);
+    }
+  });
+});
