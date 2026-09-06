@@ -2,6 +2,9 @@ import "server-only";
 
 import { leadRepositoryName } from "@/server/env";
 
+import { InMemoryAnalysisTableGateway } from "./analysis-table";
+import { createAnalysisRepository, supabaseAnalysisRepository } from "./analysis-supabase";
+import type { AnalysisRepository } from "./analysis-types";
 import { jsonLeadRepository } from "./json";
 import { supabaseLeadRepository } from "./supabase";
 import type { LeadRepository } from "./types";
@@ -16,6 +19,9 @@ import type { LeadRepository } from "./types";
  * No caller changes when the store changes: they all depend on the
  * `LeadRepository` interface rather than on an implementation.
  */
+/** Process-lifetime analysis store for the local (non-Supabase) configuration. */
+const localAnalysisGateway = new InMemoryAnalysisTableGateway();
+
 export function getLeadRepository(): LeadRepository {
   const name = leadRepositoryName();
 
@@ -29,3 +35,25 @@ export function getLeadRepository(): LeadRepository {
 
 export { LeadRepositoryError } from "./types";
 export type { LeadRepository, UpsertSummary } from "./types";
+
+/**
+ * Resolve the analysis repository.
+ *
+ * Follows the same selector as leads: Supabase when selected, otherwise an
+ * in-process store. The JSON lead store has no analysis file backing, so the
+ * local path uses an in-memory gateway -- adequate for development, and
+ * explicitly not durable.
+ */
+export function getAnalysisRepository(): AnalysisRepository {
+  const name = leadRepositoryName();
+
+  switch (name) {
+    case "json":
+      return createAnalysisRepository(localAnalysisGateway);
+    case "supabase":
+      return supabaseAnalysisRepository();
+  }
+}
+
+export type { AnalysisRepository } from "./analysis-types";
+export { AnalysisRepositoryError } from "./analysis-types";

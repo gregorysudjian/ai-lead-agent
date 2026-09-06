@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AnalysisPanel } from "@/components/analysis-panel";
 import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { PriorityBadge, StatusBadge } from "@/components/lead-row";
 import { StatusToggle } from "@/components/status-toggle";
@@ -23,6 +24,8 @@ import {
 import { osmObjectUrl } from "@/lib/osm/normalize";
 import { MAX_SCORE, PRIORITY_LABELS, scoreLead } from "@/lib/scoring";
 import type { OpeningHours } from "@/lib/types";
+import { getAnalysisProvider } from "@/server/analysis";
+import { analysesForLead } from "@/server/analysis-service";
 import { getLeadRepository } from "@/server/repo";
 
 /**
@@ -49,6 +52,16 @@ export default async function LeadDetailPage({
   }
 
   if (!lead) notFound();
+
+  // Analyses are read here rather than fetched by the client, keeping the page
+  // a Server Component. A read failure must not break the lead page itself.
+  let analyses: Awaited<ReturnType<typeof analysesForLead>> = [];
+  try {
+    analyses = await analysesForLead(id);
+  } catch (error) {
+    console.error(`[lead ${id}] could not read analyses:`, error);
+  }
+  const analysisProviderIsMock = getAnalysisProvider().name === "mock";
 
   const { provider } = lead;
   const score = scoreLead(lead);
@@ -142,6 +155,12 @@ export default async function LeadDetailPage({
           ) : null}
         </div>
       </Card>
+
+      <AnalysisPanel
+        leadId={lead.id}
+        analyses={analyses}
+        providerIsMock={analysisProviderIsMock}
+      />
 
       <Card className="p-5">
         <SectionHeading
