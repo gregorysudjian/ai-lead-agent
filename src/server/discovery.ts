@@ -2,6 +2,7 @@ import "server-only";
 
 import type { BusinessSearchQuery, DiscoveredBusiness } from "@/lib/types";
 import { getPlacesProvider } from "@/server/places";
+import type { ProviderSearchMeta } from "@/server/places/types";
 import { getLeadRepository } from "@/server/repo";
 
 /**
@@ -17,21 +18,27 @@ export interface DiscoveryResult {
   query: BusinessSearchQuery;
   results: DiscoveredBusiness[];
   saved: { created: number; updated: number };
+  /**
+   * Facts about the search itself, passed straight through from the provider.
+   * Request-level only -- never written into a Lead.
+   */
+  meta: ProviderSearchMeta;
 }
 
 export async function discoverAndSaveLeads(
   query: BusinessSearchQuery,
 ): Promise<DiscoveryResult> {
   const provider = getPlacesProvider();
-  const results = await provider.search(query);
+  const { businesses, meta } = await provider.search(query);
 
   // Persist before returning. If this throws, the caller reports a failure --
   // we must never claim a search succeeded when nothing was stored.
-  const summary = await getLeadRepository().upsertDiscovered(results);
+  const summary = await getLeadRepository().upsertDiscovered(businesses);
 
   return {
     query,
-    results,
+    results: businesses,
     saved: { created: summary.created, updated: summary.updated },
+    meta,
   };
 }

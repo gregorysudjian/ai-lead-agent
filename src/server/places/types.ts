@@ -25,8 +25,11 @@ export interface PlacesProvider {
    * Async even though the mock resolves immediately: real providers are network
    * calls, and baking that into the contract now means the call sites written in
    * Phase 1 keep working unchanged in Phase 5.
+   *
+   * Returns the businesses AND metadata about the search, so a capped result set
+   * can be reported honestly instead of looking like a complete one.
    */
-  search(query: BusinessSearchQuery): Promise<DiscoveredBusiness[]>;
+  search(query: BusinessSearchQuery): Promise<ProviderSearchResult>;
 }
 
 /**
@@ -58,4 +61,28 @@ export class ProviderUnavailableError extends Error {
     super(message, options);
     this.name = "ProviderUnavailableError";
   }
+}
+
+/**
+ * What a provider reports about the search itself, as opposed to the businesses.
+ *
+ * Request-level metadata: it describes one search, not any lead, and is never
+ * persisted. A stored lead would have no meaningful "truncated" value.
+ */
+export interface ProviderSearchMeta {
+  /**
+   * True when the upstream query reached its cap, so more matching businesses
+   * may exist. Deliberately conservative: it reflects whether the PROVIDER
+   * query hit its limit, so it can remain true even if some returned records
+   * were later skipped as unusable -- there may still be more upstream.
+   */
+  truncated: boolean;
+  /** Max businesses this provider returns per search; null when uncapped. */
+  limit: number | null;
+}
+
+/** A provider search: the businesses found, plus facts about the search. */
+export interface ProviderSearchResult {
+  businesses: DiscoveredBusiness[];
+  meta: ProviderSearchMeta;
 }

@@ -6,6 +6,7 @@
  * carried into `DiscoveredBusiness` -- we persist what the domain needs and
  * nothing more.
  */
+import { classifyOsmCategory, type SupportedCategory } from "./categories";
 import type { DiscoveredBusiness } from "../types";
 
 export type OsmElementType = "node" | "way" | "relation";
@@ -108,8 +109,14 @@ export function buildOsmAddress(tags: Record<string, string>): string | null {
 }
 
 export interface NormalizeOptions {
-  /** Canonical category label from our registry, not an OSM tag value. */
-  categoryLabel: string;
+  /**
+   * The registry category the search resolved to.
+   *
+   * Used as the fallback label. When the element's own tags identify a known
+   * subtype (a barber, a nail salon), that subtype wins instead -- so the stored
+   * category does not flip depending on which overlapping search ran last.
+   */
+  requestedCategory: SupportedCategory;
   /** Canonical city label from our registry. */
   cityLabel: string;
   /** ISO timestamp, supplied by the caller so this function stays pure. */
@@ -144,7 +151,7 @@ export function normalizeOsmElement(
     externalId: osmExternalId(element),
     source: "osm",
     name,
-    category: options.categoryLabel,
+    category: classifyOsmCategory(tags, options.requestedCategory),
     city: options.cityLabel,
     address: buildOsmAddress(tags),
     phone: firstTagValue(tags, PHONE_KEYS),

@@ -119,3 +119,47 @@ export function resolveSupportedCategory(input: string): SupportedCategory | nul
 export function supportedCategoryLabels(): string[] {
   return SUPPORTED_CATEGORIES.map((category) => category.label);
 }
+
+/**
+ * Deterministic subtype classification from the element's own OSM tags.
+ *
+ * Several registry categories legitimately overlap: a barber shop is tagged
+ * `shop=hairdresser` + `hairdresser=barber`, so it matches BOTH the "hair salon"
+ * and "barber" searches. Without this, the stored category depended on whichever
+ * overlapping search ran most recently -- searching "hair salons" then "barber"
+ * would rewrite the same business from "Hair salon" to "Barber shop" and back,
+ * because rediscovery replaces the whole provider snapshot.
+ *
+ * The tags themselves are the stable authority: when they identify a known
+ * subtype, that subtype wins regardless of what the user typed. Otherwise the
+ * requested category's canonical label is used.
+ *
+ * Ordered most specific first. Purely tag-driven -- no fuzzy matching, no
+ * external lookup, no classifier.
+ */
+const SUBTYPE_RULES: readonly { tags: OsmTagSelector; categoryKey: string }[] = [
+  { tags: { shop: "hairdresser", hairdresser: "barber" }, categoryKey: "barber" },
+  { tags: { shop: "beauty", beauty: "nails" }, categoryKey: "nail-salon" },
+];
+
+function matchesAllTags(tags: Record<string, string>, selector: OsmTagSelector): boolean {
+  return Object.entries(selector).every(([key, value]) => tags[key] === value);
+}
+
+/**
+ * The category label to store for an element.
+ *
+ * @param tags          the element's OSM tags
+ * @param requested     the registry category the user's search resolved to
+ */
+export function classifyOsmCategory(
+  tags: Record<string, string>,
+  requested: SupportedCategory,
+): string {
+  for (const rule of SUBTYPE_RULES) {
+    if (!matchesAllTags(tags, rule.tags)) continue;
+    const subtype = SUPPORTED_CATEGORIES.find((c) => c.key === rule.categoryKey);
+    if (subtype) return subtype.label;
+  }
+  return requested.label;
+}

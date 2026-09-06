@@ -7,6 +7,9 @@ interface SearchOutcome {
   discovered: number;
   created: number;
   updated: number;
+  /** The provider capped this search, so more matches may exist upstream. */
+  truncated: boolean;
+  limit: number | null;
 }
 
 /**
@@ -55,6 +58,8 @@ export function SearchPanel() {
         discovered: body.count,
         created: body.saved.created,
         updated: body.saved.updated,
+        truncated: body.meta?.truncated === true,
+        limit: typeof body.meta?.limit === "number" ? body.meta.limit : null,
       });
       startTransition(() => router.refresh());
     } catch {
@@ -126,13 +131,24 @@ export function SearchPanel() {
               No businesses found for that category and city.
             </p>
           ) : (
-            <p className="text-slate-700 dark:text-slate-300">
-              <strong>{outcome.discovered}</strong> businesses discovered &middot;{" "}
-              <strong>{outcome.created}</strong> new{" "}
-              {outcome.created === 1 ? "lead" : "leads"} &middot;{" "}
-              <strong>{outcome.updated}</strong> existing{" "}
-              {outcome.updated === 1 ? "lead" : "leads"} refreshed
-            </p>
+            <>
+              <p className="text-slate-700 dark:text-slate-300">
+                <strong>{outcome.discovered}</strong> businesses discovered &middot;{" "}
+                <strong>{outcome.created}</strong> new{" "}
+                {outcome.created === 1 ? "lead" : "leads"} &middot;{" "}
+                <strong>{outcome.updated}</strong> existing{" "}
+                {outcome.updated === 1 ? "lead" : "leads"} refreshed
+              </p>
+              {/* Informational, not a failure: the search was capped, so the
+                  user knows this is not necessarily the complete set. We do NOT
+                  fetch the next page automatically. */}
+              {outcome.truncated ? (
+                <p className="mt-1 text-slate-600 dark:text-slate-400">
+                  Search reached the {outcome.limit ?? "result"} result limit. More
+                  matching businesses may exist.
+                </p>
+              ) : null}
+            </>
           )
         ) : null}
       </div>

@@ -19,7 +19,7 @@ import type { Lead, ProviderSnapshot } from "./types";
 
 export type LeadPriority = "high" | "medium" | "low";
 
-export type ScoreFactorKey = "website" | "reviews" | "rating" | "contactability";
+export type ScoreFactorKey = "website" | "phone" | "address" | "reviews" | "rating";
 
 export interface ScoreFactor {
   key: ScoreFactorKey;
@@ -38,10 +38,26 @@ export interface LeadScore {
 
 export const MAX_SCORE = 100;
 
-const MAX_WEBSITE = 45;
-const MAX_REVIEWS = 30;
-const MAX_RATING = 15;
-const MAX_CONTACT = 10;
+/**
+ * Weights (V2). Reputation is worth 20 of 100, down from 45.
+ *
+ * The V1 rubric was written while every fixture carried a rating and a review
+ * count. Real providers do not: OpenStreetMap supplies neither, which capped
+ * every real lead at 55/100 and made "High priority" unreachable for actual
+ * businesses.
+ *
+ * The fix is NOT to rescale a provider's reachable maximum to 100 -- that would
+ * make a score built on less evidence look identical to one built on more.
+ * Instead the weights now sit on signals every provider can supply (is a website
+ * listed, can we contact them), with reputation as a genuine bonus a richer
+ * provider may add. The same field values always produce the same score, so the
+ * model stays provider-independent.
+ */
+const MAX_WEBSITE = 50;
+const MAX_PHONE = 20;
+const MAX_ADDRESS = 10;
+const MAX_REVIEWS = 15;
+const MAX_RATING = 5;
 
 /**
  * Which provider numbers we are willing to interpret.
@@ -61,6 +77,16 @@ export function isUsableReviewCount(value: number | null): value is number {
 /** A rating we can interpret: finite and inside the 0-5 scale. */
 export function isUsableRating(value: number | null): value is number {
   return value !== null && Number.isFinite(value) && value >= 0 && value <= 5;
+}
+
+/**
+ * A text field the provider actually supplied.
+ *
+ * Shared by the phone and address factors: whitespace-only is treated as absent,
+ * so a provider padding a field cannot earn points for nothing.
+ */
+export function isUsableText(value: string | null): value is string {
+  return value !== null && value.trim().length > 0;
 }
 
 /**
@@ -104,12 +130,12 @@ function scoreReviews(provider: ProviderSnapshot): ScoreFactor {
   }
 
   const reason = `${count} review${count === 1 ? "" : "s"} listed by provider`;
-  if (count >= 200) return { ...base, points: 30, reason };
-  if (count >= 100) return { ...base, points: 25, reason };
-  if (count >= 50) return { ...base, points: 20, reason };
-  if (count >= 20) return { ...base, points: 15, reason };
-  if (count >= 5) return { ...base, points: 10, reason };
-  return { ...base, points: 5, reason };
+  if (count >= 200) return { ...base, points: 15, reason };
+  if (count >= 100) return { ...base, points: 12, reason };
+  if (count >= 50) return { ...base, points: 10, reason };
+  if (count >= 20) return { ...base, points: 7, reason };
+  if (count >= 5) return { ...base, points: 4, reason };
+  return { ...base, points: 2, reason };
 }
 
 /**
@@ -135,26 +161,38 @@ function scoreRating(provider: ProviderSnapshot): ScoreFactor {
   }
 
   const reason = `${rating} rating listed by provider`;
-  if (rating >= 4.7) return { ...base, points: 15, reason };
-  if (rating >= 4.4) return { ...base, points: 12, reason };
-  if (rating >= 4.0) return { ...base, points: 8, reason };
-  if (rating >= 3.5) return { ...base, points: 4, reason };
+  if (rating >= 4.7) return { ...base, points: 5, reason };
+  if (rating >= 4.4) return { ...base, points: 4, reason };
+  if (rating >= 4.0) return { ...base, points: 2, reason };
+  if (rating >= 3.5) return { ...base, points: 1, reason };
   return { ...base, points: 0, reason };
 }
 
-/** Contactability. Whether we could reach them, nothing more. */
-function scoreContactability(provider: ProviderSnapshot): ScoreFactor {
-  const base = {
-    key: "contactability" as const,
-    label: "Contactability",
-    maxPoints: MAX_CONTACT,
-  };
+/**
+ * Phone. Whether we could reach them, nothing more.
+ *
+ * Says nothing about the business's quality or its interest in buying anything.
+ */
+function scorePhone(provider: ProviderSnapshot): ScoreFactor {
+  const base = { key: "phone" as const, label: "Phone", maxPoints: MAX_PHONE };
 
-  const phone = provider.phone;
-  if (phone !== null && phone.trim().length > 0) {
-    return { ...base, points: MAX_CONTACT, reason: "Phone listed by provider" };
+  if (isUsableText(provider.phone)) {
+    return { ...base, points: MAX_PHONE, reason: "Phone listed by provider" };
   }
   return { ...base, points: 0, reason: "No phone listed by provider" };
+}
+
+/**
+ * Address. A lead-review signal: knowing where a business is makes it reviewable
+ * and identifiable. Like phone, it is not evidence about the business itself.
+ */
+function scoreAddress(provider: ProviderSnapshot): ScoreFactor {
+  const base = { key: "address" as const, label: "Address", maxPoints: MAX_ADDRESS };
+
+  if (isUsableText(provider.address)) {
+    return { ...base, points: MAX_ADDRESS, reason: "Address listed by provider" };
+  }
+  return { ...base, points: 0, reason: "No address listed by provider" };
 }
 
 /** 70+ high, 40-69 medium, below 40 low. Review order, not likelihood of sale. */
@@ -170,9 +208,10 @@ export function priorityForScore(total: number): LeadPriority {
 export function scoreLead(lead: Lead): LeadScore {
   const factors: ScoreFactor[] = [
     scoreWebsite(lead.provider),
+    scorePhone(lead.provider),
+    scoreAddress(lead.provider),
     scoreReviews(lead.provider),
     scoreRating(lead.provider),
-    scoreContactability(lead.provider),
   ];
 
   const total = factors.reduce((sum, factor) => sum + factor.points, 0);

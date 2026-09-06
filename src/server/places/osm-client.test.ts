@@ -212,9 +212,9 @@ describe("O. response handling", () => {
       }),
     );
 
-    const results = await provider(impl).search(QUERY);
-    expect(results).toHaveLength(2);
-    expect(results[0]).toEqual({
+    const { businesses } = await provider(impl).search(QUERY);
+    expect(businesses).toHaveLength(2);
+    expect(businesses[0]).toEqual({
       externalId: "node/42",
       source: "osm",
       name: "Salon Réel",
@@ -229,14 +229,16 @@ describe("O. response handling", () => {
       fetchedAt: "2026-09-05T12:00:00.000Z",
     });
     // Same numeric id, different element type -> distinct leads.
-    expect(results[1].externalId).toBe("way/42");
+    expect(businesses[1].externalId).toBe("way/42");
     // Raw tags never reach the domain object.
-    expect(JSON.stringify(results)).not.toContain("wheelchair");
+    expect(JSON.stringify(businesses)).not.toContain("wheelchair");
   });
 
   it("returns an empty array when the area has no matches", async () => {
     const { impl } = stubFetch(() => ok({ elements: [] }));
-    await expect(provider(impl).search(QUERY)).resolves.toEqual([]);
+    const result = await provider(impl).search(QUERY);
+    expect(result.businesses).toEqual([]);
+    expect(result.meta).toEqual({ truncated: false, limit: 60 });
   });
 
   it("caps the number of businesses returned", async () => {
@@ -249,8 +251,8 @@ describe("O. response handling", () => {
         })),
       }),
     );
-    const results = await provider(impl).search(QUERY);
-    expect(results.length).toBeLessThanOrEqual(60);
+    const { businesses } = await provider(impl).search(QUERY);
+    expect(businesses.length).toBeLessThanOrEqual(60);
   });
 
   it("issues one request per search - no crawling of other categories", async () => {
@@ -284,6 +286,7 @@ describe("in-memory cache", () => {
 
     expect(calls).toHaveLength(1);
     expect(second).toEqual(first);
+    expect(second.meta).toEqual(first.meta);
   });
 
   it("collapses concurrent identical searches into one upstream request", async () => {
@@ -303,5 +306,114 @@ describe("in-memory cache", () => {
     const [ra, rb] = await Promise.all([a, b]);
     expect(calls).toHaveLength(1);
     expect(ra).toEqual(rb);
+  });
+});
+
+describe("truncation sentinel", () => {
+  const elements = (n: number, opts: { unusable?: number } = {}) => {
+    const usable = Array.from({ length: n - (opts.unusable ?? 0) }, (_, i) => ({
+      type: "node", id: i + 1, tags: { name: `Salon ${i + 1}` },
+    }));
+    const junk = Array.from({ length: opts.unusable ?? 0 }, (_, i) => ({
+      type: "node", id: 100000 + i, // no name tag -> skipped by normalization
+    }));
+    return [...usable, ...junk];
+  };
+
+  it("requests 61 elements while showing at most 60", async () => {
+    const { impl, calls } = stubFetch(() => ok({ elements: [] }));
+    await provider(impl).search(QUERY);
+    // Parse the form body properly: URLSearchParams encodes spaces as "+".
+    const sent = new URLSearchParams(calls[0].init.body).get("data") ?? "";
+    expect(sent).toContain("out center tags 61;");
+    expect(sent).not.toContain("out center tags 60;");
+  });
+
+  it.each([
+    [0, false], [1, false], [59, false], [60, false],
+  ])("%i upstream elements -> truncated %s", async (n, truncated) => {
+    const { impl } = stubFetch(() => ok({ elements: elements(n) }));
+    const result = await provider(impl).search(QUERY);
+    expect(result.businesses).toHaveLength(n);
+    expect(result.meta.truncated).toBe(truncated);
+    expect(result.meta.limit).toBe(60);
+  });
+
+  it("61 upstream elements -> truncated true, at most 60 returned", async () => {
+    const { impl } = stubFetch(() => ok({ elements: elements(61) }));
+    const result = await provider(impl).search(QUERY);
+    expect(result.meta.truncated).toBe(true);
+    expect(result.businesses).toHaveLength(60);
+    expect(result.businesses.length).toBeLessThanOrEqual(60);
+    expect(result.meta.limit).toBe(60);
+  });
+
+  it("stays truncated when some of the 61 are unusable (conservative)", async () => {
+    // 61 upstream elements, 10 nameless. Only 51 normalize -- but the PROVIDER
+    // query still hit its cap, so more matching records may exist upstream.
+    const { impl } = stubFetch(() => ok({ elements: elements(61, { unusable: 10 }) }));
+    const result = await provider(impl).search(QUERY);
+    expect(result.businesses).toHaveLength(51);
+    expect(result.meta.truncated).toBe(true);
+  });
+
+  it("does not fetch again to backfill skipped records", async () => {
+    const { impl, calls } = stubFetch(() => ok({ elements: elements(61, { unusable: 30 }) }));
+    await provider(impl).search(QUERY);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("never reports truncated for an under-cap result even with unusable records", async () => {
+    const { impl } = stubFetch(() => ok({ elements: elements(40, { unusable: 15 }) }));
+    const result = await provider(impl).search(QUERY);
+    expect(result.businesses).toHaveLength(25);
+    expect(result.meta.truncated).toBe(false);
+  });
+});
+
+describe("cache preserves search metadata", () => {
+  it("a cache hit reports the same businesses AND the same truncation flag", async () => {
+    const many = Array.from({ length: 61 }, (_, i) => ({
+      type: "node", id: i + 1, tags: { name: `Cached ${i + 1}` },
+    }));
+    const { impl, calls } = stubFetch(() => ok({ elements: many }));
+    const cached = createOpenStreetMapProvider({
+      fetchImpl: impl, endpoint: ENDPOINT,
+      now: () => new Date("2026-09-05T12:00:00.000Z"), useCache: true,
+    });
+
+    const first = await cached.search({ category: "gym", city: "Montreal" });
+    const second = await cached.search({ category: "gym", city: "Montreal" });
+
+    expect(calls).toHaveLength(1);
+    expect(first.meta).toEqual({ truncated: true, limit: 60 });
+    expect(second.meta).toEqual(first.meta);
+    expect(second.businesses).toEqual(first.businesses);
+    expect(second).toEqual(first);
+  });
+
+  it("concurrent identical searches share one upstream call and one result", async () => {
+    let resolveResponse: (v: Awaited<ReturnType<FetchLike>>) => void = () => {};
+    const pending = new Promise<Awaited<ReturnType<FetchLike>>>((r) => {
+      resolveResponse = r;
+    });
+    const { impl, calls } = stubFetch(() => pending);
+    const cached = createOpenStreetMapProvider({
+      fetchImpl: impl, endpoint: ENDPOINT, useCache: true,
+    });
+
+    // A category no other test caches: the in-memory cache is module-level and
+    // shared across the file, so reusing a key would silently skip the fetch.
+    const a = cached.search({ category: "car repair", city: "Montreal" });
+    const b = cached.search({ category: "car repair", city: "Montreal" });
+    resolveResponse(
+      ok({ elements: Array.from({ length: 61 }, (_, i) => ({
+        type: "node", id: i + 1, tags: { name: `X${i}` } })) }),
+    );
+
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(calls).toHaveLength(1);
+    expect(ra.meta.truncated).toBe(true);
+    expect(rb.meta).toEqual(ra.meta);
   });
 });
