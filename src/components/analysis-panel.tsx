@@ -8,6 +8,19 @@ import { RECOMMENDED_SITE_TYPE_LABELS, type Analysis } from "@/lib/analysis";
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, SectionHeading } from "./ui/primitives";
 
 /**
+ * Display names for analysers. Unknown names fall through to the raw value
+ * rather than being guessed at, so a stored analysis is never mislabelled.
+ */
+const ANALYSER_LABELS: Record<string, string> = {
+  mock: "Mock analyser",
+  anthropic: "Claude (Anthropic)",
+};
+
+function analyserLabel(name: string): string {
+  return ANALYSER_LABELS[name] ?? name;
+}
+
+/**
  * The website-strategy workspace for one lead.
  *
  * A Client Component because it owns the request lifecycle. It POSTs to the
@@ -19,11 +32,16 @@ import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, SectionHeading } from ".
 export function AnalysisPanel({
   leadId,
   analyses,
-  providerIsMock,
+  configuredProvider,
 }: {
   leadId: string;
   analyses: Analysis[];
-  providerIsMock: boolean;
+  /**
+   * The analyser a NEW run would use. Provenance for an analysis already
+   * stored comes from that record's own `provider`, never from this -- a mock
+   * analysis stays labelled mock after the configuration changes.
+   */
+  configuredProvider: { name: string; model: string };
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +51,8 @@ export function AnalysisPanel({
 
   const busy = isAnalysing || isRefreshing;
   const selected = analyses.find((a) => a.id === selectedId) ?? analyses[0] ?? null;
+  const nextRunIsMock = configuredProvider.name === "mock";
+  const selectedIsMock = selected?.provider.name === "mock";
 
   async function handleAnalyse() {
     if (busy) return;
@@ -69,11 +89,16 @@ export function AnalysisPanel({
           hint="AI-generated recommendations. Provider-listed facts are shown separately and are not invented."
         />
         <div className="flex shrink-0 items-center gap-2">
-          {providerIsMock ? (
-            <Badge tone="amber" title="No language model is connected; output is rule-based">
-              Mock analyser
-            </Badge>
-          ) : null}
+          <Badge
+            tone={nextRunIsMock ? "amber" : "indigo"}
+            title={
+              nextRunIsMock
+                ? "No language model is connected; a new run is rule-based"
+                : `A new run uses ${configuredProvider.model}`
+            }
+          >
+            {analyserLabel(configuredProvider.name)}
+          </Badge>
           <button type="button" onClick={handleAnalyse} disabled={busy} className={BUTTON_PRIMARY}>
             {busy ? "Analyzing…" : analyses.length > 0 ? "Re-analyze" : "Analyze business"}
           </button>
@@ -98,7 +123,7 @@ export function AnalysisPanel({
         ) : null}
       </div>
 
-      {providerIsMock && analyses.length > 0 ? (
+      {selectedIsMock ? (
         <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           This analysis was produced by a deterministic rule-based analyser, not a language
           model. It is structurally realistic but not a substitute for judgement.
@@ -235,10 +260,12 @@ function AnalysisView({ analysis }: { analysis: Analysis }) {
         <List items={analysis.limitations} />
       </section>
 
+      {/* Provenance comes from the stored record, so it stays accurate after
+          the configured analyser changes. */}
       <p className="text-xs text-slate-500 dark:text-slate-500">
         Generated {analysis.createdAt.slice(0, 16).replace("T", " ")} by{" "}
-        {analysis.provider.name} ({analysis.provider.model}) from a provider snapshot
-        fetched {facts.snapshotFetchedAt.slice(0, 16).replace("T", " ")}.
+        {analyserLabel(analysis.provider.name)} ({analysis.provider.model}) from a provider
+        snapshot fetched {facts.snapshotFetchedAt.slice(0, 16).replace("T", " ")}.
       </p>
     </div>
   );

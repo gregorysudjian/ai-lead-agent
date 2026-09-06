@@ -131,3 +131,53 @@ export function supabaseConfig(): SupabaseConfig {
 
   return { url: url!, secretKey: secretKey! };
 }
+
+// ---------------------------------------------------------------------------
+// Analysis
+// ---------------------------------------------------------------------------
+
+export type AnalysisProviderName = "mock" | "anthropic";
+
+const VALID_ANALYSIS_PROVIDERS: readonly AnalysisProviderName[] = ["mock", "anthropic"];
+
+/**
+ * Which analyser to use. Defaults to "mock".
+ *
+ * Defaulting to the mock is a safety property: a missing or empty variable can
+ * never cause an accidental paid API call. Enabling Claude is a deliberate act.
+ *
+ * An unrecognised value throws rather than silently falling back -- and there is
+ * deliberately NO fallback from "anthropic" to "mock" on failure either. If the
+ * app is configured for Claude and Claude fails, that is reported, not papered
+ * over with fixture-quality output presented as a real analysis.
+ */
+export function analysisProviderName(): AnalysisProviderName {
+  const raw = process.env.ANALYSIS_PROVIDER?.trim().toLowerCase();
+  if (!raw) return "mock";
+
+  const match = VALID_ANALYSIS_PROVIDERS.find((name) => name === raw);
+  if (!match) {
+    throw new Error(
+      `Invalid ANALYSIS_PROVIDER: expected one of ${VALID_ANALYSIS_PROVIDERS.join(", ")}.`,
+    );
+  }
+  return match;
+}
+
+/**
+ * The Anthropic API key.
+ *
+ * Returns the value for immediate use by the server-side client and nothing
+ * else. The key is never logged, echoed, or included in an error: the message
+ * below names the VARIABLE, never any value.
+ */
+export function anthropicApiKey(): string {
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      "ANALYSIS_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set. " +
+        "Set ANALYSIS_PROVIDER=mock to use the offline analyser instead.",
+    );
+  }
+  return key;
+}

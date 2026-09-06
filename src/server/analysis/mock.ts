@@ -1,8 +1,10 @@
 import "server-only";
 
-import type { AnalysisDraft, RecommendedSiteType } from "@/lib/analysis";
-import { isUsableText } from "@/lib/scoring";
-import type { Lead, ProviderSnapshot } from "@/lib/types";
+import type {
+  AnalysisProviderInput,
+  AnalysisProviderResult,
+  RecommendedSiteType,
+} from "@/lib/analysis";
 
 import { AnalysisProviderError, type AnalysisProvider } from "./types";
 
@@ -59,22 +61,6 @@ function pagesFor(siteType: RecommendedSiteType, category: string): string[] {
   }
 }
 
-/** Facts copied verbatim from the snapshot. Nothing here is inferred. */
-function factsFrom(provider: ProviderSnapshot) {
-  return {
-    businessName: provider.name,
-    category: provider.category,
-    city: provider.city,
-    source: provider.source,
-    snapshotFetchedAt: provider.fetchedAt,
-    websiteListed: provider.website !== null,
-    phoneListed: isUsableText(provider.phone),
-    addressListed: isUsableText(provider.address),
-    ratingListed: provider.rating,
-    reviewCountListed: provider.reviewCount,
-  };
-}
-
 function opportunityText(websiteListed: boolean, category: string): string {
   // Both branches describe the PROVIDER's data, then propose. Neither claims
   // the business does or does not have a website.
@@ -83,20 +69,20 @@ function opportunityText(websiteListed: boolean, category: string): string {
     : `No website was listed by the provider. That is a signal worth following up, not proof that none exists — confirm first. If there is genuinely no site, a small one could make services, location and contact details easier for customers to find.`;
 }
 
-function sellingPointsFor(facts: ReturnType<typeof factsFrom>): string[] {
+function sellingPointsFor(facts: AnalysisProviderInput): string[] {
   const points = [
     `Clear description of what a ${facts.category.toLowerCase()} in ${facts.city} offers`,
     "Location and opening details in one obvious place",
   ];
   if (facts.phoneListed) points.push("A phone number visible on every page");
   else points.push("A single reliable way for customers to make contact");
-  if (facts.reviewCountListed !== null && facts.reviewCountListed > 0) {
+  if (facts.reviewCount !== null && facts.reviewCount > 0) {
     points.push("Existing customer feedback presented in the customer's own words");
   }
   return points;
 }
 
-function assumptionsFor(facts: ReturnType<typeof factsFrom>): string[] {
+function assumptionsFor(facts: AnalysisProviderInput): string[] {
   const assumptions = [
     `That the provider's category ("${facts.category}") describes what the business actually does.`,
   ];
@@ -120,21 +106,17 @@ class MockAnalysisProvider implements AnalysisProvider {
   readonly name = "mock";
   readonly model = MODEL;
 
-  async analyse(lead: Lead): Promise<AnalysisDraft> {
-    const provider = lead.provider;
-
-    // A nameless lead cannot be written about honestly.
-    if (!isUsableText(provider.name)) {
-      throw new AnalysisProviderError("Lead has no usable business name to analyse.");
+  async analyse(input: AnalysisProviderInput): Promise<AnalysisProviderResult> {
+    // A nameless business cannot be written about honestly.
+    if (input.businessName.trim().length === 0) {
+      throw new AnalysisProviderError("Business has no usable name to analyse.");
     }
 
-    const facts = factsFrom(provider);
+    const facts = input;
     const siteType = siteTypeFor(facts.category);
     const lowerCategory = facts.category.toLowerCase();
 
     return {
-      provider: { name: this.name, model: this.model },
-      facts,
       recommendations: {
         businessSummary: `${facts.businessName} is listed as a ${lowerCategory} in ${facts.city}. This summary restates the provider listing only; it has not been verified.`,
         websiteOpportunity: opportunityText(facts.websiteListed, facts.category),

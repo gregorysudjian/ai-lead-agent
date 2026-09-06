@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Analysis } from "@/lib/analysis";
+import { deriveAnalysisFacts, toProviderInput } from "@/lib/analysis-facts";
 import { getAnalysisProvider } from "@/server/analysis";
 import { getAnalysisRepository, getLeadRepository } from "@/server/repo";
 
@@ -27,11 +28,26 @@ export async function analyseLead(leadId: string): Promise<Analysis> {
   const lead = await getLeadRepository().findById(leadId);
   if (!lead) throw new LeadNotFoundError(leadId);
 
+  // FACT OWNERSHIP. Facts are derived here, by deterministic application code,
+  // from the stored snapshot -- never by the analyser. The analyser then sees
+  // only a sanitized subset and can return only recommendations, so there is no
+  // path by which a model influences what we record as fact.
+  const facts = deriveAnalysisFacts(lead);
+  const provider = getAnalysisProvider();
+
   // Provider errors and invalid output both surface as exceptions; nothing
   // partial is persisted. The repository validates the draft before writing.
-  const draft = await getAnalysisProvider().analyse(lead);
+  const result = await provider.analyse(toProviderInput(facts));
 
-  return getAnalysisRepository().create(lead.id, draft);
+  return getAnalysisRepository().create(lead.id, {
+    // Identity of the analyser is read from the provider itself, not from its
+    // output -- a model cannot claim to be a different model.
+    provider: { name: provider.name, model: provider.model },
+    facts,
+    recommendations: result.recommendations,
+    assumptions: result.assumptions,
+    limitations: result.limitations,
+  });
 }
 
 /** Analyses for a lead, newest first. */
