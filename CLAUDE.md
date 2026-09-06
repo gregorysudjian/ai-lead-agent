@@ -134,6 +134,18 @@ hours, and place ID -> flag the ones with no website.
   overlapping search happened to find it, so a rediscovery cannot flip a stored
   category back and forth.
 
+- **Every new table in `public` declares its own security explicitly.** A
+  migration that creates an application-owned table must state, in that same
+  migration: whether RLS is enabled, which policies exist (if any), and what
+  `anon`, `authenticated` and `service_role` may each do. Never rely on
+  Supabase or Postgres default privileges -- they have granted API roles
+  unrequested access before, and the schema defaults for objects created by
+  other roles still do. Grant only the operations that table's repository
+  actually performs; that need not be the same set another table uses. For the
+  current server-only pattern that means: RLS enabled, zero policies,
+  `anon`/`authenticated` no access, and `service_role` limited to the verbs in
+  use.
+
 - **Server Components read the repository; Client Components call the API.**
   A page renders by calling `getLeadRepository()` directly -- never by fetching
   its own API over HTTP, which is a pointless round trip to the same process.
