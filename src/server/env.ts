@@ -59,3 +59,75 @@ export function overpassApiUrl(): string {
   }
   return parsed.href;
 }
+
+// ---------------------------------------------------------------------------
+// Lead storage
+// ---------------------------------------------------------------------------
+
+export type LeadRepositoryName = "json" | "supabase";
+
+const VALID_LEAD_REPOSITORIES: readonly LeadRepositoryName[] = ["json", "supabase"];
+
+/**
+ * Which lead store to use. Defaults to "json".
+ *
+ * Defaulting to the local JSON store is a safety property, not a convenience: a
+ * missing or empty variable can never cause an accidental connection to a real
+ * database. Enabling Supabase has to be a deliberate act.
+ *
+ * An unrecognised value throws rather than silently falling back.
+ */
+export function leadRepositoryName(): LeadRepositoryName {
+  const raw = process.env.LEAD_REPOSITORY?.trim().toLowerCase();
+  if (!raw) return "json";
+
+  const match = VALID_LEAD_REPOSITORIES.find((name) => name === raw);
+  if (!match) {
+    throw new Error(
+      `Invalid LEAD_REPOSITORY: expected one of ${VALID_LEAD_REPOSITORIES.join(", ")}.`,
+    );
+  }
+  return match;
+}
+
+/**
+ * Supabase connection settings.
+ *
+ * Returns the values for immediate use by the server-side client and nothing
+ * else. The secret key is never logged, echoed, or included in an error: the
+ * messages below name the missing VARIABLE, never any value, so a
+ * misconfiguration is diagnosable without leaking anything.
+ */
+export interface SupabaseConfig {
+  url: string;
+  secretKey: string;
+}
+
+export function supabaseConfig(): SupabaseConfig {
+  const url = process.env.SUPABASE_URL?.trim();
+  const secretKey = process.env.SUPABASE_SECRET_KEY?.trim();
+
+  const missing: string[] = [];
+  if (!url) missing.push("SUPABASE_URL");
+  if (!secretKey) missing.push("SUPABASE_SECRET_KEY");
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Supabase is selected but ${missing.join(" and ")} ${
+        missing.length === 1 ? "is" : "are"
+      } not set. Set LEAD_REPOSITORY=json to use the local store instead.`,
+    );
+  }
+
+  // Validate the URL shape without ever including it in a thrown message.
+  try {
+    const parsed = new URL(url!);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("bad protocol");
+    }
+  } catch {
+    throw new Error("Invalid SUPABASE_URL: must be an absolute http(s) URL.");
+  }
+
+  return { url: url!, secretKey: secretKey! };
+}
