@@ -46,7 +46,28 @@ export interface OverpassQueryOptions {
 }
 
 export const DEFAULT_QUERY_TIMEOUT_SECONDS = 25;
-export const DEFAULT_RESULT_LIMIT = 60;
+
+/**
+ * Most businesses a single search will ever show or store.
+ *
+ * Bounded on purpose: this is an internal review workflow, not a bulk export,
+ * and the public Overpass instance is shared community infrastructure.
+ */
+export const DISPLAY_RESULT_LIMIT = 60;
+
+/**
+ * What we actually ask Overpass for: one MORE than we will show.
+ *
+ * The extra element is a truncation sentinel, nothing else. If the response
+ * contains more than DISPLAY_RESULT_LIMIT elements we know the area holds
+ * further matches, and the UI can say so instead of leaving the user unable to
+ * tell "exactly 60 exist" from "we stopped at 60". The 61st element is never
+ * normalized, shown or stored.
+ *
+ * This costs one extra element per search -- far cheaper than a second request
+ * or a count query, and it needs no pagination.
+ */
+export const OVERPASS_QUERY_LIMIT = DISPLAY_RESULT_LIMIT + 1;
 
 /**
  * Build a bounded Overpass query for one category inside one city.
@@ -65,7 +86,7 @@ export function buildOverpassQuery(
   options: OverpassQueryOptions = {},
 ): string {
   const timeout = options.timeoutSeconds ?? DEFAULT_QUERY_TIMEOUT_SECONDS;
-  const limit = options.limit ?? DEFAULT_RESULT_LIMIT;
+  const limit = options.limit ?? OVERPASS_QUERY_LIMIT;
 
   if (!Number.isInteger(timeout) || timeout <= 0 || timeout > 180) {
     throw new Error(`Invalid Overpass timeout: ${timeout}`);

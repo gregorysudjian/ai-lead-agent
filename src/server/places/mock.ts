@@ -1,9 +1,9 @@
 import "server-only";
 
-import type { BusinessSearchQuery, DiscoveredBusiness } from "@/lib/types";
+import type { BusinessSearchQuery } from "@/lib/types";
 import { equalsNormalized, looselyMatches } from "@/lib/normalize";
 import { BUSINESS_FIXTURES } from "./fixtures/businesses";
-import type { PlacesProvider } from "./types";
+import type { PlacesProvider, ProviderSearchResult } from "./types";
 
 /**
  * Fixture-backed implementation of PlacesProvider.
@@ -24,14 +24,17 @@ import type { PlacesProvider } from "./types";
 class MockPlacesProvider implements PlacesProvider {
   readonly name = "mock";
 
-  async search(query: BusinessSearchQuery): Promise<DiscoveredBusiness[]> {
+  async search(query: BusinessSearchQuery): Promise<ProviderSearchResult> {
     const fetchedAt = new Date().toISOString();
 
-    return BUSINESS_FIXTURES.filter(
+    const businesses = BUSINESS_FIXTURES.filter(
       (business) =>
         equalsNormalized(business.city, query.city) &&
         looselyMatches(business.category, query.category),
     ).map((business) => ({ ...business, fetchedAt }));
+
+    // The fixture set is finite and fully searched, so a result is never capped.
+    return { businesses, meta: { truncated: false, limit: null } };
   }
 }
 

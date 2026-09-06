@@ -55,14 +55,16 @@ export async function POST(request: Request): Promise<Response> {
   const query = parsed.data;
 
   try {
-    const { results, saved } = await discoverAndSaveLeads(query);
+    const { results, saved, meta } = await discoverAndSaveLeads(query);
 
     // An empty result set is a successful search, not an error.
+    // `meta` describes this search (was it capped?), not any stored lead.
     return Response.json({
       query,
       count: results.length,
       saved,
       results,
+      meta,
     });
   } catch (error) {
     // The caller asked for a city or category we do not support. Safe to echo:

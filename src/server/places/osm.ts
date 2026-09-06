@@ -6,12 +6,13 @@ import { normalizeOsmElements } from "@/lib/osm/normalize";
 import {
   buildOverpassQuery,
   DEFAULT_QUERY_TIMEOUT_SECONDS,
-  DEFAULT_RESULT_LIMIT,
+  DISPLAY_RESULT_LIMIT,
+  OVERPASS_QUERY_LIMIT,
 } from "@/lib/osm/query";
-import type { BusinessSearchQuery, DiscoveredBusiness } from "@/lib/types";
+import type { BusinessSearchQuery } from "@/lib/types";
 import { overpassApiUrl } from "@/server/env";
 
-import type { PlacesProvider } from "./types";
+import type { PlacesProvider, ProviderSearchResult } from "./types";
 import { ProviderUnavailableError, ProviderValidationError } from "./types";
 
 /**
@@ -46,31 +47,32 @@ const MAX_CACHE_ENTRIES = 50;
 
 interface CacheEntry {
   expiresAt: number;
-  businesses: DiscoveredBusiness[];
+  /** The WHOLE result, so a cache hit reports truncation exactly as the original did. */
+  result: ProviderSearchResult;
 }
 
 /** Process-memory only. Never persisted, never written into a Lead. */
 const cache = new Map<string, CacheEntry>();
 /** Collapses identical concurrent searches into a single upstream request. */
-const inFlight = new Map<string, Promise<DiscoveredBusiness[]>>();
+const inFlight = new Map<string, Promise<ProviderSearchResult>>();
 
-function readCache(key: string): DiscoveredBusiness[] | null {
+function readCache(key: string): ProviderSearchResult | null {
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() >= entry.expiresAt) {
     cache.delete(key);
     return null;
   }
-  return entry.businesses;
+  return entry.result;
 }
 
-function writeCache(key: string, businesses: DiscoveredBusiness[]): void {
+function writeCache(key: string, result: ProviderSearchResult): void {
   // Bounded: drop the oldest entry rather than growing without limit.
   if (cache.size >= MAX_CACHE_ENTRIES) {
     const oldest = cache.keys().next();
     if (!oldest.done) cache.delete(oldest.value);
   }
-  cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, businesses });
+  cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, result });
 }
 
 /**
@@ -163,7 +165,7 @@ export function createOpenStreetMapProvider(
   return {
     name: "osm",
 
-    async search(query: BusinessSearchQuery): Promise<DiscoveredBusiness[]> {
+    async search(query: BusinessSearchQuery): Promise<ProviderSearchResult> {
       // Resolve against the curated registries BEFORE any network activity, so
       // unsupported input never reaches shared infrastructure and free text
       // never becomes Overpass QL.
@@ -193,9 +195,10 @@ export function createOpenStreetMapProvider(
       }
 
       const run = (async () => {
+        // Ask for one more than we will show; the extra is only a sentinel.
         const overpassQuery = buildOverpassQuery(city, category, {
           timeoutSeconds: DEFAULT_QUERY_TIMEOUT_SECONDS,
-          limit: DEFAULT_RESULT_LIMIT,
+          limit: OVERPASS_QUERY_LIMIT,
         });
 
         const elements = await runOverpassQuery(
@@ -204,14 +207,25 @@ export function createOpenStreetMapProvider(
           options.endpoint ?? overpassApiUrl(),
         );
 
+        // Truncation is judged on the RAW upstream count, before normalization
+        // drops nameless or malformed records. That is deliberate and
+        // conservative: the provider query reached its cap, so more matching
+        // provider records may exist even if some of these were unusable.
+        const truncated = elements.length > DISPLAY_RESULT_LIMIT;
+
         const businesses = normalizeOsmElements(elements, {
-          categoryLabel: category.label,
+          requestedCategory: category,
           cityLabel: city.label,
           fetchedAt: now().toISOString(),
-        }).slice(0, DEFAULT_RESULT_LIMIT);
+        }).slice(0, DISPLAY_RESULT_LIMIT);
 
-        if (useCache) writeCache(cacheKey, businesses);
-        return businesses;
+        const result: ProviderSearchResult = {
+          businesses,
+          meta: { truncated, limit: DISPLAY_RESULT_LIMIT },
+        };
+
+        if (useCache) writeCache(cacheKey, result);
+        return result;
       })();
 
       if (useCache) inFlight.set(cacheKey, run);

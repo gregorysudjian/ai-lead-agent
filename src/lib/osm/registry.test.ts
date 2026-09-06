@@ -6,7 +6,7 @@ import {
   supportedCategoryLabels,
 } from "./categories";
 import { resolveSupportedCity, SUPPORTED_CITIES, supportedCityLabels } from "./cities";
-import { buildOverpassQuery, DEFAULT_RESULT_LIMIT } from "./query";
+import { buildOverpassQuery, OVERPASS_QUERY_LIMIT } from "./query";
 
 describe("A. city aliases", () => {
   it.each([
@@ -116,7 +116,9 @@ describe("C. query safety", () => {
     expect(query).toContain('node["shop"="hairdresser"](area.searchArea);');
     expect(query).toContain('way["shop"="hairdresser"](area.searchArea);');
     expect(query).toContain('relation["shop"="hairdresser"](area.searchArea);');
-    expect(query).toContain(`out center tags ${DEFAULT_RESULT_LIMIT};`);
+    expect(query).toContain(`out center tags ${OVERPASS_QUERY_LIMIT};`);
+    // 60 shown, 61 requested: the extra element is the truncation sentinel.
+    expect(OVERPASS_QUERY_LIMIT).toBe(61);
   });
 
   it("requests centre points and tags, never full geometry", () => {

@@ -115,12 +115,24 @@ hours, and place ID -> flag the ones with no website.
   pure normalization layer, and only the normalized domain fields are stored --
   never the upstream tag or record object.
 
-- **Opportunity scores are deterministic derived data.** They are computed from
-  the current provider snapshot by a pure function, never persisted, never
-  AI-generated, and never influenced by application-owned fields such as
-  `status`. Storing a score would let it drift out of step with the provider
-  data it summarises. A score is a review-order hint, not a prediction of
-  purchase and not evidence about whether a business has a website.
+- **Lead priority is deterministic, derived, and provider-independent.** It is
+  computed from the current provider snapshot by a pure function, never
+  persisted, never AI-generated, and never influenced by application-owned
+  fields such as `status`. The provider `source` itself awards zero points: the
+  same field values must score identically whoever supplied them. Weights sit on
+  signals every provider can supply, with reputation as a bonus a richer
+  provider may add -- never rescale one provider's reachable maximum to 100,
+  which would make a score built on less evidence look equal to one built on
+  more. A score is a review-order hint, not a prediction of purchase and not
+  evidence about whether a business has a website.
+- **Provider search metadata is request-level and never persisted.** Facts about
+  a search -- whether it was capped, what the limit was -- belong to that
+  request, not to any lead. A capped result must be reported as capped rather
+  than silently looking complete.
+- **Provider subtype tags outrank the user's search label.** When provider data
+  itself identifies a more specific category, that wins over whichever
+  overlapping search happened to find it, so a rediscovery cannot flip a stored
+  category back and forth.
 
 - **Server Components read the repository; Client Components call the API.**
   A page renders by calling `getLeadRepository()` directly -- never by fetching

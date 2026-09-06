@@ -133,9 +133,9 @@ export function PriorityBadge({ score }: { score: LeadScore }) {
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
-      title="Opportunity score: a review-order hint based on provider signals"
+      title="Lead priority: a deterministic review-order score from provider-listed signals"
     >
-      Opportunity {score.total}/{MAX_SCORE} &middot; {PRIORITY_LABELS[score.priority]}
+      Lead priority {score.total}/{MAX_SCORE} &middot; {PRIORITY_LABELS[score.priority]}
     </span>
   );
 }

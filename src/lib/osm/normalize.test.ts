@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { findExistingLead } from "../dedupe";
 import { classifyWebsite } from "../format";
+import { classifyOsmCategory, resolveSupportedCategory } from "./categories";
 import {
   buildOsmAddress,
   isUsableOsmElement,
@@ -12,8 +13,10 @@ import {
   type OsmElement,
 } from "./normalize";
 
+const HAIR_SALON = resolveSupportedCategory("hair salon")!;
+
 const OPTIONS = {
-  categoryLabel: "Hair salon",
+  requestedCategory: HAIR_SALON,
   cityLabel: "Montreal",
   fetchedAt: "2026-09-05T12:00:00.000Z",
 };
@@ -453,5 +456,85 @@ describe("OSM element ids must be positive safe integers", () => {
       );
       expect(osmObjectUrl(business.externalId)).not.toBeNull();
     }
+  });
+});
+
+describe("category stability across overlapping searches", () => {
+  const via = (categoryAlias: string, tags: Record<string, string>) =>
+    normalizeOsmElement(element({ tags: { name: "Test Business", ...tags } }), {
+      ...OPTIONS,
+      requestedCategory: resolveSupportedCategory(categoryAlias)!,
+    })!.category;
+
+  const BARBER_TAGS = { shop: "hairdresser", hairdresser: "barber" };
+  const NAILS_TAGS = { shop: "beauty", beauty: "nails" };
+
+  it("a barber stays 'Barber shop' whether found via hair salon or barber search", () => {
+    expect(via("hair salon", BARBER_TAGS)).toBe("Barber shop");
+    expect(via("barber", BARBER_TAGS)).toBe("Barber shop");
+    expect(via("hair salon", BARBER_TAGS)).toBe(via("barber", BARBER_TAGS));
+  });
+
+  it("a nail salon stays 'Nail salon' whether found via beauty salon or nail salon", () => {
+    expect(via("beauty salon", NAILS_TAGS)).toBe("Nail salon");
+    expect(via("nail salon", NAILS_TAGS)).toBe("Nail salon");
+    expect(via("beauty salon", NAILS_TAGS)).toBe(via("nail salon", NAILS_TAGS));
+  });
+
+  it("an ordinary hairdresser without hairdresser=barber remains 'Hair salon'", () => {
+    expect(via("hair salon", { shop: "hairdresser" })).toBe("Hair salon");
+    expect(via("hairdressers", { shop: "hairdresser" })).toBe("Hair salon");
+  });
+
+  it("an ordinary beauty shop without beauty=nails remains 'Beauty salon'", () => {
+    expect(via("beauty salon", { shop: "beauty" })).toBe("Beauty salon");
+    expect(via("beauty salon", { shop: "beauty", beauty: "tanning" })).toBe("Beauty salon");
+  });
+
+  it.each([
+    ["dentist", { amenity: "dentist" }, "Dentist"],
+    ["dentist", { healthcare: "dentist" }, "Dentist"],
+    ["restaurants", { amenity: "restaurant" }, "Restaurant"],
+    ["cafe", { amenity: "cafe" }, "Cafe"],
+    ["bakery", { shop: "bakery" }, "Bakery"],
+    ["pharmacy", { amenity: "pharmacy" }, "Pharmacy"],
+    ["florist", { shop: "florist" }, "Florist"],
+    ["gym", { leisure: "fitness_centre" }, "Gym"],
+    ["auto repair", { shop: "car_repair" }, "Car repair"],
+  ])("categories without subtype rules are unaffected: %s -> %s", (alias, tags, expected) => {
+    expect(via(alias, tags as Record<string, string>)).toBe(expected);
+  });
+
+  it("falls back to the requested canonical category when no subtype rule applies", () => {
+    // The two-part design rule: known subtype tags override the requested
+    // category; otherwise the requested category's canonical label is used.
+    // A plain shop=hairdresser matches no subtype rule, so the requested label
+    // wins -- and when the request was "barber", that label is "Barber shop".
+    //
+    // This combination does not arise in real provider use: the barber selector
+    // is shop=hairdresser + hairdresser=barber, so Overpass would never return a
+    // plain hairdresser through a barber search. It is asserted here only to pin
+    // the fallback branch, not because it is reachable against live data.
+    expect(via("barber", { shop: "hairdresser" })).toBe("Barber shop");
+  });
+
+  it("rediscovery through a different search does not change externalId", () => {
+    const a = normalizeOsmElement(element({ tags: { name: "B", ...BARBER_TAGS } }), {
+      ...OPTIONS, requestedCategory: resolveSupportedCategory("hair salon")!,
+    })!;
+    const b = normalizeOsmElement(element({ tags: { name: "B", ...BARBER_TAGS } }), {
+      ...OPTIONS, requestedCategory: resolveSupportedCategory("barber")!,
+    })!;
+    expect(a.externalId).toBe(b.externalId);
+    expect(a.category).toBe(b.category);
+    // The whole normalized record is identical, so rediscovery is a no-op change.
+    expect(a).toEqual(b);
+  });
+
+  it("classifyOsmCategory is pure and deterministic", () => {
+    const tags = { ...BARBER_TAGS };
+    const category = resolveSupportedCategory("hair salon")!;
+    expect(classifyOsmCategory(tags, category)).toBe(classifyOsmCategory(tags, category));
+    expect(tags).toEqual(BARBER_TAGS);
   });
 });

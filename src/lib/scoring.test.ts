@@ -38,43 +38,92 @@ function makeLead(provider: Partial<ProviderSnapshot>, id = "lead-1"): Lead {
 const points = (lead: Lead, key: string) =>
   scoreLead(lead).factors.find((f) => f.key === key)!.points;
 
-describe("scoreLead - documented scenarios", () => {
-  it("A. maximum-score lead scores 100 and is high priority", () => {
+describe("scoreLead V2 - documented scenarios", () => {
+  it("E. maximum possible valid lead scores 100 and is high priority", () => {
+    // 50 website + 20 phone + 10 address + 15 reviews + 5 rating
     const score = scoreLead(
-      makeLead({ website: null, reviewCount: 250, rating: 4.8, phone: "+1 514-555-0100" }),
+      makeLead({
+        website: null, reviewCount: 250, rating: 4.8,
+        phone: "+1 514-555-0100", address: "1 Test Street",
+      }),
     );
     expect(score.total).toBe(100);
     expect(score.priority).toBe("high");
   });
 
-  it("B. existing website with otherwise maximum signals scores 55 (medium)", () => {
+  it("A. OSM-shaped lead: no website listed + phone + address scores 80 (high)", () => {
+    // The case V1 could not reach: real providers supply no reputation data.
     const score = scoreLead(
       makeLead({
-        website: "https://example.com",
-        reviewCount: 250,
-        rating: 4.8,
-        phone: "+1 514-555-0100",
+        website: null, phone: "+1 514-555-0100", address: "1 Test Street",
+        rating: null, reviewCount: null,
       }),
     );
-    expect(score.total).toBe(55);
-    expect(score.priority).toBe("medium");
+    expect(score.total).toBe(80);
+    expect(score.priority).toBe("high");
   });
 
-  it("C. only the no-website-listed signal scores 45 (medium)", () => {
-    const score = scoreLead(
-      makeLead({ website: null, reviewCount: null, rating: null, phone: null }),
-    );
-    expect(score.total).toBe(45);
-    expect(score.priority).toBe("medium");
-  });
-
-  it("D. low-signal lead with a website listed scores 0 (low)", () => {
+  it("B. no website listed + phone, no address scores 70 (high)", () => {
     const score = scoreLead(
       makeLead({
-        website: "https://example.com",
-        reviewCount: 0,
-        rating: 2.1,
-        phone: null,
+        website: null, phone: "+1 514-555-0100", address: null,
+        rating: null, reviewCount: null,
+      }),
+    );
+    expect(score.total).toBe(70);
+    expect(score.priority).toBe("high");
+  });
+
+  it("a listed website costs the full 50-point signal even with max reputation", () => {
+    const score = scoreLead(
+      makeLead({
+        website: "https://example.com", reviewCount: 250, rating: 4.8,
+        phone: "+1 514-555-0100", address: "1 Test Street",
+      }),
+    );
+    // 0 + 20 + 10 + 15 + 5
+    expect(score.total).toBe(50);
+    expect(score.priority).toBe("medium");
+  });
+
+  it("C. no website listed and nothing else known scores 50 (medium)", () => {
+    // NOT "empty data scores zero": an absent website is itself the strongest
+    // single signal in the rubric, worth 50 on its own.
+    const score = scoreLead(
+      makeLead({
+        website: null, reviewCount: null, rating: null, phone: null, address: null,
+      }),
+    );
+    expect(score.total).toBe(50);
+    expect(score.priority).toBe("medium");
+  });
+
+  it("F. a lead with every field absent still scores 50 because website is null", () => {
+    const score = scoreLead(
+      makeLead({
+        website: null, phone: null, address: null, rating: null, reviewCount: 0,
+      }),
+    );
+    expect(score.total).toBe(50);
+    expect(score.priority).toBe("medium");
+  });
+
+  it("D. website listed + phone + address, no reputation scores 30 (low)", () => {
+    const score = scoreLead(
+      makeLead({
+        website: "https://example.com", phone: "+1 514-555-0100",
+        address: "1 Test Street", rating: null, reviewCount: null,
+      }),
+    );
+    expect(score.total).toBe(30);
+    expect(score.priority).toBe("low");
+  });
+
+  it("a lead with a website and nothing else scores 0 (low)", () => {
+    const score = scoreLead(
+      makeLead({
+        website: "https://example.com", reviewCount: 0, rating: 2.1,
+        phone: null, address: null,
       }),
     );
     expect(score.total).toBe(0);
@@ -83,8 +132,8 @@ describe("scoreLead - documented scenarios", () => {
 });
 
 describe("E. website signal is presence-based, not link-safety-based", () => {
-  it("null website earns the full 45 points", () => {
-    expect(points(makeLead({ website: null }), "website")).toBe(45);
+  it("null website earns the full 50 points", () => {
+    expect(points(makeLead({ website: null }), "website")).toBe(50);
   });
 
   it.each([
@@ -112,9 +161,10 @@ describe("E. website signal is presence-based, not link-safety-based", () => {
 
 describe("F. review volume boundaries", () => {
   it.each([
-    [null, 0], [0, 0], [1, 5], [4, 5], [5, 10], [19, 10],
-    [20, 15], [49, 15], [50, 20], [99, 20],
-    [100, 25], [199, 25], [200, 30], [10000, 30],
+    [null, 0], [0, 0], [1, 2], [4, 2], [5, 4], [19, 4],
+    [20, 7], [49, 7], [50, 10], [99, 10],
+    [100, 12], [199, 12], [200, 15], [10000, 15],
+    [Number.MAX_SAFE_INTEGER, 15],
   ])("reviewCount %s -> %i points", (reviewCount, expected) => {
     expect(points(makeLead({ reviewCount }), "reviews")).toBe(expected);
   });
@@ -124,14 +174,14 @@ describe("F. review volume boundaries", () => {
   });
 
   it("says 'not listed' for null but 'no reviews' for zero", () => {
-    const notListed = scoreLead(makeLead({ reviewCount: null })).factors[1];
-    const zero = scoreLead(makeLead({ reviewCount: 0 })).factors[1];
+    const notListed = scoreLead(makeLead({ reviewCount: null })).factors[3];
+    const zero = scoreLead(makeLead({ reviewCount: 0 })).factors[3];
     expect(notListed.reason).toBe("Review count not listed by provider");
     expect(zero.reason).toBe("No reviews listed by provider");
   });
 
   it("uses singular wording for exactly one review", () => {
-    expect(scoreLead(makeLead({ reviewCount: 1 })).factors[1].reason).toBe(
+    expect(scoreLead(makeLead({ reviewCount: 1 })).factors[3].reason).toBe(
       "1 review listed by provider",
     );
   });
@@ -139,8 +189,8 @@ describe("F. review volume boundaries", () => {
 
 describe("G. rating boundaries", () => {
   it.each([
-    [null, 0], [0, 0], [3.49, 0], [3.5, 4], [3.99, 4],
-    [4.0, 8], [4.39, 8], [4.4, 12], [4.69, 12], [4.7, 15], [5.0, 15],
+    [null, 0], [0, 0], [3.49, 0], [3.5, 1], [3.99, 1],
+    [4.0, 2], [4.39, 2], [4.4, 4], [4.69, 4], [4.7, 5], [5.0, 5],
   ])("rating %s -> %i points", (rating, expected) => {
     expect(points(makeLead({ rating }), "rating")).toBe(expected);
   });
@@ -153,18 +203,18 @@ describe("G. rating boundaries", () => {
   );
 
   it("explains a missing rating without inventing one", () => {
-    expect(scoreLead(makeLead({ rating: null })).factors[2].reason).toBe(
+    expect(scoreLead(makeLead({ rating: null })).factors[4].reason).toBe(
       "Rating not listed by provider",
     );
   });
 });
 
-describe("H. contactability", () => {
+describe("H. phone", () => {
   it.each([
     [null, 0], ["", 0], ["   ", 0], ["\t\n ", 0],
-    ["+1 514-555-0100", 10], ["514-555-0100", 10],
+    ["+1 514-555-0100", 20], ["514-555-0100", 20],
   ])("phone %j -> %i points", (phone, expected) => {
-    expect(points(makeLead({ phone }), "contactability")).toBe(expected);
+    expect(points(makeLead({ phone }), "phone")).toBe(expected);
   });
 });
 
@@ -174,6 +224,7 @@ describe("I. score range", () => {
     reviewCount: [null, -5, 0, 1, 50, 250, 1e9, Number.NaN],
     rating: [null, -1, 0, 3.5, 4.7, 5, 9.9, Number.NaN],
     phone: [null, "", "   ", "+1 514-555-0100"],
+    address: [null, "", "1 Test Street"],
   } as const;
 
   it("never produces a total below 0 or above 100 across the full matrix", () => {
@@ -181,18 +232,21 @@ describe("I. score range", () => {
     for (const website of values.website)
       for (const reviewCount of values.reviewCount)
         for (const rating of values.rating)
-          for (const phone of values.phone) {
-            const { total } = scoreLead(makeLead({ website, reviewCount, rating, phone }));
-            expect(total).toBeGreaterThanOrEqual(0);
-            expect(total).toBeLessThanOrEqual(MAX_SCORE);
-            checked += 1;
-          }
-    expect(checked).toBe(4 * 8 * 8 * 4);
+          for (const phone of values.phone)
+            for (const address of values.address) {
+              const { total } = scoreLead(
+                makeLead({ website, reviewCount, rating, phone, address }),
+              );
+              expect(total).toBeGreaterThanOrEqual(0);
+              expect(total).toBeLessThanOrEqual(MAX_SCORE);
+              checked += 1;
+            }
+    expect(checked).toBe(4 * 8 * 8 * 4 * 3);
   });
 
   it("factor points never exceed their own maximum", () => {
     for (const factor of scoreLead(
-      makeLead({ website: null, reviewCount: 1e9, rating: 5, phone: "x" }),
+      makeLead({ website: null, reviewCount: 1e9, rating: 5, phone: "x", address: "y" }),
     ).factors) {
       expect(factor.points).toBeLessThanOrEqual(factor.maxPoints);
       expect(factor.points).toBeGreaterThanOrEqual(0);
@@ -405,5 +459,121 @@ describe("ranking tie-breaks reject unusable provider numbers", () => {
       expect(points(makeLead({ reviewCount: count }), "reviews")).toBe(0);
     }
     for (const value of [0, 1, 250]) expect(isUsableReviewCount(value)).toBe(true);
+  });
+});
+
+describe("H2. address factor", () => {
+  it.each([
+    [null, 0], ["", 0], ["   ", 0],
+    ["100 Rue Test", 10], ["100 Rue Test, Montreal, QC", 10],
+  ])("address %j -> %i points", (address, expected) => {
+    expect(points(makeLead({ address }), "address")).toBe(expected);
+  });
+
+  it("whitespace-only address earns nothing", () => {
+    expect(points(makeLead({ address: "\t\n " }), "address")).toBe(0);
+  });
+
+  it("is described as a provider listing, not a quality claim", () => {
+    const factor = scoreLead(makeLead({ address: "100 Rue Test" })).factors.find(
+      (f) => f.key === "address",
+    )!;
+    expect(factor.reason).toBe("Address listed by provider");
+    expect(factor.maxPoints).toBe(10);
+  });
+});
+
+describe("V2 rubric shape", () => {
+  it("has exactly five factors with the documented maximums", () => {
+    const factors = scoreLead(makeLead({})).factors;
+    expect(factors.map((f) => [f.key, f.maxPoints])).toEqual([
+      ["website", 50],
+      ["phone", 20],
+      ["address", 10],
+      ["reviews", 15],
+      ["rating", 5],
+    ]);
+  });
+
+  it("maximums sum to exactly 100", () => {
+    expect(scoreLead(makeLead({})).factors.reduce((t, f) => t + f.maxPoints, 0)).toBe(100);
+  });
+
+  it("reputation is capped at 20 of 100, so it cannot dominate", () => {
+    const factors = scoreLead(makeLead({})).factors;
+    const reputation = factors
+      .filter((f) => f.key === "reviews" || f.key === "rating")
+      .reduce((t, f) => t + f.maxPoints, 0);
+    expect(reputation).toBe(20);
+  });
+
+  it("never says a business HAS a website - only what the provider listed", () => {
+    const listed = scoreLead(makeLead({ website: "https://example.com" })).factors[0];
+    expect(listed.reason).toBe("Website listed by provider");
+    expect(listed.reason).not.toMatch(/has a website|has no website|does not have/i);
+    const absent = scoreLead(makeLead({ website: null })).factors[0];
+    expect(absent.reason).toBe("No website listed by provider");
+  });
+});
+
+describe("the score is provider-independent - source awards zero points", () => {
+  const fields = {
+    website: null,
+    phone: "+1 514-555-0100",
+    address: "1 Test Street",
+    rating: 4.8,
+    reviewCount: 250,
+  } as const;
+
+  it("mock, osm and google produce identical scores for identical fields", () => {
+    const mock = scoreLead(makeLead({ ...fields, source: "mock" }));
+    const osm = scoreLead(makeLead({ ...fields, source: "osm" }));
+    const google = scoreLead(makeLead({ ...fields, source: "google" }));
+
+    expect(mock.total).toBe(100);
+    expect(osm.total).toBe(100);
+    expect(google.total).toBe(100);
+    expect(osm).toEqual(mock);
+    expect(google).toEqual(mock);
+  });
+
+  it("holds for a sparse lead too", () => {
+    const sparse = { website: null, phone: null, address: null, rating: null, reviewCount: null } as const;
+    expect(scoreLead(makeLead({ ...sparse, source: "osm" })).total)
+      .toBe(scoreLead(makeLead({ ...sparse, source: "mock" })).total);
+  });
+
+  it("no factor reason mentions the provider by name", () => {
+    for (const source of ["mock", "osm", "google"] as const) {
+      for (const factor of scoreLead(makeLead({ ...fields, source })).factors) {
+        expect(factor.reason.toLowerCase()).not.toContain("openstreetmap");
+        expect(factor.reason.toLowerCase()).not.toContain("google");
+        expect(factor.reason.toLowerCase()).not.toContain("mock");
+      }
+    }
+  });
+});
+
+describe("priority boundaries under V2", () => {
+  it.each([
+    [39, "low"], [40, "medium"], [69, "medium"], [70, "high"], [100, "high"],
+  ])("total %i -> %s", (total, expected) => {
+    expect(priorityForScore(total)).toBe(expected);
+  });
+
+  it("realistic combinations land in the intended bands", () => {
+    // 50 + 20 + 10 = 80 high; 50 + 20 = 70 high; 50 = 50 medium; 20 + 10 = 30 low
+    const combos: [Partial<Parameters<typeof makeLead>[0]>, number, string][] = [
+      [{ website: null, phone: "x", address: "y" }, 80, "high"],
+      [{ website: null, phone: "x", address: null }, 70, "high"],
+      [{ website: null, phone: null, address: null }, 50, "medium"],
+      [{ website: "https://e.example.com", phone: "x", address: "y" }, 30, "low"],
+      [{ website: "https://e.example.com", phone: null, address: null }, 0, "low"],
+    ];
+    for (const [fieldsUnderTest, total, priority] of combos) {
+      const score = scoreLead(makeLead({ rating: null, reviewCount: null, ...fieldsUnderTest }));
+      expect(score.total).toBe(total);
+      expect(score.priority).toBe(priority);
+    }
   });
 });

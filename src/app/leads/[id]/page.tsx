@@ -100,16 +100,16 @@ export default async function LeadDetailPage({
         className="mt-6 rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
       >
         <h2 id="score" className="text-base font-semibold">
-          Opportunity score
+          Lead priority
         </h2>
         <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-          A review-order hint calculated from the provider signals below. It is not
-          a likelihood of purchase, and not evidence that this business needs or
-          lacks a website.
+          This deterministic score orders leads for review using provider-listed
+          website, phone, address and reputation signals. It is not a prediction of
+          purchase intent, and not proof that a business lacks a website.
         </p>
 
         <table className="mt-4 w-full text-sm">
-          <caption className="sr-only">Opportunity score breakdown by factor</caption>
+          <caption className="sr-only">Lead priority breakdown by factor</caption>
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700">
               <th scope="col" className="py-1.5 text-left font-medium">Factor</th>
