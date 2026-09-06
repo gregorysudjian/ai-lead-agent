@@ -1,55 +1,79 @@
-import { LeadsSection } from "@/components/leads-section";
+import Link from "next/link";
+
+import {
+  CategoryBreakdown,
+  LeadSummary,
+  PriorityDistribution,
+} from "@/components/lead-summary";
 import { SearchPanel } from "@/components/search-panel";
-import type { Lead } from "@/lib/types";
-import { getLeadRepository } from "@/server/repo";
+import { Card, EmptyState, ErrorPanel, LINK, PageHeader, SectionHeading } from "@/components/ui/primitives";
+import { loadLeads } from "@/server/leads-page-data";
 
 /**
  * Dashboard.
  *
  * A Server Component. It reads the repository directly rather than fetching its
- * own API over HTTP -- that would be a pointless network round trip to the same
- * process, and it keeps the repository abstraction as the single data path.
+ * own API over HTTP -- that would be a pointless round trip to the same process.
  *
  * `force-dynamic` because it reads a data store: without it Next can prerender
  * this at build time, baking a stale lead list into the build.
  */
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  let leads: Lead[] = [];
-  let loadError = false;
+export const metadata = { title: "Dashboard" };
 
-  try {
-    leads = await getLeadRepository().list();
-  } catch (error) {
-    // Never surface the message: it contains a filesystem path.
-    console.error("[dashboard] could not read lead store:", error);
-    loadError = true;
-  }
+export default async function DashboardPage() {
+  const { leads, loadFailed } = await loadLeads("dashboard");
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Business Lead Finder</h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          Discover local businesses and review potential website leads.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Discover local businesses and review potential website leads."
+      />
 
-      <div className="mt-8">
-        <SearchPanel />
-      </div>
+      <SearchPanel />
 
-      {loadError ? (
-        <p
-          role="alert"
-          className="mt-8 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
-        >
-          Could not load stored leads. Check the server logs for details.
-        </p>
+      {loadFailed ? (
+        <ErrorPanel
+          title="Could not load stored leads."
+          detail="The lead store did not respond. Check the server logs for details."
+        />
+      ) : leads.length === 0 ? (
+        <EmptyState
+          title="No leads yet"
+          description="Run a search above to discover businesses. Nothing is contacted automatically — every lead is reviewed by you."
+        />
       ) : (
-        <LeadsSection leads={leads} />
+        <>
+          <LeadSummary leads={leads} />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="p-5">
+              <SectionHeading
+                title="Priority distribution"
+                hint="Derived from the current provider snapshots. Never stored."
+              />
+              <div className="mt-4">
+                <PriorityDistribution leads={leads} />
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <SectionHeading title="Leads by category" hint="Top categories discovered." />
+              <div className="mt-4">
+                <CategoryBreakdown leads={leads} />
+              </div>
+            </Card>
+          </div>
+
+          <p className="text-sm">
+            <Link href="/leads" className={LINK}>
+              Browse all {leads.length} leads →
+            </Link>
+          </p>
+        </>
       )}
-    </main>
+    </div>
   );
 }
