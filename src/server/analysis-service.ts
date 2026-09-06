@@ -5,6 +5,8 @@ import { deriveAnalysisFacts, toProviderInput } from "@/lib/analysis-facts";
 import { getAnalysisProvider } from "@/server/analysis";
 import { getAnalysisRepository, getLeadRepository } from "@/server/repo";
 
+import { LeadNotFoundError } from "./service-errors";
+
 /**
  * Analyse one lead and persist the result.
  *
@@ -16,13 +18,7 @@ import { getAnalysisRepository, getLeadRepository } from "@/server/repo";
  * from -- it only names which lead to analyse.
  */
 
-/** The lead named does not exist. A normal outcome the caller reports as 404. */
-export class LeadNotFoundError extends Error {
-  constructor(leadId: string) {
-    super(`No lead with id ${leadId}.`);
-    this.name = "LeadNotFoundError";
-  }
-}
+export { LeadNotFoundError } from "./service-errors";
 
 export async function analyseLead(leadId: string): Promise<Analysis> {
   const lead = await getLeadRepository().findById(leadId);

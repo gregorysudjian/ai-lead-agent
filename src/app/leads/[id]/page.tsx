@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AnalysisPanel } from "@/components/analysis-panel";
+import { DemoPanel } from "@/components/demo-panel";
 import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { PriorityBadge, StatusBadge } from "@/components/lead-row";
 import { StatusToggle } from "@/components/status-toggle";
@@ -26,6 +27,8 @@ import { MAX_SCORE, PRIORITY_LABELS, scoreLead } from "@/lib/scoring";
 import type { OpeningHours } from "@/lib/types";
 import { getAnalysisProvider } from "@/server/analysis";
 import { analysesForLead } from "@/server/analysis-service";
+import { getDemoSiteProvider } from "@/server/demo";
+import { demoSitesForLead } from "@/server/demo-service";
 import { getLeadRepository } from "@/server/repo";
 
 /**
@@ -61,7 +64,17 @@ export default async function LeadDetailPage({
   } catch (error) {
     console.error(`[lead ${id}] could not read analyses:`, error);
   }
+  // Demo sites likewise. A read failure here must not break the lead page.
+  let demos: Awaited<ReturnType<typeof demoSitesForLead>> = [];
+  try {
+    demos = await demoSitesForLead(id);
+  } catch (error) {
+    console.error(`[lead ${id}] could not read demo sites:`, error);
+  }
+
   const analysisProvider = getAnalysisProvider();
+  const demoProvider = getDemoSiteProvider();
+  const latestAnalysis = analyses[0] ?? null;
 
   const { provider } = lead;
   const score = scoreLead(lead);
@@ -160,6 +173,17 @@ export default async function LeadDetailPage({
         leadId={lead.id}
         analyses={analyses}
         configuredProvider={{ name: analysisProvider.name, model: analysisProvider.model }}
+      />
+
+      <DemoPanel
+        leadId={lead.id}
+        demos={demos}
+        latestAnalysis={
+          latestAnalysis
+            ? { id: latestAnalysis.id, createdAt: latestAnalysis.createdAt }
+            : null
+        }
+        generator={{ name: demoProvider.name, model: demoProvider.model }}
       />
 
       <Card className="p-5">
