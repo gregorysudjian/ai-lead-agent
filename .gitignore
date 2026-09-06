@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local development data (JSON lead store -- dev only, never committed)
 /data/
+
+# supabase CLI scratch state (link metadata, version caches) -- machine-local
+/supabase/.temp/
