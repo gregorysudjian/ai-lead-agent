@@ -1,4 +1,4 @@
-import { leadRepositoryName, placesProviderName } from "@/server/env";
+import { analysisProviderName, leadRepositoryName, placesProviderName } from "@/server/env";
 
 import { Badge, type BadgeTone } from "./ui/primitives";
 
@@ -14,6 +14,11 @@ import { Badge, type BadgeTone } from "./ui/primitives";
 const STORE_LABELS: Record<string, { label: string; tone: BadgeTone }> = {
   json: { label: "Local JSON file", tone: "amber" },
   supabase: { label: "Supabase", tone: "emerald" },
+};
+
+const ANALYSER_LABELS: Record<string, { label: string; tone: BadgeTone }> = {
+  mock: { label: "Mock", tone: "amber" },
+  anthropic: { label: "Claude (Anthropic)", tone: "indigo" },
 };
 
 const PROVIDER_LABELS: Record<string, { label: string; tone: BadgeTone }> = {
@@ -34,10 +39,15 @@ function safely(read: () => string): string {
 export function SystemStatus() {
   const store = safely(leadRepositoryName);
   const provider = safely(placesProviderName);
+  const analyser = safely(analysisProviderName);
 
   const storeInfo = STORE_LABELS[store] ?? { label: store, tone: "rose" as BadgeTone };
   const providerInfo = PROVIDER_LABELS[provider] ?? {
     label: provider,
+    tone: "rose" as BadgeTone,
+  };
+  const analyserInfo = ANALYSER_LABELS[analyser] ?? {
+    label: analyser,
     tone: "rose" as BadgeTone,
   };
 
@@ -48,6 +58,9 @@ export function SystemStatus() {
       </span>
       <span className="flex items-center gap-1.5">
         Discovery provider: <Badge tone={providerInfo.tone}>{providerInfo.label}</Badge>
+      </span>
+      <span className="flex items-center gap-1.5">
+        Analysis provider: <Badge tone={analyserInfo.tone}>{analyserInfo.label}</Badge>
       </span>
       {provider === "mock" ? (
         <span className="text-amber-700 dark:text-amber-400">

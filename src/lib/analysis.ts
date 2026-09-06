@@ -109,8 +109,51 @@ export interface Analysis {
   limitations: string[];
 }
 
-/** The analyser's output, before the repository assigns identity and timestamps. */
+/** What the service assembles before the repository assigns identity/timestamps. */
 export type AnalysisDraft = Pick<
   Analysis,
   "provider" | "facts" | "recommendations" | "assumptions" | "limitations"
 >;
+
+/**
+ * Everything an analyser is permitted to RETURN.
+ *
+ * Note what is absent: no business name, no source, no snapshot timestamp, no
+ * `...Listed` flags, no rating or review count, no lead id, no analysis id, no
+ * timestamps. Those are derived by application code and merged in afterwards.
+ *
+ * This is the structural guarantee behind "a language model cannot control
+ * provider facts": even a model that tried to assert `websiteListed: true`
+ * has nowhere to put it. Facts are not a field it can reach.
+ */
+export interface AnalysisProviderResult {
+  recommendations: AnalysisRecommendations;
+  assumptions: string[];
+  limitations: string[];
+}
+
+/**
+ * Everything an analyser RECEIVES. Deliberately minimal.
+ *
+ * Presence flags rather than values: the analyser reasons about whether a phone
+ * or address was listed, and never needs the number or street itself. Nothing
+ * here identifies the record in our systems -- no internal UUID, no provider
+ * external id, no database metadata, no timestamps.
+ *
+ * Every string field is UNTRUSTED provider data (it originates in
+ * OpenStreetMap, which anyone may edit) and must be passed to a model as data,
+ * never as instructions.
+ */
+export interface AnalysisProviderInput {
+  businessName: string;
+  category: string;
+  city: string;
+  /** Human-readable source label, e.g. "OpenStreetMap". Not an internal enum. */
+  sourceLabel: string;
+  websiteListed: boolean;
+  phoneListed: boolean;
+  addressListed: boolean;
+  /** Only present when the provider actually listed one. */
+  rating: number | null;
+  reviewCount: number | null;
+}

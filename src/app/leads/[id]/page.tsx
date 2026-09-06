@@ -61,7 +61,7 @@ export default async function LeadDetailPage({
   } catch (error) {
     console.error(`[lead ${id}] could not read analyses:`, error);
   }
-  const analysisProviderIsMock = getAnalysisProvider().name === "mock";
+  const analysisProvider = getAnalysisProvider();
 
   const { provider } = lead;
   const score = scoreLead(lead);
@@ -159,7 +159,7 @@ export default async function LeadDetailPage({
       <AnalysisPanel
         leadId={lead.id}
         analyses={analyses}
-        providerIsMock={analysisProviderIsMock}
+        configuredProvider={{ name: analysisProvider.name, model: analysisProvider.model }}
       />
 
       <Card className="p-5">

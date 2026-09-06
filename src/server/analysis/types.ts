@@ -7,8 +7,7 @@
  *
  * Types only, no runtime code, so no `server-only` guard is needed here.
  */
-import type { AnalysisDraft } from "@/lib/analysis";
-import type { Lead } from "@/lib/types";
+import type { AnalysisProviderInput, AnalysisProviderResult } from "@/lib/analysis";
 
 export interface AnalysisProvider {
   /** Identifies the implementation in stored records and in the UI. */
@@ -17,15 +16,16 @@ export interface AnalysisProvider {
   readonly model: string;
 
   /**
-   * Produce a website-strategy draft for one lead.
+   * Produce website-strategy recommendations for one business.
    *
-   * Receives the whole Lead so it can read the provider snapshot, and must not
-   * mutate it. Returns a draft without identity or timestamps -- the repository
-   * assigns those.
+   * Receives a SANITIZED input, not the Lead: no internal ids, no contact
+   * values, no timestamps. Returns recommendations, assumptions and limitations
+   * ONLY -- provider facts are derived by application code and merged
+   * afterwards, so an analyser has no way to assert one.
    *
    * Throws on failure; callers report that rather than storing a partial run.
    */
-  analyse(lead: Lead): Promise<AnalysisDraft>;
+  analyse(input: AnalysisProviderInput): Promise<AnalysisProviderResult>;
 }
 
 /** The analyser could not produce a usable result. */
