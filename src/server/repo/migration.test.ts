@@ -280,3 +280,100 @@ describe("lead_analyses table security", () => {
     }
   });
 });
+
+describe("demo_sites table security", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("enables RLS", () => {
+    expect(sql).toContain("alter table public.demo_sites enable row level security");
+    // The file-wide "creates NO policies" test covers policy absence, so RLS on
+    // with no policy means anon and authenticated can reach nothing.
+  });
+
+  it("starts every API role from zero rather than trusting inherited defaults", () => {
+    // Includes service_role deliberately: ALTER DEFAULT PRIVILEGES has granted
+    // Dxtm on new tables before, and this table must not inherit it.
+    expect(sql).toContain(
+      "revoke all on table public.demo_sites from anon, authenticated, service_role",
+    );
+  });
+
+  it("grants service_role ONLY select and insert", () => {
+    expect(sql).toContain("grant select, insert on table public.demo_sites to service_role");
+    for (const verb of ["update", "delete", "truncate", "references", "trigger"]) {
+      expect(sql).not.toContain(`grant select, insert, ${verb} on table public.demo_sites`);
+      expect(sql).not.toContain(`grant ${verb} on table public.demo_sites`);
+    }
+    expect(sql).not.toContain("grant all on table public.demo_sites");
+  });
+
+  it("revokes before it grants, so the grant survives", () => {
+    const revoke = sql.indexOf(
+      "revoke all on table public.demo_sites from anon, authenticated, service_role",
+    );
+    const grant = sql.indexOf("grant select, insert on table public.demo_sites to service_role");
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+  });
+
+  it("never grants anything on demo_sites to a browser-facing role", () => {
+    const grants = sql.split("\n").filter((l) => l.startsWith("grant ") && l.includes("demo_sites"));
+    expect(grants.length).toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toContain("to service_role");
+      expect(grant).not.toContain("anon");
+      expect(grant).not.toContain("authenticated");
+    }
+  });
+});
+
+describe("demo_sites table schema", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("references both a lead and an analysis, each cascading on delete", () => {
+    expect(sql).toContain("lead_id uuid not null references public.leads (id) on delete cascade");
+    expect(sql).toContain(
+      "analysis_id uuid not null references public.lead_analyses (id) on delete cascade",
+    );
+  });
+
+  it("constrains status to the single persisted state", () => {
+    expect(sql).toContain("check (status in ('generated'))");
+  });
+
+  it("stores the spec as a single jsonb column", () => {
+    expect(sql).toContain("spec jsonb not null");
+  });
+
+  it("records which generator produced the row", () => {
+    expect(sql).toContain("generator_name text not null");
+    expect(sql).toContain("generator_model text not null");
+  });
+
+  it("indexes the three lookups the repository performs", () => {
+    expect(sql).toContain("create index demo_sites_lead_id_created_at_idx");
+    expect(sql).toContain("(lead_id, created_at desc)");
+    expect(sql).toContain("create index demo_sites_analysis_id_created_at_idx");
+    expect(sql).toContain("(analysis_id, created_at desc)");
+    expect(sql).toContain("create index demo_sites_created_at_idx");
+  });
+
+  it("stores no HTML, stylesheet or URL column", () => {
+    for (const forbidden of ["html", "css", "url ", "script"]) {
+      expect(sql).not.toContain(`${forbidden} text`);
+    }
+  });
+
+  it("does not alter or drop leads or lead_analyses", () => {
+    for (const forbidden of [
+      "drop table public.leads",
+      "drop table public.lead_analyses",
+      "alter table public.leads drop",
+      "alter table public.lead_analyses drop",
+      "delete from public.leads",
+      "delete from public.lead_analyses",
+    ]) {
+      expect(sql).not.toContain(forbidden);
+    }
+  });
+});

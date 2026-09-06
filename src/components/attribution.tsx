@@ -20,15 +20,27 @@ export const SOURCE_LABELS: Record<BusinessSource, string> = {
  * to openstreetmap.org/copyright, which carries the licence terms. Rendered
  * wherever OSM-derived business data is displayed.
  */
-export function OsmAttribution({ className = "" }: { className?: string }) {
+export function OsmAttribution({
+  className = "",
+  tone = "default",
+}: {
+  className?: string;
+  /** `inverted` for placement on a dark surface, such as the demo preview bar. */
+  tone?: "default" | "inverted";
+}) {
+  const text =
+    tone === "inverted" ? "text-slate-400" : "text-slate-600 dark:text-slate-400";
+  const hover =
+    tone === "inverted" ? "hover:text-white" : "hover:text-slate-900 dark:hover:text-slate-100";
+
   return (
-    <p className={`text-xs text-slate-600 dark:text-slate-400 ${className}`}>
+    <p className={`text-xs ${text} ${className}`}>
       Business data ©{" "}
       <a
         href="https://www.openstreetmap.org/copyright"
         target="_blank"
         rel="noopener noreferrer"
-        className={`underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100 ${FOCUS_RING}`}
+        className={`underline underline-offset-2 ${hover} ${FOCUS_RING}`}
       >
         OpenStreetMap
       </a>{" "}
@@ -37,7 +49,7 @@ export function OsmAttribution({ className = "" }: { className?: string }) {
         href="https://opendatacommons.org/licenses/odbl/1-0/"
         target="_blank"
         rel="noopener noreferrer"
-        className={`underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100 ${FOCUS_RING}`}
+        className={`underline underline-offset-2 ${hover} ${FOCUS_RING}`}
       >
         Open Database License (ODbL) 1.0
       </a>

@@ -25,9 +25,21 @@ const NAV: NavItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/leads", label: "Leads" },
   { href: "/ai-analysis", label: "AI Analysis", comingSoon: true },
-  { href: "/demo-sites", label: "Demo Sites", comingSoon: true },
+  { href: "/demos", label: "Demo Sites" },
   { href: "/outreach", label: "Outreach", comingSoon: true },
 ];
+
+/**
+ * Routes that render WITHOUT the dashboard chrome.
+ *
+ * A demo-site preview is meant to look like the customer's proposed website,
+ * not like our admin tool, so the sidebar, the wordmark and the page container
+ * are all omitted for it. The `/demos` index itself keeps the chrome; only an
+ * individual preview drops it.
+ */
+function isChromeless(pathname: string): boolean {
+  return /^\/demos\/[^/]+$/.test(pathname);
+}
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
@@ -97,6 +109,10 @@ function Wordmark() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Rendered full-bleed, with the page supplying its own chrome.
+  if (isChromeless(pathname)) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
