@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { BUTTON_PRIMARY, Card, INPUT, SectionHeading } from "./ui/primitives";
+
 interface SearchOutcome {
   discovered: number;
   created: number;
@@ -13,18 +15,19 @@ interface SearchOutcome {
 }
 
 /**
- * The discovery search form.
+ * Business discovery form.
  *
  * A Client Component because it owns form state and request lifecycle. It calls
  * the existing POST /api/search -- no discovery logic is duplicated here -- then
- * refreshes the server-rendered lead list so counts and rows reflect the write.
+ * refreshes the server-rendered lead data so counts and rows reflect the write.
  */
 export function SearchPanel() {
   const router = useRouter();
-  const [category, setCategory] = useState("Hair salons");
+  const [category, setCategory] = useState("Hair salon");
   const [city, setCity] = useState("Montreal");
   const [outcome, setOutcome] = useState<SearchOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [supported, setSupported] = useState<string[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
 
@@ -37,6 +40,7 @@ export function SearchPanel() {
 
     setIsSearching(true);
     setError(null);
+    setSupported(null);
     setOutcome(null);
 
     try {
@@ -51,6 +55,9 @@ export function SearchPanel() {
         setError(
           typeof body?.error === "string" ? body.error : "Search failed. Please try again.",
         );
+        // A 400 from an unsupported city/category lists what IS supported.
+        const list = body?.supported?.categories ?? body?.supported?.cities;
+        if (Array.isArray(list)) setSupported(list);
         return;
       }
 
@@ -70,16 +77,14 @@ export function SearchPanel() {
   }
 
   return (
-    <section
-      aria-labelledby="search-heading"
-      className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-    >
-      <h2 id="search-heading" className="text-base font-semibold">
-        Find businesses
-      </h2>
+    <Card as="section" className="p-5">
+      <SectionHeading
+        title="Find businesses"
+        hint="Searches OpenStreetMap for businesses in a supported city and category."
+      />
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1">
+      <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
+        <div>
           <label htmlFor="category" className="block text-sm font-medium">
             Category
           </label>
@@ -89,11 +94,12 @@ export function SearchPanel() {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             required
-            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-600 dark:bg-slate-950"
+            autoComplete="off"
+            className={`mt-1 ${INPUT}`}
           />
         </div>
 
-        <div className="flex-1">
+        <div>
           <label htmlFor="city" className="block text-sm font-medium">
             City
           </label>
@@ -103,26 +109,41 @@ export function SearchPanel() {
             value={city}
             onChange={(e) => setCity(e.target.value)}
             required
-            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-600 dark:bg-slate-950"
+            autoComplete="off"
+            className={`mt-1 ${INPUT}`}
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {busy ? "Searching..." : "Search"}
-        </button>
+        <div className="flex items-end">
+          <button type="submit" disabled={busy} className={`${BUTTON_PRIMARY} w-full sm:w-auto`}>
+            {busy ? "Searching…" : "Search"}
+          </button>
+        </div>
       </form>
 
-      <div aria-live="polite" className="mt-3 text-sm">
-        {busy ? <p className="text-slate-600 dark:text-slate-400">Searching...</p> : null}
+      <div aria-live="polite" className="mt-3 space-y-2 text-sm">
+        {busy ? (
+          <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <span
+              aria-hidden="true"
+              className="h-3 w-3 animate-pulse rounded-full bg-indigo-500"
+            />
+            Searching the provider…
+          </p>
+        ) : null}
 
         {error ? (
-          <p role="alert" className="text-red-700 dark:text-red-400">
-            {error}
-          </p>
+          <div
+            role="alert"
+            className="rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/50"
+          >
+            <p className="text-red-900 dark:text-red-200">{error}</p>
+            {supported ? (
+              <p className="mt-1 text-xs text-red-800 dark:text-red-300">
+                Currently supported: {supported.join(", ")}.
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {outcome && !busy && !error ? (
@@ -133,9 +154,9 @@ export function SearchPanel() {
           ) : (
             <>
               <p className="text-slate-700 dark:text-slate-300">
-                <strong>{outcome.discovered}</strong> businesses discovered &middot;{" "}
+                <strong>{outcome.discovered}</strong> businesses discovered ·{" "}
                 <strong>{outcome.created}</strong> new{" "}
-                {outcome.created === 1 ? "lead" : "leads"} &middot;{" "}
+                {outcome.created === 1 ? "lead" : "leads"} ·{" "}
                 <strong>{outcome.updated}</strong> existing{" "}
                 {outcome.updated === 1 ? "lead" : "leads"} refreshed
               </p>
@@ -143,15 +164,15 @@ export function SearchPanel() {
                   user knows this is not necessarily the complete set. We do NOT
                   fetch the next page automatically. */}
               {outcome.truncated ? (
-                <p className="mt-1 text-slate-600 dark:text-slate-400">
-                  Search reached the {outcome.limit ?? "result"} result limit. More
-                  matching businesses may exist.
+                <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                  Search reached the {outcome.limit ?? "result"} result limit. More matching
+                  businesses may exist.
                 </p>
               ) : null}
             </>
           )
         ) : null}
       </div>
-    </section>
+    </Card>
   );
 }

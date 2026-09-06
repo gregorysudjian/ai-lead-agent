@@ -2,8 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
-import { StatusBadge } from "@/components/lead-card";
+import { PriorityBadge, StatusBadge } from "@/components/lead-row";
 import { StatusToggle } from "@/components/status-toggle";
+import {
+  Badge,
+  Card,
+  LINK,
+  SectionHeading,
+} from "@/components/ui/primitives";
 import {
   classifyWebsite,
   displayOrNotListed,
@@ -19,18 +25,14 @@ import type { OpeningHours } from "@/lib/types";
 import { getLeadRepository } from "@/server/repo";
 
 /**
- * Lead detail.
+ * Lead detail: a review workspace.
  *
  * A Server Component reading the repository directly -- no HTTP call from the
  * server to its own API. Only the status control is a Client Component.
- *
- * The page is split into two clearly separated regions that mirror the data
- * model: what our application owns, and what the provider last told us.
  */
 export const dynamic = "force-dynamic";
 
 export default async function LeadDetailPage({
-  // Next 16 passes route params as a Promise.
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -45,87 +47,125 @@ export default async function LeadDetailPage({
     throw new Error("Could not load this lead.");
   }
 
-  // An unknown id renders the standard 404, not an error page.
   if (!lead) notFound();
 
   const { provider } = lead;
-  // Derived on every render from the current snapshot. Never stored.
   const score = scoreLead(lead);
-  // Built only from a strictly validated "type/id" external id; null otherwise,
-  // and then no link is rendered.
+  const website = classifyWebsite(provider.website);
   const osmUrl = provider.source === "osm" ? osmObjectUrl(provider.externalId) : null;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
-      <Link
-        href="/"
-        className="text-sm font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-blue-400"
-      >
-        &larr; Back to dashboard
+    <div className="space-y-6">
+      <Link href="/leads" className={`text-sm ${LINK}`}>
+        &larr; Back to leads
       </Link>
 
-      <header className="mt-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{provider.name}</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            {provider.category} &middot; {provider.city}
-          </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight break-words text-slate-900 dark:text-slate-50">
+            {provider.name}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge tone="indigo">{provider.category}</Badge>
+            <Badge tone="slate">{provider.city}</Badge>
+            <StatusBadge status={lead.status} />
+            <PriorityBadge score={score} />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <StatusBadge status={lead.status} />
+        <div className="shrink-0">
           <StatusToggle leadId={lead.id} status={lead.status} />
         </div>
       </header>
 
-      <section
-        aria-labelledby="app-data"
-        className="mt-8 rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
-      >
-        <h2 id="app-data" className="text-base font-semibold">
-          Lead record
-        </h2>
-        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-          Owned by this application. Survives every rediscovery.
-        </p>
-        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Internal lead ID" value={lead.id} mono />
-          <Field label="Status" value={lead.status} />
-          <Field label="Created" value={formatTimestamp(lead.createdAt)} />
-          <Field label="Last updated" value={formatTimestamp(lead.updatedAt)} />
-        </dl>
-      </section>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="p-5 lg:col-span-2">
+          <SectionHeading
+            title="Business overview"
+            hint="Supplied by the discovery provider. A missing value means the provider did not list it, not that it does not exist."
+          />
+          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Business name" value={provider.name} />
+            <Field label="Category" value={provider.category} />
+            <Field label="City" value={provider.city} />
+            <Field label="Address" value={displayOrNotListed(provider.address)} />
+            <Field label="Rating" value={formatRating(provider.rating)} />
+            <Field label="Reviews" value={formatReviewCount(provider.reviewCount)} />
+          </dl>
+        </Card>
 
-      <section
-        aria-labelledby="score"
-        className="mt-6 rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
-      >
-        <h2 id="score" className="text-base font-semibold">
-          Lead priority
-        </h2>
-        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-          This deterministic score orders leads for review using provider-listed
-          website, phone, address and reputation signals. It is not a prediction of
-          purchase intent, and not proof that a business lacks a website.
-        </p>
+        <Card className="p-5">
+          <SectionHeading title="Contact" hint="For manual outreach only." />
+          <dl className="mt-4 space-y-4">
+            <Field label="Phone" value={displayOrNotListed(provider.phone)} />
+            <Field label="Address" value={displayOrNotListed(provider.address)} />
+          </dl>
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-950 dark:text-slate-400">
+            Nothing is contacted automatically. Any outreach is written and sent by you.
+          </p>
+        </Card>
+      </div>
 
+      <Card className="p-5">
+        <SectionHeading
+          title="Web presence"
+          hint="Only a valid absolute http(s) URL is made clickable."
+        />
+        <div className="mt-4">
+          {website.kind === "none" ? (
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              No website listed by provider
+            </p>
+          ) : null}
+
+          {website.kind === "linkable" ? (
+            <a
+              href={website.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-sm break-all ${LINK}`}
+            >
+              {website.href}
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          ) : null}
+
+          {website.kind === "unlinkable" ? (
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              {UNLINKABLE_WEBSITE_LABEL}
+              {website.raw.length > 0 ? (
+                <>
+                  {": "}
+                  <code className="font-mono text-xs break-all">{website.raw}</code>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <SectionHeading
+          title="Lead priority"
+          hint="This deterministic score orders leads for review using provider-listed website, phone, address and reputation signals. It is not a prediction of purchase intent, and not proof that a business lacks a website."
+        />
         <table className="mt-4 w-full text-sm">
           <caption className="sr-only">Lead priority breakdown by factor</caption>
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700">
-              <th scope="col" className="py-1.5 text-left font-medium">Factor</th>
-              <th scope="col" className="py-1.5 text-right font-medium">Points</th>
+            <tr className="border-b border-slate-200 text-left dark:border-slate-800">
+              <th scope="col" className="py-2 font-medium">Factor</th>
+              <th scope="col" className="py-2 text-right font-medium">Points</th>
             </tr>
           </thead>
           <tbody>
             {score.factors.map((factor) => (
-              <tr key={factor.key} className="border-b border-slate-200 dark:border-slate-800">
-                <td className="py-2 pr-3">
+              <tr key={factor.key} className="border-b border-slate-100 dark:border-slate-800/60">
+                <td className="py-2.5 pr-3">
                   <span className="font-medium">{factor.label}</span>
                   <span className="block text-xs text-slate-600 dark:text-slate-400">
                     {factor.reason}
                   </span>
                 </td>
-                <td className="py-2 text-right align-top tabular-nums whitespace-nowrap">
+                <td className="py-2.5 text-right align-top tabular-nums whitespace-nowrap">
                   +{factor.points} / {factor.maxPoints}
                 </td>
               </tr>
@@ -133,127 +173,89 @@ export default async function LeadDetailPage({
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row" className="py-2 text-left font-semibold">
+              <th scope="row" className="py-2.5 text-left font-semibold">
                 Total
                 <span className="block text-xs font-normal text-slate-600 dark:text-slate-400">
                   {PRIORITY_LABELS[score.priority]}
                 </span>
               </th>
-              <td className="py-2 text-right align-top font-semibold tabular-nums">
+              <td className="py-2.5 text-right align-top font-semibold tabular-nums">
                 {score.total} / {MAX_SCORE}
               </td>
             </tr>
           </tfoot>
         </table>
-      </section>
+      </Card>
 
-      <section
-        aria-labelledby="provider-data"
-        className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950"
-      >
-        <h2 id="provider-data" className="text-base font-semibold">
-          Provider data
-        </h2>
-        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-          Supplied by the discovery provider and refreshed on every search. A
-          missing value means the provider did not list it, not that it does not
-          exist.
-        </p>
-        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Name" value={provider.name} />
-          <Field label="Category" value={provider.category} />
-          <Field label="City" value={provider.city} />
-          <Field label="Address" value={displayOrNotListed(provider.address)} />
-          <Field label="Phone" value={displayOrNotListed(provider.phone)} />
-          <WebsiteField website={provider.website} />
-          <Field label="Rating" value={formatRating(provider.rating)} />
-          <Field label="Reviews" value={formatReviewCount(provider.reviewCount)} />
-          <Field label="Source" value={SOURCE_LABELS[provider.source]} />
-          <Field label="External ID" value={provider.externalId} mono />
-          <Field label="Fetched" value={formatTimestamp(provider.fetchedAt)} />
-        </dl>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-5">
+          <SectionHeading
+            title="Provider &amp; source"
+            hint="Refreshed on every search. Replaced wholesale on rediscovery."
+          />
+          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Source" value={SOURCE_LABELS[provider.source]} />
+            <Field label="External ID" value={provider.externalId} mono />
+            <Field label="Fetched" value={formatTimestamp(provider.fetchedAt)} />
+          </dl>
 
-        {osmUrl ? (
-          <p className="mt-4 text-sm">
-            <a
-              href={osmUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-700 underline underline-offset-2 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-blue-400"
-            >
-              View on OpenStreetMap
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          </p>
-        ) : null}
+          {osmUrl ? (
+            <p className="mt-4 text-sm">
+              <a href={osmUrl} target="_blank" rel="noopener noreferrer" className={LINK}>
+                View on OpenStreetMap
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            </p>
+          ) : null}
 
-        <h3 className="mt-6 text-sm font-semibold">Opening hours</h3>
-        {provider.source === "osm" && provider.openingHours === null ? (
-          // Do not say "Not listed" here: OpenStreetMap may well carry hours for
-          // this business. We simply do not import them yet, and claiming the
-          // provider listed nothing would misreport the data.
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            Opening hours are not imported from OpenStreetMap in this version.
-          </p>
-        ) : (
-          <OpeningHoursTable hours={provider.openingHours} />
-        )}
+          <h3 className="mt-6 text-sm font-semibold">Opening hours</h3>
+          {provider.source === "osm" && provider.openingHours === null ? (
+            // Do not say "Not listed": OpenStreetMap may well carry hours for
+            // this business. We simply do not import them yet, and claiming the
+            // provider listed nothing would misreport the data.
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+              Opening hours are not imported from OpenStreetMap in this version.
+            </p>
+          ) : (
+            <OpeningHoursTable hours={provider.openingHours} />
+          )}
 
-        {provider.source === "osm" ? <OsmAttribution className="mt-6" /> : null}
-      </section>
-    </main>
+          {provider.source === "osm" ? <OsmAttribution className="mt-6" /> : null}
+        </Card>
+
+        <Card className="p-5">
+          <SectionHeading
+            title="Lead record"
+            hint="Owned by this application. Survives every rediscovery."
+          />
+          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Internal lead ID" value={lead.id} mono />
+            <Field label="Status" value={lead.status} />
+            <Field label="Created" value={formatTimestamp(lead.createdAt)} />
+            <Field label="Last updated" value={formatTimestamp(lead.updatedAt)} />
+          </dl>
+
+          <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <h3 className="text-sm font-semibold">Review actions</h3>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              Status is the only field you can change. Provider data is refreshed by search.
+            </p>
+            <div className="mt-3">
+              <StatusToggle leadId={lead.id} status={lead.status} />
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
   );
 }
 
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="text-xs text-slate-600 dark:text-slate-400">{label}</dt>
       <dd className={`mt-0.5 text-sm break-words ${mono ? "font-mono text-xs" : ""}`}>
         {value}
-      </dd>
-    </div>
-  );
-}
-
-function WebsiteField({ website }: { website: string | null }) {
-  // Provider data is untrusted. Only an allowlisted absolute http(s) URL is
-  // rendered as an anchor; anything else is shown as escaped plain text.
-  const rendering = classifyWebsite(website);
-
-  return (
-    <div>
-      <dt className="text-xs text-slate-600 dark:text-slate-400">Website</dt>
-      <dd className="mt-0.5 text-sm break-words">
-        {rendering.kind === "none" ? (
-          <span className="text-amber-800 dark:text-amber-300">
-            No website listed by provider
-          </span>
-        ) : null}
-
-        {rendering.kind === "linkable" ? (
-          <a
-            href={rendering.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-700 underline underline-offset-2 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-blue-400"
-          >
-            {rendering.href}
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        ) : null}
-
-        {rendering.kind === "unlinkable" ? (
-          <span className="text-amber-800 dark:text-amber-300">
-            {UNLINKABLE_WEBSITE_LABEL}
-            {rendering.raw.length > 0 ? (
-              <>
-                {": "}
-                <code className="font-mono text-xs break-all">{rendering.raw}</code>
-              </>
-            ) : null}
-          </span>
-        ) : null}
       </dd>
     </div>
   );
@@ -279,7 +281,7 @@ function OpeningHoursTable({ hours }: { hours: OpeningHours | null }) {
       <caption className="sr-only">Opening hours by day</caption>
       <tbody>
         {formatOpeningHours(hours).map((row) => (
-          <tr key={row.day} className="border-b border-slate-200 last:border-0 dark:border-slate-800">
+          <tr key={row.day} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
             <th scope="row" className="py-1.5 text-left font-normal text-slate-600 dark:text-slate-400">
               {row.day}
             </th>
