@@ -228,3 +228,55 @@ describe("future tables inherit no privileges", () => {
     }
   });
 });
+
+describe("lead_analyses table security", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("enables RLS with no policies", () => {
+    expect(sql).toContain("alter table public.lead_analyses enable row level security");
+    // The file-wide "creates NO policies" test already covers policy absence.
+  });
+
+  it("revokes all access from the browser-facing roles", () => {
+    expect(sql).toContain("revoke all on table public.lead_analyses from anon, authenticated");
+  });
+
+  it("grants service_role ONLY select and insert", () => {
+    // Narrower than leads on purpose: analyses are append-only, so the
+    // repository never updates or deletes and is not granted the ability to.
+    expect(sql).toContain("grant select, insert on table public.lead_analyses to service_role");
+    expect(sql).not.toContain("on table public.lead_analyses to service_role with");
+    for (const verb of ["update", "delete", "truncate"]) {
+      expect(sql).not.toContain(`grant select, insert, ${verb} on table public.lead_analyses`);
+    }
+  });
+
+  it("never grants anything on lead_analyses to anon or authenticated", () => {
+    const grants = sql.split("\n").filter((l) => l.startsWith("grant ") && l.includes("lead_analyses"));
+    expect(grants.length).toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toContain("to service_role");
+      expect(grant).not.toContain("anon");
+      expect(grant).not.toContain("authenticated");
+    }
+  });
+
+  it("references leads with an ON DELETE CASCADE foreign key", () => {
+    expect(sql).toContain("references public.leads (id) on delete cascade");
+  });
+
+  it("indexes the lead + recency lookup the repository performs", () => {
+    expect(sql).toContain("create index lead_analyses_lead_id_created_at_idx");
+    expect(sql).toContain("(lead_id, created_at desc)");
+  });
+
+  it("constrains status to the single persisted state", () => {
+    expect(sql).toContain("check (status in ('complete'))");
+  });
+
+  it("does not alter or drop the leads table", () => {
+    for (const forbidden of ["drop table public.leads", "alter table public.leads drop", "delete from public.leads"]) {
+      expect(sql).not.toContain(forbidden);
+    }
+  });
+});
