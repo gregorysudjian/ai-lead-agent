@@ -51,8 +51,10 @@ const ENDPOINT = "https://places.googleapis.com/v1/places:searchText";
  *   primaryTypeDisplayName / primaryType
  *                       category, so a candidate is labelled by Google's own
  *                       classification rather than our search term
- *   nationalPhoneNumber the second exact match signal, when addresses are
- *                       written differently by the two sources
+ *   internationalPhoneNumber
+ *                       the second exact match signal, when addresses are
+ *                       written differently by the two sources. International
+ *                       rather than national so it is comparable with ours.
  *   websiteUri          the website-presence signal, which is the single
  *                       largest factor in lead scoring
  *   rating / userRatingCount
@@ -68,7 +70,7 @@ const FIELD_MASK = [
   "places.formattedAddress",
   "places.primaryType",
   "places.primaryTypeDisplayName",
-  "places.nationalPhoneNumber",
+  "places.internationalPhoneNumber",
   "places.websiteUri",
   "places.rating",
   "places.userRatingCount",
@@ -184,7 +186,11 @@ export function normalizeGooglePlace(
     // comes from our own registry so it matches what OSM records store.
     city: context.cityLabel,
     address: readString(record.formattedAddress, 300),
-    phone: readString(record.nationalPhoneNumber, 50),
+    // International format, so it is comparable with what OpenStreetMap
+    // records store. Google's national format ("(514) 844-4384") and OSM's
+    // international one ("+1 514 844 4384") never match digit-for-digit, and
+    // the match rule must not strip a country code to paper over that.
+    phone: readString(record.internationalPhoneNumber, 50),
     website: readWebsite(record.websiteUri),
     rating: readNumber(record.rating, 0, 5),
     reviewCount: readNumber(record.userRatingCount, 0, Number.MAX_SAFE_INTEGER),

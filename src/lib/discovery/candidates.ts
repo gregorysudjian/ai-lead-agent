@@ -177,7 +177,29 @@ export function matchReasonFor(
   b: DiscoveredBusiness,
 ): CandidateMatchReason | null {
   if (a.source === b.source && a.externalId === b.externalId) return "same-source-id";
+  return crossSourceMatch(a, b);
+}
 
+/** The minimum needed to decide whether two records describe one business. */
+export interface MatchableBusiness {
+  name: string;
+  address: string | null;
+  phone: string | null;
+}
+
+/**
+ * The cross-source half of the rule, without needing a whole
+ * `DiscoveredBusiness`.
+ *
+ * Exported so anything that matches a record from one source against a record
+ * from another -- discovery grouping, and looking a known lead up in a
+ * directory -- applies THE SAME rule. Two implementations of "is this the same
+ * business?" would eventually disagree, and the disagreement would be silent.
+ */
+export function crossSourceMatch(
+  a: MatchableBusiness,
+  b: MatchableBusiness,
+): Exclude<CandidateMatchReason, "same-source-id"> | null {
   const nameA = usableText(a.name);
   const nameB = usableText(b.name);
   // Without a name on both sides there is nothing to anchor a match to.

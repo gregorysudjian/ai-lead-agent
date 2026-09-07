@@ -3,6 +3,7 @@ import {
   discoverySourceNames,
   leadRepositoryName,
   placesProviderName,
+  websiteLookupName,
 } from "@/server/env";
 import { DISCOVERY_SOURCE_LABELS } from "@/lib/discovery/candidates";
 
@@ -57,6 +58,7 @@ export function SystemStatus() {
   const analyser = safely(analysisProviderName);
   // Names only -- never a URL and never a key.
   const discovery = safelyList(discoverySourceNames);
+  const lookup = safely(websiteLookupName);
 
   const storeInfo = STORE_LABELS[store] ?? { label: store, tone: "rose" as BadgeTone };
   const providerInfo = PROVIDER_LABELS[provider] ?? {
@@ -90,6 +92,12 @@ export function SystemStatus() {
             </Badge>
           ))
         )}
+      </span>
+      <span className="flex items-center gap-1.5">
+        Website lookup:{" "}
+        <Badge tone={lookup === "off" ? "slate" : "indigo"}>
+          {lookup === "off" ? "Off" : "Google Places (billable)"}
+        </Badge>
       </span>
       {provider === "mock" ? (
         <span className="text-amber-700 dark:text-amber-400">
