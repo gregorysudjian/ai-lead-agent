@@ -5,9 +5,11 @@ import {
   LeadSummary,
   PriorityDistribution,
 } from "@/components/lead-summary";
+import { DiscoveryPanel } from "@/components/discovery-panel";
 import { SearchPanel } from "@/components/search-panel";
 import { SystemStatus } from "@/components/system-status";
 import { Card, EmptyState, ErrorPanel, LINK, PageHeader, SectionHeading } from "@/components/ui/primitives";
+import { availableDiscoverySources } from "@/server/discovery-service";
 import { loadLeads } from "@/server/leads-page-data";
 
 /**
@@ -25,6 +27,9 @@ export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const { leads, loadFailed } = await loadLeads("dashboard");
+  // Names only. Which sources are enabled is configuration, not a secret; the
+  // credentials behind them never leave the server.
+  const discoverySources = availableDiscoverySources();
 
   return (
     <div className="space-y-6">
@@ -36,6 +41,8 @@ export default async function DashboardPage() {
       <SystemStatus />
 
       <SearchPanel />
+
+      <DiscoveryPanel availableSources={discoverySources} />
 
       {loadFailed ? (
         <ErrorPanel

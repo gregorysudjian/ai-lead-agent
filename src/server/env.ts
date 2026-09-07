@@ -35,6 +35,82 @@ export function placesProviderName(): PlacesProviderName {
   return match;
 }
 
+// ---------------------------------------------------------------------------
+// Multi-source discovery
+// ---------------------------------------------------------------------------
+
+/** Sources a discovery run may use. Anything else is a configuration error. */
+const VALID_DISCOVERY_SOURCES = ["mock", "osm", "google"] as const;
+export type DiscoverySourceConfigName = (typeof VALID_DISCOVERY_SOURCES)[number];
+
+/**
+ * Which sources a discovery run may ask, in the order given.
+ *
+ * `DISCOVERY_SOURCES=osm,google` -- a comma-separated list, not a single value,
+ * because discovery is now a set of sources rather than a choice between them.
+ *
+ * COMPATIBILITY. When unset it falls back to `PLACES_PROVIDER`, which is the
+ * variable this deployment already sets and which still governs the
+ * search-and-save path. So an existing configuration keeps working unchanged and
+ * means exactly what it meant before -- `PLACES_PROVIDER=osm` gives a run that
+ * asks OpenStreetMap and nothing else. Nothing is silently added: turning Google
+ * on requires naming it.
+ *
+ * That also preserves the safety property both variables were built around. The
+ * fallback ends at `placesProviderName()`, which defaults to "mock", so a
+ * missing value can never cause a call to a paid API.
+ *
+ * A typo throws rather than being skipped: `DISCOVERY_SOURCES=osm,googel` must
+ * be loud, not a silently OSM-only run that looks like Google returned nothing.
+ */
+export function discoverySourceNames(): DiscoverySourceConfigName[] {
+  const raw = process.env.DISCOVERY_SOURCES?.trim();
+  if (!raw) return [placesProviderName()];
+
+  const requested = raw
+    .split(",")
+    .map((name) => name.trim().toLowerCase())
+    .filter((name) => name.length > 0);
+
+  if (requested.length === 0) {
+    throw new Error(
+      `Invalid DISCOVERY_SOURCES: expected a comma-separated list of ${VALID_DISCOVERY_SOURCES.join(", ")}.`,
+    );
+  }
+
+  const names: DiscoverySourceConfigName[] = [];
+  for (const name of requested) {
+    const match = VALID_DISCOVERY_SOURCES.find((valid) => valid === name);
+    if (!match) {
+      throw new Error(
+        `Invalid DISCOVERY_SOURCES: expected a comma-separated list of ${VALID_DISCOVERY_SOURCES.join(", ")}.`,
+      );
+    }
+    // Duplicates collapse: asking one source twice is a typo, not two searches.
+    if (!names.includes(match)) names.push(match);
+  }
+  return names;
+}
+
+/**
+ * The Google Places API key.
+ *
+ * Returned for immediate use by the server-side adapter and nothing else. The
+ * key is never logged, echoed, or included in an error: the message below names
+ * the VARIABLE, never any value. It must never be prefixed `NEXT_PUBLIC_`,
+ * which would publish it in the browser bundle.
+ */
+export function googlePlacesApiKey(): string {
+  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      "Google Places is a selected discovery source but GOOGLE_PLACES_API_KEY is not set. " +
+        "Remove google from DISCOVERY_SOURCES to run without it.",
+    );
+  }
+  return key;
+}
+
 /**
  * Overpass endpoint for the OpenStreetMap provider.
  *
@@ -150,7 +226,11 @@ const VALID_ANALYSIS_PROVIDERS: readonly AnalysisProviderName[] = ["mock", "anth
  * deliberately NO fallback from "anthropic" to "mock" on failure either. If the
  * app is configured for Claude and Claude fails, that is reported, not papered
  * over with fixture-quality output presented as a real analysis.
+ *
+ * (The definition follows the research block below; this comment documents
+ * `analysisProviderName`.)
  */
+
 /** The research modes. Anything else is a configuration error. */
 const VALID_RESEARCH_PROVIDERS = ["mock", "website"] as const;
 export type ResearchProviderName = (typeof VALID_RESEARCH_PROVIDERS)[number];
