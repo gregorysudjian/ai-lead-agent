@@ -46,6 +46,26 @@ import { DemoSiteProviderError, type DemoSiteProvider } from "./types";
  * The disclosure that this is a draft lives in the preview's own chrome, where
  * a generator cannot reach it -- not sprinkled through the copy, where it both
  * spoils the mock and could be edited away by a future model.
+ *
+ * ── WHAT IT IS ALLOWED TO SAY ─────────────────────────────────────────────
+ *
+ * Sounding natural is not licence to invent. The evidence this generator holds
+ * is exactly five things: the business's name, its category, its city, whether
+ * a phone number was listed, and whether an address was listed. Every sentence
+ * it writes must reduce to one of those, to an invitation ("Call us"), or to a
+ * slot marked empty.
+ *
+ * So it never says the work is careful, the answers plain, the visit quick or
+ * the welcome friendly. It never claims a menu, a gallery, opening hours, an
+ * appointment book, a specialty, a price, a past project, a regular customer
+ * or a service area -- a listed city address is not evidence a business serves
+ * that city. Where a layout proposes such a section, the section appears with
+ * its content marked `To be added.`, which shows the design without asserting
+ * the data.
+ *
+ * That is stricter than "no hallucination". A generated demo is shown to a
+ * business owner who knows the truth: one invented flattery is enough to make
+ * the whole proposal look like it was written without looking.
  */
 
 const MODEL = "deterministic-demo-rules-v1";
@@ -97,162 +117,136 @@ export function themeFor(input: DemoSiteGeneratorInput): DemoTheme {
   }
 }
 
-/** The primary action, chosen around what the provider actually listed. */
+/**
+ * The primary action.
+ *
+ * `call` only when a number exists to call; otherwise an in-page jump to the
+ * contact section. The label never names a capability we cannot evidence --
+ * "Book an appointment" would assert a booking system nobody told us about.
+ */
 function primaryCtaFor(input: DemoSiteGeneratorInput): DemoCta {
-  const booking = input.recommendedSiteType === "booking-focused-site";
-
-  // A `call` action only makes sense when a number exists to call. Otherwise
-  // the button scrolls to the contact section -- designing around the gap
-  // rather than inventing a number to fill it.
-  if (input.phoneListed) {
-    return { label: booking ? "Call to book" : "Call us", action: "call" };
-  }
-  return {
-    label: booking ? "Book an appointment" : "Get in touch",
-    action: "scroll",
-    targetSectionId: SECTION.contact,
-  };
+  if (input.phoneListed) return { label: "Call us", action: "call" };
+  return { label: "Get in touch", action: "scroll", targetSectionId: SECTION.contact };
 }
 
-function secondaryCtaFor(input: DemoSiteGeneratorInput): DemoCta | null {
+function secondaryCtaFor(input: DemoSiteGeneratorInput): DemoCta {
   if (input.addressListed) return { label: "Find us", action: "directions" };
-  return { label: "See what we do", action: "scroll", targetSectionId: SECTION.offering };
+  return { label: "What we do", action: "scroll", targetSectionId: SECTION.offering };
 }
+
+/**
+ * The marker for a section the proposed site would carry but for which we hold
+ * no data.
+ *
+ * It is the honest alternative to filling the slot: a menu, a gallery or a set
+ * of opening hours can be shown as a designed, obviously empty block without
+ * pretending the content already exists.
+ */
+const TO_BE_ADDED = "To be added.";
 
 /**
  * Offering items.
  *
- * Written for the business's CUSTOMER, in the business's own voice. They say
- * what a visitor can do -- never what the website contains, and never what we
- * intend to build. None names a service, a price or a duration, because none
- * was supplied.
+ * Each is either a restatement of a fact we hold, or an empty slot marked as
+ * such. None asserts a quality, a capability, a service, a price or a history:
+ * we know the business's name, category and city, and whether a phone number
+ * and an address were listed. Nothing else is ours to say on its behalf.
  */
 function offeringItems(input: DemoSiteGeneratorInput): { title: string; body: string }[] {
-  const category = input.category.toLowerCase();
-  const reach = input.phoneListed ? "One call is all it takes." : "We are easy to reach.";
+  // Supported by the provider-listed category and city, and nothing more.
+  const identity = { title: "What we do", body: `${input.category} in ${input.city}.` };
+
+  const location = {
+    title: "Where to find us",
+    body: input.addressListed ? `Our address in ${input.city}.` : TO_BE_ADDED,
+  };
+
+  const contact = {
+    title: "Get in touch",
+    body: input.phoneListed
+      ? "Our phone number is below."
+      : input.addressListed
+        ? "Our address is below."
+        : TO_BE_ADDED,
+  };
 
   switch (input.recommendedSiteType) {
     case "menu-and-location-site":
-      return [
-        { title: "What we serve", body: "Our full list, in plain language, with no guesswork." },
-        { title: "Where to find us", body: `We are in ${input.city}, and easy to get to.` },
-        {
-          title: "When we are open",
-          body: "Our opening times, so nobody arrives to a closed door.",
-        },
-      ];
+      // The layout proposes a menu and hours. Neither is claimed to exist.
+      return [identity, { title: "Menu", body: TO_BE_ADDED }, { title: "Opening hours", body: TO_BE_ADDED }];
     case "booking-focused-site":
-      return [
-        {
-          title: "Book a time",
-          body: "Choose a time that suits you, without the back and forth.",
-        },
-        {
-          title: "What to expect",
-          body: `A straightforward visit to a ${category} that respects your time.`,
-        },
-        { title: "Before you come", body: "The questions people usually ask, answered up front." },
-      ];
-    case "portfolio-site":
-      return [
-        { title: "Recent work", body: "A look at what we have finished lately." },
-        {
-          title: "How we work",
-          body: "What working with us looks like, from first call to finished job.",
-        },
-        { title: "Start a project", body: `Tell us what you have in mind. ${reach}` },
-      ];
+      // The layout proposes taking appointments. It does not say we can.
+      return [identity, { title: "Appointments", body: TO_BE_ADDED }, contact];
     default:
-      return [
-        {
-          title: "What we do",
-          body: `The work we take on as a ${category} in ${input.city}.`,
-        },
-        {
-          title: "Why people come to us",
-          body: "Careful work, a straight answer, and no surprises.",
-        },
-        { title: "Get in touch", body: reach },
-      ];
+      return [identity, location, contact];
   }
 }
 
-/** The one-line introduction above the offering, in the same voice. */
-function offeringIntro(input: DemoSiteGeneratorInput): string {
-  switch (input.recommendedSiteType) {
-    case "menu-and-location-site":
-      return `What we serve, and where to find us in ${input.city}.`;
-    case "booking-focused-site":
-      return "Book a time, know what to expect, and get your questions answered first.";
-    case "portfolio-site":
-      return "Recent work, how we work, and how to get started.";
-    default:
-      return `What we take on, and how to reach us in ${input.city}.`;
-  }
-}
+/**
+ * The line above the offering.
+ *
+ * One wording for every layout: it names the topics on the page and asserts
+ * nothing, so it cannot drift into a claim as layouts are added.
+ */
+const OFFERING_INTRO = "What we do, and how to get in touch.";
 
 /**
  * Positioning.
  *
- * The analysis's `businessSummary` and `keySellingPoints` are notes written
- * for US -- "this summary restates the provider listing only", "clear
- * description of what a hair salon offers". Passing them through put our
- * internal voice on a page meant to read as the business's own, so they are
- * no longer quoted. They still inform the brief; the customer-facing wording
- * is written here, from the same facts.
+ * Restates the three facts we hold, and stops. The analysis's own prose
+ * (`businessSummary`, `keySellingPoints`, `draftPositioning`) is never quoted:
+ * it is written for us, and a proposal's reasoning is not evidence about the
+ * business.
  */
 function positioningBody(input: DemoSiteGeneratorInput): string {
-  return `We are a ${input.category.toLowerCase()} in ${input.city}. We keep it simple: do the work properly, and be easy to reach when you need us.`;
+  return `${input.businessName} is a ${input.category.toLowerCase()} in ${input.city}.`;
 }
 
 function positioningPoints(input: DemoSiteGeneratorInput): string[] {
-  return [
-    input.phoneListed ? "Easy to reach by phone." : "Easy to get in touch.",
-    input.addressListed ? `Right here in ${input.city}.` : `Serving ${input.city}.`,
-    "Plain answers, and no runaround.",
-  ];
+  const points: string[] = [];
+  if (input.phoneListed) points.push("Our phone number is below.");
+  if (input.addressListed) points.push("Our address is below.");
+  // With neither, restate the category rather than pad the list out. The
+  // schema requires at least one point, and an invented one is not an option.
+  return points.length > 0 ? points : [`${input.category} in ${input.city}.`];
 }
 
 function contactBody(input: DemoSiteGeneratorInput): string {
   if (input.phoneListed && input.addressListed) return "Give us a call, or come and see us.";
-  if (input.phoneListed) return "Give us a call — we are happy to help.";
+  if (input.phoneListed) return "Give us a call.";
   if (input.addressListed) return "Come and see us.";
-  // Nothing was listed. The card below shows empty slots rather than a number
-  // we do not have, so the copy simply does not promise one.
-  return "Here is how to reach us.";
+  // Nothing was listed, so the copy invites nothing. The card below shows
+  // empty slots rather than a route we cannot evidence.
+  return "Contact details to be added.";
 }
 
-/**
- * Hours are never invented.
- *
- * A short neutral placeholder, not an instruction addressed to the owner. The
- * preview's own chrome explains that no hours were supplied.
- */
-const HOURS_NOTE = "Opening hours to be confirmed.";
+/** Hours are never invented, and the slot says so in one neutral line. */
+const HOURS_NOTE = "Opening hours to be added.";
 
 function sectionsFor(input: DemoSiteGeneratorInput): DemoSection[] {
-  const category = input.category.toLowerCase();
   const compact = input.recommendedSiteType === "one-page-site";
 
-  // How a visitor is invited to make contact, chosen from what was actually
-  // listed. Nothing here promises a route we do not have.
-  const reachLine =
+  // How a visitor is invited to make contact. Each branch is backed by a
+  // listed value; with neither, the hero invites nothing.
+  const reach =
     input.phoneListed && input.addressListed
-      ? "Call ahead, or come and find us."
+      ? " Call us, or come and find us."
       : input.phoneListed
-        ? "Give us a call."
+        ? " Call us."
         : input.addressListed
-          ? "Come and find us."
-          : "Get in touch and we will help.";
+          ? " Come and find us."
+          : "";
 
   const hero: DemoSection = {
     kind: "hero",
     id: SECTION.hero,
     eyebrow: `${input.category} · ${input.city}`,
-    heading: input.draftPositioning,
-    subheading: compact
-      ? `A ${category} in ${input.city} — everything you need, in one place. ${reachLine}`
-      : `A ${category} in ${input.city}. ${reachLine}`,
+    // Built from application-owned facts. "Find X in Y" is supported only when
+    // an address was listed; otherwise the name stands alone.
+    heading: input.addressListed
+      ? `Find ${input.businessName} in ${input.city}`
+      : input.businessName,
+    subheading: `${input.category} in ${input.city}.${reach}`,
     primaryCta: primaryCtaFor(input),
     secondaryCta: secondaryCtaFor(input),
   };
@@ -260,8 +254,8 @@ function sectionsFor(input: DemoSiteGeneratorInput): DemoSection[] {
   const offering: DemoSection = {
     kind: "offering",
     id: SECTION.offering,
-    heading: input.recommendedSiteType === "menu-and-location-site" ? "What we offer" : "What we do",
-    intro: offeringIntro(input),
+    heading: "What we do",
+    intro: OFFERING_INTRO,
     items: offeringItems(input),
   };
 
@@ -284,13 +278,15 @@ function sectionsFor(input: DemoSiteGeneratorInput): DemoSection[] {
   const cta: DemoSection = {
     kind: "cta",
     id: SECTION.cta,
-    heading:
-      input.recommendedSiteType === "booking-focused-site"
-        ? "Ready when you are"
-        : "Let us know what you need",
-    body: input.phoneListed
-      ? "Give us a call and we will take it from there."
-      : "Get in touch and we will take it from there.",
+    heading: "Get in touch",
+    body:
+      input.phoneListed && input.addressListed
+        ? `Call ${input.businessName}, or visit us in ${input.city}.`
+        : input.phoneListed
+          ? `Call ${input.businessName}.`
+          : input.addressListed
+            ? `Visit ${input.businessName} in ${input.city}.`
+            : "Contact details to be added.",
     cta: primaryCtaFor(input),
   };
 
@@ -298,15 +294,12 @@ function sectionsFor(input: DemoSiteGeneratorInput): DemoSection[] {
     const gallery: DemoSection = {
       kind: "gallery",
       id: SECTION.gallery,
-      heading: "Recent work",
-      body: "A few examples of what we have done.",
-      // Labelled empty slots, not stock imagery standing in for work we have
-      // never seen. The labels are captions, not instructions.
-      placeholders: [
-        { label: "Finished work" },
-        { label: "Work in progress" },
-        { label: "Our premises" },
-      ],
+      // Not "Recent work": we have no evidence of any work, recent or
+      // otherwise. Empty, numbered slots, so the layout is visible and the
+      // content is plainly absent.
+      heading: "Gallery",
+      body: "Images to be added.",
+      placeholders: [{ label: "Image 1" }, { label: "Image 2" }, { label: "Image 3" }],
     };
     return [hero, gallery, positioning, offering, contact, cta];
   }
@@ -322,9 +315,9 @@ function sectionsFor(input: DemoSiteGeneratorInput): DemoSection[] {
 
 const NAV_LABELS: Record<Exclude<DemoSection["kind"], "hero">, string> = {
   offering: "What we do",
-  gallery: "Work",
+  gallery: "Gallery",
   positioning: "About",
-  contact: "Visit",
+  contact: "Contact",
   cta: "Get in touch",
 };
 
@@ -351,7 +344,9 @@ class MockDemoSiteProvider implements DemoSiteProvider {
         .filter((s) => s.kind !== "hero")
         .map((s) => ({ label: NAV_LABELS[s.kind], targetSectionId: s.id })),
       sections,
-      footer: { note: `Serving ${input.city}.` },
+      // Not "Serving Oslo": a listed address in a city is not evidence the
+      // business serves that city. The category and city are all we hold.
+      footer: { note: `${input.category} in ${input.city}.` },
     };
   }
 }
