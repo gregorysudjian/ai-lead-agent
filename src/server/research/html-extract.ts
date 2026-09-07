@@ -1,6 +1,7 @@
 import { Parser } from "htmlparser2";
 
 import type { ObservationKind, ProfileField } from "@/lib/business-profile";
+import { SOCIAL_PAGE_HOSTS } from "@/lib/social-hosts";
 
 /**
  * Turn one fetched HTML page into conservative, attributable evidence.
@@ -75,18 +76,12 @@ export const EXTRACTION_LIMITS = {
  * An allowlist, because "an outbound link" is not evidence of anything. We
  * record that the page links to a profile; we never fetch it, log in, or read
  * anything there.
+ *
+ * Shared with lead scoring, which uses the same list to decide that a business
+ * whose only listed "website" is one of these hosts does not have a website.
+ * One definition, so the two cannot drift apart.
  */
-const SOCIAL_HOSTS: readonly string[] = [
-  "facebook.com",
-  "instagram.com",
-  "twitter.com",
-  "x.com",
-  "linkedin.com",
-  "youtube.com",
-  "tiktok.com",
-  "pinterest.com",
-  "threads.net",
-];
+const SOCIAL_HOSTS: readonly string[] = SOCIAL_PAGE_HOSTS;
 
 /**
  * Booking services we recognize by host.
