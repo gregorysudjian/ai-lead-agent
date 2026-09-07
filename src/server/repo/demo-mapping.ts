@@ -128,7 +128,23 @@ function toBusiness(value: unknown): DemoSiteBusiness {
     websiteListed: bool(b.websiteListed, "spec.business.websiteListed"),
     source: source as BusinessSource,
     snapshotFetchedAt: str(b.snapshotFetchedAt, "spec.business.snapshotFetchedAt"),
+
+    // Profile-sourced facts, absent from any demo stored before research fed
+    // this layer. Missing reads as "we had none", which is exactly right: an
+    // older demo genuinely was built without them, and back-filling it would
+    // claim it showed something it never did.
+    socialLinks: optionalStrings(b.socialLinks, "spec.business.socialLinks"),
+    openingHours: optionalStrings(b.openingHours, "spec.business.openingHours"),
+    bookingUrl: strOrNull(b.bookingUrl ?? null, "spec.business.bookingUrl"),
+    ownDescription: strOrNull(b.ownDescription ?? null, "spec.business.ownDescription"),
+    profileSourced: b.profileSourced === undefined ? false : bool(b.profileSourced, "spec.business.profileSourced"),
   };
+}
+
+/** A list of strings that an older stored spec may simply not have. */
+function optionalStrings(value: unknown, field: string): string[] {
+  if (value === undefined || value === null) return [];
+  return list(value, field, str);
 }
 
 function toCta(value: unknown, field: string): DemoCta {

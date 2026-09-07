@@ -57,13 +57,30 @@ export interface DemoSiteBusiness {
   name: string;
   category: string;
   city: string;
-  /** Null when the provider listed none. Never invented, never guessed. */
+  /** Null when no source listed one. Never invented, never guessed. */
   phone: string | null;
   address: string | null;
   websiteListed: boolean;
   source: BusinessSource;
   /** ISO-8601 of the provider snapshot these facts came from. */
   snapshotFetchedAt: string;
+
+  /**
+   * Facts a research run read on the business's OWN site.
+   *
+   * Empty when nothing was researched, or when the page said nothing. They are
+   * separated from the fields above because their provenance is different and
+   * stronger: the business published these itself and we saw them, rather than
+   * a directory holding a copy. `profileSourced` says whether any of this came
+   * from a research run at all, so the UI can be honest about which demo is
+   * built on the business's own material.
+   */
+  socialLinks: string[];
+  openingHours: string[];
+  bookingUrl: string | null;
+  /** The business's own description of itself, in its own words. */
+  ownDescription: string | null;
+  profileSourced: boolean;
 }
 
 /**
@@ -245,6 +262,16 @@ export interface DemoSiteGeneratorInput {
   phoneListed: boolean;
   addressListed: boolean;
   websiteListed: boolean;
+  /**
+   * Presence only, never the values.
+   *
+   * The generator writes wording and structure; the renderer reads every URL
+   * and time from `spec.business`. A generator that never sees a booking link
+   * cannot paraphrase, shorten or mistype one into body copy.
+   */
+  socialLinksListed: boolean;
+  openingHoursListed: boolean;
+  bookingUrlListed: boolean;
   /** From the analysis. Shapes structure and wording, never facts. */
   recommendedSiteType: RecommendedSiteType;
   recommendedPages: string[];

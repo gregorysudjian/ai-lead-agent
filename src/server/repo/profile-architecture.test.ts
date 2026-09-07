@@ -137,7 +137,12 @@ describe("enrichment did not leak onto the earlier domain objects", () => {
     "coverage",
   ];
 
-  it.each([["types.ts"], ["analysis.ts"], ["demo-site.ts"]])(
+  // demo-site.ts is deliberately NOT in this list any more. A demo spec now
+  // carries the business's own social links, hours and booking URL, because a
+  // demo built from the business's own site is the entire point of showing one.
+  // Lead and Analysis are still guarded: enrichment must not smear onto the
+  // durable record or onto a set of AI proposals.
+  it.each([["types.ts"], ["analysis.ts"]])(
     "src/lib/%s gained no profile field",
     (file) => {
       const source = readFileSync(join(SRC, "lib", file), "utf8");
@@ -161,20 +166,35 @@ describe("enrichment did not leak onto the earlier domain objects", () => {
 });
 
 describe("the existing pipelines are untouched by this phase", () => {
-  it("analysis and demo generation still read the lead, not a profile", () => {
-    // Phase 9B migrates them deliberately. Until then, wiring a profile into
-    // either would change behaviour nobody asked to change.
+  it("analysis still reads the lead, not a profile", () => {
+    // Demo generation HAS now been migrated -- deliberately, which is what
+    // CLAUDE.md asks for -- and reads the researched profile so a demo shows
+    // the business's own hours, links and words. Analysis has not, and wiring
+    // a profile into it would change behaviour nobody has asked to change.
     for (const file of [
       join(SRC, "server", "analysis-service.ts"),
-      join(SRC, "server", "demo-service.ts"),
       join(SRC, "lib", "analysis-facts.ts"),
-      join(SRC, "lib", "demo-facts.ts"),
     ]) {
       const source = readFileSync(file, "utf8");
       expect(source, `${file} must not depend on business profiles yet`).not.toContain(
         "business-profile",
       );
       expect(source).not.toContain("BusinessProfile");
+    }
+  });
+
+  it("demo generation reads the profile but never writes one", () => {
+    // The migration is one-directional: the demo layer consumes evidence and
+    // produces a proposal. If it ever gained the ability to CREATE a profile,
+    // a generated demo could start manufacturing the evidence for itself.
+    for (const file of [
+      join(SRC, "server", "demo-service.ts"),
+      join(SRC, "lib", "demo-facts.ts"),
+    ]) {
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toContain("getBusinessProfileRepository().create");
+      expect(source, file).not.toContain("ObservationDraft");
+      expect(source, file).not.toContain("SourceRecord");
     }
   });
 
@@ -190,7 +210,9 @@ describe("the existing pipelines are untouched by this phase", () => {
       join("lib", "business-profile"),
       join("lib", "profile-facts"),
       join("lib", "outreach"),
+      join("lib", "demo-facts"),
       join("server", "research"),
+      join("server", "demo-service"),
       join("server", "outreach-service"),
       join("server", "repo", "profile-"),
       join("server", "repo", "index.ts"),
