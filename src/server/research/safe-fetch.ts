@@ -68,6 +68,19 @@ export interface SafeFetchResult {
 }
 
 export class SafeFetchError extends Error {
+  /**
+   * The HTTP status, present only when the failure WAS an HTTP response.
+   *
+   * Carried structurally so a caller can act on the difference between "the
+   * server said 404" and "the server said 503" -- robots.txt handling turns
+   * on exactly that, and RFC 9309 gives the two opposite meanings. It is a
+   * status code and nothing else: no headers, no body, nothing a third party
+   * wrote. Undefined for every non-HTTP failure (DNS, timeout, redirect,
+   * size, content type), where there is no status to report and the caller
+   * must take the conservative branch.
+   */
+  readonly status?: number;
+
   constructor(
     message: string,
     /** Coarse reason, safe to log. Never contains a response body. */
@@ -82,10 +95,11 @@ export class SafeFetchError extends Error {
       | "too-large"
       | "unsupported-content-type"
       | "http-error",
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; status?: number },
   ) {
     super(message, options);
     this.name = "SafeFetchError";
+    this.status = options?.status;
   }
 }
 
@@ -316,7 +330,11 @@ export async function safeFetch(
 
     if (!REDIRECT_STATUSES.has(response.status)) {
       if (response.status < 200 || response.status >= 300) {
-        throw new SafeFetchError(`The server answered ${response.status}.`, "http-error");
+        // The status travels on the error, not only inside its message. A
+        // caller that needs it must not have to parse it back out of prose.
+        throw new SafeFetchError(`The server answered ${response.status}.`, "http-error", {
+          status: response.status,
+        });
       }
 
       const contentType = (response.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();

@@ -20,6 +20,19 @@ const failing = (reason: SafeFetchError["reason"]): HopRequester => async () => 
   throw new SafeFetchError("nope", reason);
 };
 
+/**
+ * A robots.txt served with a given status, through the real fetch layer.
+ *
+ * Deliberately not a hand-built `SafeFetchError`: the status has to survive
+ * the journey from the response to the decision, and stubbing the error would
+ * skip exactly the step that was broken.
+ */
+const answering = (status: number): HopRequester => async () => ({
+  status,
+  headers: { "content-type": "text/plain" },
+  body: "",
+});
+
 const rules = (text: string) => parseRobots(text).rules;
 
 describe("parsing takes only the directives we implement", () => {
@@ -107,12 +120,56 @@ describe("the decision, and what happens when robots cannot be read", () => {
     expect(decision.reason).toContain("disallows");
   });
 
-  it("treats an HTTP error as no robots file, so no rule forbids the page", async () => {
+  it("treats a 4xx as no robots file, so no rule forbids the page", async () => {
     // RFC 9309: a 4xx means there are no rules. This is the common case for
     // small business sites, and refusing them all would make the feature
     // useless.
-    const decision = await checkRobots(target, { resolver: PUBLIC, requester: failing("http-error") });
-    expect(decision.allowed).toBe(true);
+    for (const status of [400, 401, 403, 404, 410, 429, 451]) {
+      const decision = await checkRobots(target, {
+        resolver: PUBLIC,
+        requester: answering(status),
+      });
+
+      expect(decision.allowed, String(status)).toBe(true);
+      expect(decision.reason).toContain("No robots.txt was published");
+    }
+  });
+
+  it("refuses on a 5xx, because a broken server has not given permission", async () => {
+    // The bug this replaced: every non-2xx collapsed into one `http-error`,
+    // and `http-error` was read as "no rules". A 503 is not a 404 -- it says
+    // the server is broken, not that we may proceed.
+    for (const status of [500, 502, 503, 504]) {
+      const decision = await checkRobots(target, {
+        resolver: PUBLIC,
+        requester: answering(status),
+      });
+
+      expect(decision.allowed, String(status)).toBe(false);
+      expect(decision.reason).toContain("reported an error");
+    }
+  });
+
+  it("refuses an HTTP failure that carries no usable status", async () => {
+    // Nothing in the fetch layer produces this today, but "unknown" must not
+    // fall through to the permissive branch if anything ever does.
+    const decision = await checkRobots(target, {
+      resolver: PUBLIC,
+      requester: failing("http-error"),
+    });
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toContain("could not be read");
+  });
+
+  it("refuses a status outside 4xx and 5xx", async () => {
+    for (const status of [100, 199, 600]) {
+      const decision = await checkRobots(target, {
+        resolver: PUBLIC,
+        requester: answering(status),
+      });
+      expect(decision.allowed, String(status)).toBe(false);
+    }
   });
 
   it("refuses when robots cannot be read at all", async () => {

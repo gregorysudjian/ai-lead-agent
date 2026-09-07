@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { LEAD_SNAPSHOT_SOURCE_ID, type ResearchProviderInput } from "@/lib/business-profile";
 
-import type { HopRequester, HopResponse } from "./safe-fetch";
+import { SafeFetchError, type HopRequester, type HopResponse } from "./safe-fetch";
 import { createWebsiteResearchSource } from "./website";
 
 /** Every request in this file is served by an injected fake. */
@@ -185,6 +185,53 @@ describe("robots is obeyed", () => {
     // Specifically: no `web.reachable`, in either direction.
     expect(result.observations).toEqual([]);
     expect(result.limitations.join(" ")).toContain("not evidence");
+  });
+
+  it("does not fetch the homepage when robots.txt is unreadable", async () => {
+    // The whole point of the status fix: a broken robots.txt must stop the
+    // run, not wave it through. Asserted on the REQUEST LOG, because "no
+    // observations" would also be true of a fetch that simply found nothing.
+    const unreadable: [string, HopResponse | "throw"][] = [
+      ["a 500", { status: 500, headers: {}, body: "" }],
+      ["a 503", { status: 503, headers: {}, body: "" }],
+      ["a timeout", "throw"],
+    ];
+
+    for (const [label, outcome] of unreadable) {
+      const urls: string[] = [];
+      const requester: HopRequester = async (url) => {
+        urls.push(url.toString());
+        if (url.pathname !== "/robots.txt") {
+          return { status: 200, headers: { "content-type": "text/html" }, body: HOMEPAGE };
+        }
+        if (outcome === "throw") throw new SafeFetchError("nope", "timeout");
+        return outcome;
+      };
+
+      const result = await research(requester);
+
+      expect(urls, label).toEqual(["https://salon.example/robots.txt"]);
+      expect(result.observations, label).toEqual([]);
+      expect(result.sources, label).toEqual([]);
+      expect(coverageFor(result)?.status, label).toBe("unavailable");
+    }
+  });
+
+  it("still fetches the homepage when robots.txt is simply absent", async () => {
+    // The permissive half of the same rule, so the fix cannot be "refuse
+    // everything" -- a 404 is a statement that there are no rules.
+    const urls: string[] = [];
+    const requester: HopRequester = async (url) => {
+      urls.push(url.toString());
+      return url.pathname === "/robots.txt"
+        ? { status: 404, headers: {}, body: "" }
+        : { status: 200, headers: { "content-type": "text/html" }, body: HOMEPAGE };
+    };
+
+    const result = await research(requester);
+
+    expect(urls).toEqual(["https://salon.example/robots.txt", "https://salon.example/"]);
+    expect(coverageFor(result)?.status).toBe("covered");
   });
 });
 
