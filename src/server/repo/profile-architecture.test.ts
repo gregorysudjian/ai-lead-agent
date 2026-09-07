@@ -178,16 +178,27 @@ describe("the existing pipelines are untouched by this phase", () => {
     }
   });
 
-  it("only the research stack and the UI know about profiles", () => {
+  it("only the research stack and its readers know about profiles", () => {
+    // The list grows in ONE direction: things that READ a finished profile.
+    // Outreach is the first of them -- the pipeline is
+    // Lead -> BusinessProfile -> Analysis -> DemoSite, and reading the sourced
+    // profile is exactly what a downstream step is supposed to do instead of
+    // going and looking for itself. What must never appear here is something
+    // that WRITES a profile from outside the research stack, which is still
+    // guarded by the repository's own validation.
     const allowed = [
       join("lib", "business-profile"),
       join("lib", "profile-facts"),
+      join("lib", "outreach"),
       join("server", "research"),
+      join("server", "outreach-service"),
       join("server", "repo", "profile-"),
       join("server", "repo", "index.ts"),
       join("components", "research-panel"),
+      join("components", "outreach-panel"),
       join("app", "leads"),
       join("app", "api", "leads"),
+      join("app", "api", "outreach"),
     ];
 
     for (const file of sourceFiles()) {
