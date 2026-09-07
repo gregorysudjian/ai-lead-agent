@@ -202,6 +202,13 @@ export const DEMO_SECTION_KINDS: readonly DemoSectionKind[] = [
  * the place for notes to the business owner, for descriptions of the website
  * itself, or for anything in our internal vocabulary -- "provider", "listed",
  * "analysis", "draft". The preview states what it is in its own chrome.
+ *
+ * Nor may that copy assert anything about the business beyond `business`
+ * above. Sounding natural is not licence to invent: no quality, reliability,
+ * speed or friendliness; no menu, hours, services, prices, specialties,
+ * booking, past work, reputation, regulars or service area. Where a layout
+ * proposes a section whose content we do not hold, the section is rendered
+ * with its content marked empty rather than filled in.
  */
 export interface DemoSiteContent {
   /** Used for the document title and the hero. Prose, rendered as text. */
