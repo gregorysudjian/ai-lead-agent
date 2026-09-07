@@ -6,12 +6,20 @@ import type { ProviderSearchMeta } from "@/server/places/types";
 import { getLeadRepository } from "@/server/repo";
 
 /**
- * Discovery service: search, then persist.
+ * Lead discovery: search ONE provider, then persist what it found.
  *
  * This exists so the route handler stays a thin HTTP shell -- parse, validate,
  * call, serialize. The business rule "a search always persists what it found"
  * lives here, where it can be reused by a future dashboard action or CLI without
  * going through HTTP.
+ *
+ * NOT the multi-source discovery layer. That is `server/discovery/`, which asks
+ * several sources, groups their answers into transient candidates and writes
+ * nothing. This module is the established persistence path: one configured
+ * provider, straight into the lead store, with `LeadRepository` owning dedupe.
+ * The two are deliberately separate -- previewing what is out there and
+ * committing it to our records are different acts, and only one of them should
+ * be able to change the database.
  */
 
 export interface DiscoveryResult {

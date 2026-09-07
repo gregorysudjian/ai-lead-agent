@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { discoverAndSaveLeads } from "@/server/discovery";
+import { discoverAndSaveLeads } from "@/server/lead-discovery";
 import { ProviderUnavailableError, ProviderValidationError } from "@/server/places";
 
 /**

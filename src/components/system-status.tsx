@@ -1,4 +1,10 @@
-import { analysisProviderName, leadRepositoryName, placesProviderName } from "@/server/env";
+import {
+  analysisProviderName,
+  discoverySourceNames,
+  leadRepositoryName,
+  placesProviderName,
+} from "@/server/env";
+import { DISCOVERY_SOURCE_LABELS } from "@/lib/discovery/candidates";
 
 import { Badge, type BadgeTone } from "./ui/primitives";
 
@@ -36,10 +42,21 @@ function safely(read: () => string): string {
   }
 }
 
+/** Same contract for the list-valued setting: a bad value is shown, not hidden. */
+function safelyList(read: () => string[]): string[] | null {
+  try {
+    return read();
+  } catch {
+    return null;
+  }
+}
+
 export function SystemStatus() {
   const store = safely(leadRepositoryName);
   const provider = safely(placesProviderName);
   const analyser = safely(analysisProviderName);
+  // Names only -- never a URL and never a key.
+  const discovery = safelyList(discoverySourceNames);
 
   const storeInfo = STORE_LABELS[store] ?? { label: store, tone: "rose" as BadgeTone };
   const providerInfo = PROVIDER_LABELS[provider] ?? {
@@ -61,6 +78,18 @@ export function SystemStatus() {
       </span>
       <span className="flex items-center gap-1.5">
         Analysis provider: <Badge tone={analyserInfo.tone}>{analyserInfo.label}</Badge>
+      </span>
+      <span className="flex items-center gap-1.5">
+        Discovery sources:{" "}
+        {discovery === null ? (
+          <Badge tone="rose">misconfigured</Badge>
+        ) : (
+          discovery.map((name) => (
+            <Badge key={name} tone={PROVIDER_LABELS[name]?.tone ?? "rose"}>
+              {DISCOVERY_SOURCE_LABELS[name as keyof typeof DISCOVERY_SOURCE_LABELS] ?? name}
+            </Badge>
+          ))
+        )}
       </span>
       {provider === "mock" ? (
         <span className="text-amber-700 dark:text-amber-400">
