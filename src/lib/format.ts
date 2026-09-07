@@ -8,6 +8,7 @@
  * phrasing; putting the label in one function means no component can casually
  * render "has no website".
  */
+import { isSocialProfileUrl } from "./social-hosts";
 import { isUsableRating, isUsableReviewCount } from "./scoring";
 import type { Lead, OpeningHours, Weekday } from "./types";
 
@@ -109,11 +110,24 @@ export function websiteLabel(website: string | null): string {
   return rendering.href;
 }
 
-/** Short form for dense list rows. Keeps all three outcomes distinct. */
+/**
+ * Short form for dense list rows. Keeps all FOUR outcomes distinct.
+ *
+ * The fourth is the one that matters commercially: a business whose only listed
+ * "website" is a Facebook page. Scoring counts that as having no website -- it
+ * is exactly the prospect this product exists for -- so the row must not say
+ * "Website listed" beside a lead ranked as a top prospect. The list and the
+ * score have to tell the reader the same story.
+ *
+ * Link SAFETY (`classifyWebsite`) and what KIND of thing the link points at
+ * (`isSocialProfileUrl`) stay separate questions; this label is where the two
+ * are combined for display.
+ */
 export function websiteBadgeLabel(website: string | null): string {
   const rendering = classifyWebsite(website);
   if (rendering.kind === "none") return "No website listed";
   if (rendering.kind === "unlinkable") return "Website value unusable";
+  if (isSocialProfileUrl(website)) return "Social page only";
   return "Website listed";
 }
 

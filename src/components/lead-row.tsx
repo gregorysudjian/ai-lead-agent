@@ -9,6 +9,7 @@ import {
   UNLINKABLE_WEBSITE_LABEL,
   websiteBadgeLabel,
 } from "@/lib/format";
+import { isSocialProfileUrl } from "@/lib/social-hosts";
 import { MAX_SCORE, PRIORITY_LABELS, type LeadScore } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 
@@ -70,6 +71,24 @@ function WebPresence({ website }: { website: string | null }) {
       >
         {websiteBadgeLabel(website)}
       </span>
+    );
+  }
+
+  // A social page IS a real link and stays clickable -- but it is labelled for
+  // what it is, and shares the amber "prospect" tone with a missing website,
+  // because scoring treats the two the same and the row must agree with it.
+  if (isSocialProfileUrl(website)) {
+    return (
+      <a
+        href={rendering.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block max-w-[16rem] truncate"
+        title={rendering.href}
+      >
+        <Badge tone="amber">{websiteBadgeLabel(website)}</Badge>
+        <span className="sr-only"> {rendering.href} (opens in a new tab)</span>
+      </a>
     );
   }
 
