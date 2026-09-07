@@ -3,7 +3,12 @@ import "server-only";
 import type { DemoSite } from "@/lib/demo-site";
 import { deriveDemoSiteBusiness, toDemoGeneratorInput } from "@/lib/demo-facts";
 import { getDemoSiteProvider } from "@/server/demo";
-import { getAnalysisRepository, getDemoSiteRepository, getLeadRepository } from "@/server/repo";
+import {
+  getAnalysisRepository,
+  getBusinessProfileRepository,
+  getDemoSiteRepository,
+  getLeadRepository,
+} from "@/server/repo";
 
 import { LeadNotFoundError } from "./service-errors";
 
@@ -74,7 +79,20 @@ export async function generateDemoSite(
   // application code, from the stored lead -- never by the generator. The
   // generator receives a sanitized subset and returns only presentation, so
   // there is no path by which it influences what the demo states as fact.
-  const business = deriveDemoSiteBusiness(lead);
+  // The business's own researched profile, when it has one. This is the step
+  // CLAUDE.md flagged as deliberate rather than incidental: a demo built from
+  // the business's own site -- its real hours, its real social profiles, its
+  // own words -- looks like their business instead of a template with their
+  // name dropped into it. A read failure here must not fail generation, so the
+  // demo falls back to the lead snapshot, exactly as before.
+  let profile = null;
+  try {
+    profile = await getBusinessProfileRepository().latestForLead(lead.id);
+  } catch (error) {
+    console.error(`[demo ${lead.id}] could not read the business profile:`, error);
+  }
+
+  const business = deriveDemoSiteBusiness(lead, profile);
   const generator = getDemoSiteProvider();
 
   // Generator errors and invalid output both surface as exceptions; nothing

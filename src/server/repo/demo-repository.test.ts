@@ -31,6 +31,11 @@ const spec = (name = "Salon Test"): DemoSiteSpec => ({
     websiteListed: false,
     source: "osm",
     snapshotFetchedAt: "2026-09-05T00:00:00.000Z",
+    socialLinks: [],
+    openingHours: [],
+    bookingUrl: null,
+    ownDescription: null,
+    profileSourced: false,
   },
   content: {
     siteTitle: name,

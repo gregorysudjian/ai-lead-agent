@@ -282,6 +282,21 @@ function Gallery({
   );
 }
 
+/**
+ * A readable label for a social URL, from its host only.
+ *
+ * Host, never the path: a handle in a path could be anything, and this is
+ * presentation. The link itself is exactly what the business published.
+ */
+function socialLabel(link: string): string {
+  try {
+    const host = new URL(link).hostname.replace(/^www\./, "");
+    return host.split(".")[0].replace(/^./, (c) => c.toUpperCase());
+  } catch {
+    return link;
+  }
+}
+
 function Contact({
   section,
   business,
@@ -336,13 +351,53 @@ function Contact({
             </dd>
           </div>
 
-          <div className="pt-5">
+          <div className="py-5">
             <dt className={`text-xs font-medium tracking-wide uppercase ${theme.muted}`}>
               Opening hours
             </dt>
-            {/* Never a fabricated schedule -- prose supplied by the generator
-                saying hours are still to be confirmed. */}
-            <dd className={`mt-1 text-base ${theme.body}`}>{section.hoursNote}</dd>
+            {/* Real hours ONLY when the business published them on its own site
+                and research read them there. Otherwise the generator's note,
+                which says they are still to be confirmed. A fabricated schedule
+                is the single worst thing a demo could show an owner. */}
+            <dd className={`mt-1 text-base ${theme.body}`}>
+              {business.openingHours.length > 0 ? (
+                <ul>
+                  {business.openingHours.map((entry, i) => (
+                    <li key={i}>{entry}</li>
+                  ))}
+                </ul>
+              ) : (
+                section.hoursNote
+              )}
+            </dd>
+          </div>
+
+          <div className="pt-5">
+            <dt className={`text-xs font-medium tracking-wide uppercase ${theme.muted}`}>
+              Follow
+            </dt>
+            <dd className={`mt-1 text-base ${theme.body}`}>
+              {business.socialLinks.length > 0 ? (
+                // The profiles the business links to from its OWN site. Never a
+                // guessed handle: a wrong link in a demo is worse than none.
+                <ul className="space-y-1">
+                  {business.socialLinks.map((link) => (
+                    <li key={link}>
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="underline underline-offset-4 break-all"
+                      >
+                        {socialLabel(link)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <span className={theme.muted}>To be added</span>
+              )}
+            </dd>
           </div>
         </dl>
       </div>

@@ -60,6 +60,13 @@ describe("demo facts mirror the lead snapshot", () => {
       websiteListed: false,
       source: "osm",
       snapshotFetchedAt: "2026-09-05T00:00:00.000Z",
+      // Profile-sourced fields, empty with no profile. A lead on its own still
+      // produces a complete, honest fact set.
+      socialLinks: [],
+      openingHours: [],
+      bookingUrl: null,
+      ownDescription: null,
+      profileSourced: false,
     });
   });
 
@@ -121,6 +128,7 @@ describe("what a generator is allowed to see", () => {
   it("exposes exactly the permitted field set", () => {
     expect(Object.keys(input).sort()).toEqual([
       "addressListed",
+      "bookingUrlListed",
       "businessName",
       "businessSummary",
       "callsToAction",
@@ -130,9 +138,11 @@ describe("what a generator is allowed to see", () => {
       "draftPositioning",
       "homepageSections",
       "keySellingPoints",
+      "openingHoursListed",
       "phoneListed",
       "recommendedPages",
       "recommendedSiteType",
+      "socialLinksListed",
       "websiteListed",
     ]);
   });
