@@ -301,6 +301,31 @@ export function analysisProviderName(): AnalysisProviderName {
   return match;
 }
 
+/** The demo-site generators. Anything else is a configuration error. */
+const VALID_DEMO_PROVIDERS = ["mock", "anthropic"] as const;
+export type DemoProviderName = (typeof VALID_DEMO_PROVIDERS)[number];
+
+/**
+ * Which generator writes demo-site copy. Defaults to "mock".
+ *
+ * Separate from ANALYSIS_PROVIDER on purpose: they are two different paid
+ * requests, and enabling one should not silently enable the other. Defaulting
+ * to the deterministic generator means a missing value can never cause an
+ * accidental paid call.
+ */
+export function demoProviderName(): DemoProviderName {
+  const raw = process.env.DEMO_PROVIDER?.trim().toLowerCase();
+  if (!raw) return "mock";
+
+  const match = VALID_DEMO_PROVIDERS.find((name) => name === raw);
+  if (!match) {
+    throw new Error(
+      `Invalid DEMO_PROVIDER: expected one of ${VALID_DEMO_PROVIDERS.join(", ")}.`,
+    );
+  }
+  return match;
+}
+
 /**
  * The Anthropic API key.
  *
@@ -312,8 +337,8 @@ export function anthropicApiKey(): string {
   const key = process.env.ANTHROPIC_API_KEY?.trim();
   if (!key) {
     throw new Error(
-      "ANALYSIS_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set. " +
-        "Set ANALYSIS_PROVIDER=mock to use the offline analyser instead.",
+      "Claude is selected but ANTHROPIC_API_KEY is not set. " +
+        "Set ANALYSIS_PROVIDER=mock and DEMO_PROVIDER=mock to run offline instead.",
     );
   }
   return key;
