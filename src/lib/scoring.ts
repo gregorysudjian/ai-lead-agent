@@ -15,6 +15,7 @@
  * NEVER PERSISTED. Provider data is refreshed on every rediscovery, so a stored
  * score would silently go stale. It is recomputed from the current snapshot.
  */
+import { isSocialProfileUrl } from "./social-hosts";
 import type { Lead, ProviderSnapshot } from "./types";
 
 export type LeadPriority = "high" | "medium" | "low";
@@ -99,6 +100,13 @@ export function isUsableText(value: string | null): value is string {
  * gave us nothing", and collapsing the two would invent a signal. This is also
  * why scoring never calls `classifyWebsite` -- link safety is a rendering
  * concern, not evidence about the business.
+ *
+ * The ONE exception is a link we can positively identify as a social or
+ * link-in-bio page. That is not a judgement about the URL's quality; it is a
+ * fact about what kind of thing it points at, and it is decided by an
+ * allowlist of hosts. An unrecognised host is always treated as a real
+ * website, so the rule can never quietly promote a business we know nothing
+ * about.
  */
 function scoreWebsite(provider: ProviderSnapshot): ScoreFactor {
   const base = { key: "website" as const, label: "Website signal", maxPoints: MAX_WEBSITE };
@@ -106,6 +114,20 @@ function scoreWebsite(provider: ProviderSnapshot): ScoreFactor {
   if (provider.website === null) {
     return { ...base, points: MAX_WEBSITE, reason: "No website listed by provider" };
   }
+
+  // A Facebook page is not a website. A directory records whatever link the
+  // business gave it, and for a business whose entire web presence is a social
+  // page, "they already have a website" is the wrong conclusion -- they are
+  // precisely the prospect this product exists for. Scored the same as no
+  // website, with its own reason so the UI never conflates the two.
+  if (isSocialProfileUrl(provider.website)) {
+    return {
+      ...base,
+      points: MAX_WEBSITE,
+      reason: "Only a social media page listed by provider, not a website",
+    };
+  }
+
   return { ...base, points: 0, reason: "Website listed by provider" };
 }
 
