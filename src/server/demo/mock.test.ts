@@ -155,13 +155,19 @@ describe("it designs around missing data instead of inventing it", () => {
     expect(hero.secondaryCta?.action).not.toBe("directions");
   });
 
-  it("says plainly that nothing was listed when nothing was", async () => {
+  it("promises no contact route when none was listed", async () => {
     const content = await mockDemoSiteProvider.generate(
       input({ phoneListed: false, addressListed: false }),
     );
     const contact = content.sections.find((s) => s.kind === "contact");
     if (contact?.kind !== "contact") throw new Error("unreachable");
-    expect(contact.body.toLowerCase()).toContain("nothing was listed");
+
+    // It invites neither a call nor a visit, and it does not narrate the
+    // provider record to a visitor who has no idea what one is.
+    const body = contact.body.toLowerCase();
+    expect(body).not.toContain("call");
+    expect(body).not.toContain("come and see");
+    expect(body).not.toContain("listed");
   });
 });
 
@@ -200,15 +206,9 @@ describe("it invents no business facts", () => {
         const content = await mockDemoSiteProvider.generate(
           input({ recommendedSiteType: siteType, phoneListed }),
         );
-        // keySellingPoints pass through from the analysis, so exclude them:
-        // this test is about what the GENERATOR writes.
-        const withoutPassthrough = {
-          ...content,
-          sections: content.sections.map((s) =>
-            s.kind === "positioning" ? { ...s, points: [], body: "" } : s,
-          ),
-        };
-        const text = JSON.stringify(withoutPassthrough).toLowerCase();
+        // Nothing is excluded any more: the generator writes every string,
+        // the positioning section included, so all of it is in scope.
+        const text = JSON.stringify(content).toLowerCase();
         for (const needle of FORBIDDEN) {
           expect(text, `${siteType} must not contain "${needle}"`).not.toContain(needle);
         }
@@ -279,5 +279,146 @@ describe("design direction maps to our own themes, never to arbitrary styling", 
       },
     };
     expect(themeFor(hostile) in DEMO_THEME_LABELS).toBe(true);
+  });
+});
+
+describe("the copy speaks to the business's customers, not to us", () => {
+  /**
+   * Our internal vocabulary. A visitor to a barber's website has no idea what
+   * a "provider", a "listing" or an "analysis" is, and a page that talks about
+   * its own sections is a wireframe, not a proposal. Checked as whole words so
+   * an innocent substring cannot trip it.
+   */
+  const INTERNAL_WORDS = [
+    "site",
+    "website",
+    "page",
+    "pages",
+    "section",
+    "sections",
+    "layout",
+    "wording",
+    "placeholder",
+    "wireframe",
+    "prototype",
+    "template",
+    "mock",
+    "demo",
+    "draft",
+    "proposal",
+    "provider",
+    "listing",
+    "listed",
+    "analysis",
+    "verified",
+    "unverified",
+    "lead",
+    "customer",
+    "customers",
+  ];
+
+  /** Phrasing addressed to the business owner rather than to their customer. */
+  const OWNER_PHRASES = [
+    "to be replaced",
+    "in your own words",
+    "written with you",
+    "with you rather than",
+    "starting point",
+    "on this page",
+    "would carry",
+    "you confirm",
+    "has not been verified",
+    "kept up to date",
+  ];
+
+  /**
+   * Every human-readable string the generator produced.
+   *
+   * Machine fields (ids, kinds, the theme name, CTA actions) are skipped --
+   * they are never shown as words. So is `siteTitle`, which is the business's
+   * own name copied verbatim: we must not rewrite that, whatever it contains.
+   */
+  const MACHINE_KEYS = new Set(["id", "kind", "theme", "action", "targetSectionId", "siteTitle"]);
+
+  function copyOf(content: Awaited<ReturnType<typeof mockDemoSiteProvider.generate>>): string {
+    const found: string[] = [];
+    const walk = (value: unknown, key?: string) => {
+      if (key !== undefined && MACHINE_KEYS.has(key)) return;
+      if (typeof value === "string") return void found.push(value);
+      if (Array.isArray(value)) return void value.forEach((v) => walk(v));
+      if (value && typeof value === "object") {
+        for (const [k, v] of Object.entries(value)) walk(v, k);
+      }
+    };
+    walk(content);
+    return found.join(" | ");
+  }
+
+  const words = (text: string) => new Set(text.toLowerCase().split(/[^a-z]+/));
+
+  it("uses none of our internal vocabulary, for any site type", async () => {
+    for (const siteType of HANDLED_SITE_TYPES) {
+      for (const phoneListed of [true, false]) {
+        for (const addressListed of [true, false]) {
+          const content = await mockDemoSiteProvider.generate(
+            input({ recommendedSiteType: siteType, phoneListed, addressListed }),
+          );
+          const present = words(copyOf(content));
+          for (const banned of INTERNAL_WORDS) {
+            expect(present.has(banned), `${siteType} must not say "${banned}"`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("never addresses the business owner", async () => {
+    for (const siteType of HANDLED_SITE_TYPES) {
+      const text = copyOf(await mockDemoSiteProvider.generate(input({ recommendedSiteType: siteType })))
+        .toLowerCase();
+      for (const phrase of OWNER_PHRASES) {
+        expect(text, `${siteType} must not say "${phrase}"`).not.toContain(phrase);
+      }
+    }
+  });
+
+  it("quotes no prose from the analysis", async () => {
+    // Every analysis string carries a marker. None of them may reach the page:
+    // the analysis shapes structure and theme, it does not supply copy.
+    const marked = input({
+      businessSummary: "ZZSUMMARY restates the provider listing only and is unverified.",
+      keySellingPoints: ["ZZPOINT clear description of what the business offers"],
+      callsToAction: ["ZZCTA"],
+      homepageSections: ["ZZHOMEPAGE"],
+      recommendedPages: ["ZZPAGE"],
+    });
+
+    for (const siteType of HANDLED_SITE_TYPES) {
+      const content = await mockDemoSiteProvider.generate({
+        ...marked,
+        recommendedSiteType: siteType,
+      });
+      const text = JSON.stringify(content);
+      for (const marker of ["ZZSUMMARY", "ZZPOINT", "ZZCTA", "ZZHOMEPAGE", "ZZPAGE"]) {
+        expect(text, `${siteType} leaked ${marker}`).not.toContain(marker);
+      }
+    }
+  });
+
+  it("still names the business and its city, which are facts we hold", async () => {
+    const content = await mockDemoSiteProvider.generate(input());
+    expect(content.siteTitle).toBe("Salon Test");
+    expect(JSON.stringify(content)).toContain("Montreal");
+  });
+
+  it("marks an unavailable slot without claiming anything about it", async () => {
+    const content = await mockDemoSiteProvider.generate(input());
+    const contact = content.sections.find((s) => s.kind === "contact");
+    if (contact?.kind !== "contact") throw new Error("unreachable");
+
+    // Hours are never invented, and the note is a plain placeholder rather
+    // than an instruction aimed at the owner.
+    expect(contact.hoursNote).toBe("Opening hours to be confirmed.");
+    expect(contact.hoursNote.toLowerCase()).not.toContain("you");
   });
 });
