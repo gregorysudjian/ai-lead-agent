@@ -29,6 +29,19 @@ function sourceFiles(dir = SRC): string[] {
   });
 }
 
+/**
+ * Source with comments removed.
+ *
+ * These checks are about what the code DOES. A doc comment explaining why we
+ * do not call global fetch, or that TLS verification is deliberately left
+ * alone, must not read as the thing it is warning against.
+ */
+function codeOnly(file: string): string {
+  return readFileSync(file, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/.*/g, " ");
+}
+
 const draft = (field: ProfileField, sourceId: string): BusinessProfileDraft => ({
   researcher: { name: "mock", version: "v1" },
   sources: [
@@ -190,14 +203,61 @@ describe("the existing pipelines are untouched by this phase", () => {
   });
 });
 
-describe("nothing in this phase performs research", () => {
-  it("the research stack opens no socket", () => {
-    const dir = join(SRC, "server", "research");
-    for (const file of sourceFiles(dir)) {
-      const source = readFileSync(file, "utf8");
-      for (const call of ["fetch(", "https.request", "http.request", "net.connect", "XMLHttpRequest"]) {
-        expect(source, `${file} must not make a request in this phase`).not.toContain(call);
+describe("exactly one module may open a socket", () => {
+  const RESEARCH = join(SRC, "server", "research");
+  const FETCH_LAYER = join(RESEARCH, "safe-fetch.ts");
+
+  it("keeps every raw network call inside safe-fetch.ts", () => {
+    // Everything else must go through `safeFetch`, because that is where the
+    // DNS resolution, the address validation and the connection pinning live.
+    // A second place that opens a socket is a second place to get it wrong.
+    for (const file of sourceFiles(RESEARCH)) {
+      if (file === FETCH_LAYER) continue;
+
+      const source = codeOnly(file);
+      for (const call of [
+        "node:http",
+        "node:https",
+        "node:net",
+        "node:tls",
+        "httpRequest(",
+        "httpsRequest(",
+        "XMLHttpRequest",
+      ]) {
+        expect(source, `${file} must not open a socket directly`).not.toContain(call);
       }
     }
+  });
+
+  it("uses no global fetch anywhere in the research stack", () => {
+    // Global fetch resolves the hostname itself, which is the exact gap the
+    // pinned lookup exists to close.
+    for (const file of sourceFiles(RESEARCH)) {
+      expect(codeOnly(file), `${file} must not call global fetch`).not.toMatch(
+        /[^.\w]fetch\(/,
+      );
+    }
+  });
+
+  it("never disables TLS verification", () => {
+    for (const file of sourceFiles(join(SRC, "server"))) {
+      const source = codeOnly(file);
+      expect(source, file).not.toContain("rejectUnauthorized");
+      expect(source, file).not.toContain("NODE_TLS_REJECT_UNAUTHORIZED");
+    }
+  });
+
+  it("routes robots and the page through the same fetch layer", () => {
+    for (const name of ["robots.ts", "website.ts"]) {
+      expect(codeOnly(join(RESEARCH, name)), name).toContain("safe-fetch");
+    }
+  });
+
+  it("keeps the HTML parser out of the network layer, and vice versa", () => {
+    // The extractor is pure: a string in, candidate observations out. Keeping
+    // it free of I/O is what lets every extraction rule be tested directly.
+    const extractor = codeOnly(join(RESEARCH, "html-extract.ts"));
+    expect(extractor).not.toContain("safe-fetch");
+    expect(extractor).not.toContain("node:");
   });
 });

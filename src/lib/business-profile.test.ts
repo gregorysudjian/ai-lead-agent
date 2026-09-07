@@ -8,6 +8,7 @@ import {
   allValues,
   emptyProfileFacts,
   resolveField,
+  sourcePrecedenceForField,
 } from "./business-profile";
 
 /**
@@ -190,5 +191,62 @@ describe("resolveField prefers a source without discarding the others", () => {
       sources,
     );
     expect(values.map((o) => o.value)).toEqual(["B", "A"]);
+  });
+});
+
+describe("precedence depends on the field, not just the source", () => {
+  const sources = [
+    source("lead-snapshot", "lead-snapshot"),
+    source("site-1", "website"),
+    source("dir-1", "directory"),
+    source("rev-1", "reviews"),
+  ];
+
+  it("declares a different order for reputation than for everything else", () => {
+    expect(sourcePrecedenceForField("contact.phone")[0]).toBe("website");
+    expect(sourcePrecedenceForField("reputation.rating")[0]).toBe("reviews");
+  });
+
+  it("ranks a business's own site LAST for its own rating", () => {
+    // A business quoting its own rating is marketing, not evidence, so it sits
+    // below even our stored snapshot.
+    const order = sourcePrecedenceForField("reputation.reviewCount");
+    expect(order[order.length - 1]).toBe("website");
+    expect(order.indexOf("lead-snapshot")).toBeLessThan(order.indexOf("website"));
+  });
+
+  it("prefers the website for a phone number", () => {
+    const resolved = resolveField(
+      facts({
+        "contact.phone": [observed("from-reviews", "rev-1"), observed("from-site", "site-1")],
+      }),
+      "contact.phone",
+      sources,
+    );
+    expect(resolved?.observation.value).toBe("from-site");
+  });
+
+  it("prefers a review source for a rating, over the same business's website", () => {
+    const resolved = resolveField(
+      facts({ "reputation.rating": [observed(4.9, "site-1"), observed(4.1, "rev-1")] }),
+      "reputation.rating",
+      sources,
+    );
+    expect(resolved?.observation.value).toBe(4.1);
+    // And the self-reported figure is still there, visible as a conflict.
+    expect(resolved?.conflicting.map((o) => o.value)).toEqual([4.9]);
+  });
+
+  it("applies the reputation order to every field in that area", () => {
+    for (const field of ["reputation.rating", "reputation.reviewCount"] as const) {
+      expect(sourcePrecedenceForField(field)[0]).toBe("reviews");
+    }
+  });
+
+  it("keeps all evidence whichever order applies", () => {
+    const stored = facts({
+      "reputation.rating": [observed(4.9, "site-1"), observed(4.1, "rev-1")],
+    });
+    expect(allValues(stored, "reputation.rating", sources)).toHaveLength(2);
   });
 });

@@ -38,6 +38,7 @@ import type {
 import {
   PROFILE_FIELDS,
   PROFILE_FIELD_LIST,
+  PROFILE_LIMITS,
   RESEARCH_AREA_LABELS,
   SOURCE_TYPE_LABELS,
   emptyProfileFacts,
@@ -73,16 +74,22 @@ function obj(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function str(value: unknown, field: string): string {
+function str(value: unknown, field: string, maxLength?: number): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     fail(field, "is missing or not a non-empty string");
   }
-  return value as string;
+  const text = value as string;
+  // Bounds are checked, never silently truncated: a value too long to be
+  // plausible is evidence something went wrong, and half of it is not a fact.
+  if (maxLength !== undefined && text.length > maxLength) {
+    fail(field, `is longer than the ${maxLength} characters this field allows`);
+  }
+  return text;
 }
 
-function strOrNull(value: unknown, field: string): string | null {
+function strOrNull(value: unknown, field: string, maxLength?: number): string | null {
   if (value === null || value === undefined) return null;
-  return str(value, field);
+  return str(value, field, maxLength);
 }
 
 function list<T>(value: unknown, field: string, each: (v: unknown, f: string) => T): T[] {
@@ -94,6 +101,30 @@ const SOURCE_TYPES = Object.keys(SOURCE_TYPE_LABELS) as SourceType[];
 const AREAS = Object.keys(RESEARCH_AREA_LABELS) as ResearchArea[];
 const AREA_STATUSES: readonly string[] = ["covered", "not-researched", "unavailable"];
 const OBSERVATION_KINDS: readonly string[] = ["stated", "observed"];
+
+/**
+ * A timestamp must be a real instant, not merely a non-empty string.
+ *
+ * `new Date("nonsense")` is Invalid Date and `new Date("2026-02-30")` silently
+ * rolls over, so the value is required to round-trip through ISO-8601. A
+ * source whose fetch time cannot be trusted cannot date its own evidence.
+ */
+function isoTimestamp(value: unknown, field: string): string {
+  const text = str(value, field, 40);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) fail(field, "is not a valid timestamp");
+  if (date.toISOString() !== text) fail(field, "is not a normalized ISO-8601 timestamp");
+  return text;
+}
+
+/** Source ids are referenced by every observation, so they stay simple. */
+function sourceId(value: unknown, field: string): string {
+  const id = str(value, field, PROFILE_LIMITS.sourceId);
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(id)) {
+    fail(field, "must be a simple identifier of letters, digits, dot, dash or underscore");
+  }
+  return id;
+}
 
 /**
  * A stored URL must still be an absolute http(s) URL.
@@ -114,18 +145,42 @@ function assertUrl(value: string, field: string): string {
   return value;
 }
 
+/**
+ * A source's reference has to match the kind of source it claims to be.
+ *
+ * A `website` source must name the exact absolute http(s) URL that was
+ * actually fetched -- that is the whole value of the record, and a reference
+ * that is not a URL cannot be checked by anyone later. The stored discovery
+ * record keeps its provider form, `osm:node/123`.
+ */
+function sourceReference(value: unknown, field: string, type: SourceType): string {
+  const reference = str(value, field, PROFILE_LIMITS.sourceReference);
+
+  if (type === "lead-snapshot") {
+    if (!/^(mock|osm|google):[^\s]+$/.test(reference)) {
+      fail(field, "must be a provider reference such as osm:node/123");
+    }
+    return reference;
+  }
+
+  // Every other source type is something on the web, so its reference is the
+  // URL that was read. The same allowlist as everywhere else: nothing that a
+  // browser or a fetcher could be steered by.
+  return assertUrl(reference, field);
+}
+
 function toSource(value: unknown, field: string): SourceRecord {
   const s = obj(value, field);
 
-  const type = str(s.type, `${field}.type`);
+  const type = str(s.type, `${field}.type`, 40);
   if (!SOURCE_TYPES.includes(type as SourceType)) fail(`${field}.type`, "is not a known source type");
 
   return {
-    id: str(s.id, `${field}.id`),
+    id: sourceId(s.id, `${field}.id`),
     type: type as SourceType,
-    reference: str(s.reference, `${field}.reference`),
-    fetchedAt: str(s.fetchedAt, `${field}.fetchedAt`),
-    title: strOrNull(s.title, `${field}.title`),
+    reference: sourceReference(s.reference, `${field}.reference`, type as SourceType),
+    fetchedAt: isoTimestamp(s.fetchedAt, `${field}.fetchedAt`),
+    title: strOrNull(s.title, `${field}.title`, PROFILE_LIMITS.sourceTitle),
   };
 }
 
@@ -141,7 +196,7 @@ function toCoverage(value: unknown, field: string): ResearchCoverage {
   return {
     area: area as ResearchArea,
     status: status as ResearchAreaStatus,
-    note: str(c.note, `${field}.note`),
+    note: str(c.note, `${field}.note`, PROFILE_LIMITS.coverageNote),
   };
 }
 
@@ -159,7 +214,7 @@ function toObservation(value: unknown, field: string, profileField: ProfileField
   let observed: ProfileValue;
   switch (spec.type) {
     case "string": {
-      const text = str(o.value, `${field}.value`);
+      const text = str(o.value, `${field}.value`, spec.maxLength ?? PROFILE_LIMITS.defaultStringValue);
       observed = spec.url ? assertUrl(text, `${field}.value`) : text;
       break;
     }
@@ -179,7 +234,7 @@ function toObservation(value: unknown, field: string, profileField: ProfileField
 
   return {
     value: observed,
-    sourceId: str(o.sourceId, `${field}.sourceId`),
+    sourceId: sourceId(o.sourceId, `${field}.sourceId`),
     kind: kind as ObservationKind,
   };
 }
@@ -212,6 +267,13 @@ export function toProfileFacts(value: unknown, sources: SourceRecord[]): Profile
       toObservation(v, f, field),
     );
 
+    if (facts[field].length > PROFILE_LIMITS.observationsPerField) {
+      fail(
+        `profile.facts.${field}`,
+        `holds more than the ${PROFILE_LIMITS.observationsPerField} observations one field allows`,
+      );
+    }
+
     facts[field].forEach((observation, i) => {
       if (!known.has(observation.sourceId)) {
         // THE provenance rule. A fact with no source in this profile is not a
@@ -224,6 +286,16 @@ export function toProfileFacts(value: unknown, sources: SourceRecord[]): Profile
   return facts;
 }
 
+function boundedLimitations(value: unknown): string[] {
+  const limitations = list(value, "profile.limitations", (v, f) =>
+    str(v, f, PROFILE_LIMITS.limitationLength),
+  );
+  if (limitations.length > PROFILE_LIMITS.limitationCount) {
+    fail("profile.limitations", `lists more than the ${PROFILE_LIMITS.limitationCount} entries allowed`);
+  }
+  return limitations;
+}
+
 /** Validate a whole profile document. */
 export function toProfileDocument(value: unknown): Pick<
   BusinessProfile,
@@ -232,6 +304,9 @@ export function toProfileDocument(value: unknown): Pick<
   const doc = obj(value, "profile");
 
   const sources = list(doc.sources, "profile.sources", toSource);
+  if (sources.length > PROFILE_LIMITS.sourcesPerProfile) {
+    fail("profile.sources", `lists more than the ${PROFILE_LIMITS.sourcesPerProfile} sources a run allows`);
+  }
   const ids = new Set(sources.map((s) => s.id));
   if (ids.size !== sources.length) fail("profile.sources", "contains duplicate source ids");
 
@@ -246,7 +321,7 @@ export function toProfileDocument(value: unknown): Pick<
     sources,
     facts: toProfileFacts(doc.facts, sources),
     coverage,
-    limitations: list(doc.limitations, "profile.limitations", str),
+    limitations: boundedLimitations(doc.limitations),
   };
 }
 

@@ -151,6 +151,33 @@ const VALID_ANALYSIS_PROVIDERS: readonly AnalysisProviderName[] = ["mock", "anth
  * app is configured for Claude and Claude fails, that is reported, not papered
  * over with fixture-quality output presented as a real analysis.
  */
+/** The research modes. Anything else is a configuration error. */
+const VALID_RESEARCH_PROVIDERS = ["mock", "website"] as const;
+export type ResearchProviderName = (typeof VALID_RESEARCH_PROVIDERS)[number];
+
+/**
+ * Which researcher runs.
+ *
+ * Defaults to "mock", which makes no network request at all. Real website
+ * research reaches out to a third party's server on behalf of a business that
+ * never asked us to, so it has to be switched on deliberately -- a missing or
+ * empty variable can never cause an outbound request.
+ *
+ * Needs no secret: website mode reads public pages and sends no credential.
+ */
+export function researchProviderName(): ResearchProviderName {
+  const raw = process.env.RESEARCH_PROVIDER?.trim().toLowerCase();
+  if (!raw) return "mock";
+
+  const match = VALID_RESEARCH_PROVIDERS.find((name) => name === raw);
+  if (!match) {
+    throw new Error(
+      `Invalid RESEARCH_PROVIDER: expected one of ${VALID_RESEARCH_PROVIDERS.join(", ")}.`,
+    );
+  }
+  return match;
+}
+
 export function analysisProviderName(): AnalysisProviderName {
   const raw = process.env.ANALYSIS_PROVIDER?.trim().toLowerCase();
   if (!raw) return "mock";

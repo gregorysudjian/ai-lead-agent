@@ -418,3 +418,142 @@ describe("stored values are returned verbatim", () => {
     expect(mapped.facts["web.pageTitle"][0].value).toBe(hostile);
   });
 });
+
+describe("source records are validated strictly, now that real sources exist", () => {
+  const withSource = (mutate: (s: Record<string, unknown>) => void) =>
+    doc((d) => mutate((d.sources as Record<string, unknown>[])[1]));
+
+  it("requires a real, normalized ISO timestamp", () => {
+    for (const bad of [
+      "yesterday",
+      "2026-13-45T00:00:00.000Z",
+      "not a date",
+      "1757239200",
+      "2026-09-07",
+      "2026-09-07T09:00:00+00:00",
+    ]) {
+      expect(() => toProfileDocument(withSource((s) => (s.fetchedAt = bad))), bad).toThrow(
+        BusinessProfileRowMappingError,
+      );
+    }
+  });
+
+  it("accepts a canonical instant", () => {
+    expect(() =>
+      toProfileDocument(withSource((s) => (s.fetchedAt = "2026-09-07T09:00:00.000Z"))),
+    ).not.toThrow();
+  });
+
+  it("requires a website source to name the exact URL fetched", () => {
+    for (const bad of [
+      "osm:node/1",
+      "the homepage",
+      "javascript:alert(1)",
+      "file:///etc/passwd",
+      "data:text/html,x",
+      "//example.test",
+      "",
+    ]) {
+      expect(() => toProfileDocument(withSource((s) => (s.reference = bad))), bad).toThrow(
+        BusinessProfileRowMappingError,
+      );
+    }
+  });
+
+  it("keeps the provider form for the stored discovery record", () => {
+    const leadSource = (reference: string) =>
+      doc((d) => ((d.sources as Record<string, unknown>[])[0].reference = reference));
+
+    expect(() => toProfileDocument(leadSource("osm:node/1"))).not.toThrow();
+    expect(() => toProfileDocument(leadSource("google:places/abc"))).not.toThrow();
+    for (const bad of ["https://example.test/", "node/1", "osm:", "osm: node 1"]) {
+      expect(() => toProfileDocument(leadSource(bad)), bad).toThrow(BusinessProfileRowMappingError);
+    }
+  });
+
+  it("bounds the source id and restricts its characters", () => {
+    expect(() => toProfileDocument(withSource((s) => (s.id = "a".repeat(200))))).toThrow(
+      BusinessProfileRowMappingError,
+    );
+    for (const bad of ["has space", "../escape", "id/slash", "<script>", ""]) {
+      expect(() => toProfileDocument(withSource((s) => (s.id = bad))), bad).toThrow(
+        BusinessProfileRowMappingError,
+      );
+    }
+  });
+
+  it("bounds the source title", () => {
+    expect(() => toProfileDocument(withSource((s) => (s.title = "t".repeat(5000))))).toThrow(
+      BusinessProfileRowMappingError,
+    );
+  });
+
+  it("bounds how many sources one profile may cite", () => {
+    expect(() =>
+      toProfileDocument(
+        doc((d) => {
+          const base = (d.sources as Record<string, unknown>[])[1];
+          d.sources = Array.from({ length: 25 }, (_, i) => ({ ...base, id: `s${i}` }));
+        }),
+      ),
+    ).toThrow(BusinessProfileRowMappingError);
+  });
+});
+
+describe("extracted values are bounded before they are stored", () => {
+  const withValue = (field: string, value: unknown) =>
+    doc((d) => {
+      const f = d.facts as Record<string, unknown[]>;
+      f[field] = [{ value, sourceId: "site-1", kind: "stated" }];
+    });
+
+  it("rejects a page title, description or phone beyond its field's limit", () => {
+    expect(() => toProfileDocument(withValue("web.pageTitle", "t".repeat(5000)))).toThrow(
+      BusinessProfileRowMappingError,
+    );
+    expect(() => toProfileDocument(withValue("web.description", "d".repeat(20_000)))).toThrow(
+      BusinessProfileRowMappingError,
+    );
+    expect(() => toProfileDocument(withValue("contact.phone", "9".repeat(500)))).toThrow(
+      BusinessProfileRowMappingError,
+    );
+  });
+
+  it("rejects an absurd URL rather than storing a page inside one", () => {
+    const huge = `https://example.test/${"a".repeat(5000)}`;
+    expect(() => toProfileDocument(withValue("web.website", huge))).toThrow(
+      BusinessProfileRowMappingError,
+    );
+  });
+
+  it("bounds how many observations one field may hold", () => {
+    expect(() =>
+      toProfileDocument(
+        doc((d) => {
+          const f = d.facts as Record<string, unknown[]>;
+          f["web.socialLink"] = Array.from({ length: 50 }, (_, i) => ({
+            value: `https://instagram.com/p/${i}`,
+            sourceId: "site-1",
+            kind: "observed",
+          }));
+        }),
+      ),
+    ).toThrow(BusinessProfileRowMappingError);
+  });
+
+  it("bounds coverage notes and limitations", () => {
+    expect(() =>
+      toProfileDocument(
+        doc((d) => ((d.coverage as Record<string, unknown>[])[0].note = "n".repeat(2000))),
+      ),
+    ).toThrow(BusinessProfileRowMappingError);
+
+    expect(() =>
+      toProfileDocument(doc((d) => (d.limitations = ["l".repeat(2000)]))),
+    ).toThrow(BusinessProfileRowMappingError);
+
+    expect(() =>
+      toProfileDocument(doc((d) => (d.limitations = Array.from({ length: 50 }, () => "x")))),
+    ).toThrow(BusinessProfileRowMappingError);
+  });
+});

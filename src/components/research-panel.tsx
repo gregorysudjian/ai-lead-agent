@@ -15,6 +15,7 @@ import {
   RESEARCH_AREA_LABELS,
   RESEARCH_AREA_STATUS_LABELS,
   SOURCE_TYPE_LABELS,
+  allValues,
   resolveField,
 } from "@/lib/business-profile";
 import { classifyWebsite, formatTimestamp } from "@/lib/format";
@@ -46,6 +47,17 @@ import type { BadgeTone } from "./ui/primitives";
  */
 
 const AREAS = Object.keys(RESEARCH_AREA_LABELS) as ResearchArea[];
+
+/**
+ * What a run would actually do, said plainly.
+ *
+ * The difference matters to whoever presses the button: one mode consults
+ * nothing, the other reaches out to a real business's server.
+ */
+const RESEARCHER_LABELS: Record<string, string> = {
+  mock: "Offline researcher",
+  website: "Website research",
+};
 
 const STATUS_TONES: Record<string, BadgeTone> = {
   covered: "emerald",
@@ -108,16 +120,26 @@ export function ResearchPanel({
         />
         <div className="flex shrink-0 items-center gap-2">
           <Badge
-            tone={researcher.name === "mock" ? "amber" : "indigo"}
+            tone={researcher.name === "mock" ? "amber" : "emerald"}
             title={
               researcher.name === "mock"
-                ? "Offline researcher: consults no external source"
-                : `A new run uses ${researcher.version}`
+                ? "Offline: consults no external source and makes no request"
+                : `Fetches the listed website's homepage · ${researcher.version}`
             }
           >
-            {researcher.name === "mock" ? "Offline researcher" : researcher.name}
+            {RESEARCHER_LABELS[researcher.name] ?? researcher.name}
           </Badge>
-          <button type="button" onClick={handleResearch} disabled={busy} className={BUTTON_PRIMARY}>
+          <button
+            type="button"
+            onClick={handleResearch}
+            disabled={busy}
+            title={
+              researcher.name === "website"
+                ? "Fetches robots.txt and the homepage of the website listed on this lead"
+                : undefined
+            }
+            className={BUTTON_PRIMARY}
+          >
             {busy ? "Researching…" : profiles.length > 0 ? "Re-run research" : "Research business"}
           </button>
         </div>
@@ -127,7 +149,9 @@ export function ResearchPanel({
         {busy ? (
           <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
             <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full bg-emerald-500" />
-            Gathering what we can source…
+            {researcher.name === "website"
+              ? "Reading the listed website…"
+              : "Gathering what we can source…"}
           </p>
         ) : null}
 
@@ -146,6 +170,9 @@ export function ResearchPanel({
           <p className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">
             Not researched yet. A run records what we can source about this business, with a
             reference for every value.
+            {researcher.name === "website"
+              ? " This lead's listed website would be fetched once, homepage only."
+              : " Nothing would be fetched: the offline researcher consults no external source."}
           </p>
         ) : null
       ) : (
@@ -269,13 +296,42 @@ function ProfileView({ profile }: { profile: BusinessProfile }) {
   );
 }
 
-/** One field: its preferred value, its source, and anything that disagreed. */
+/**
+ * One field.
+ *
+ * Two shapes, because two things can be true of a field holding several
+ * observations. A `multiple` field -- social profiles, opening hours -- expects
+ * several DISTINCT values, and showing the second one as "another source
+ * disagreed" would misread a business's Instagram and Facebook links as a
+ * contradiction. Every other field expects one value, so extra observations
+ * genuinely are conflicting evidence and are shown as such.
+ */
 function FactRow({ field, profile }: { field: ProfileField; profile: BusinessProfile }) {
   const spec = PROFILE_FIELDS[field];
+  if (spec.multiple === true) {
+    const values = allValues(profile.facts, field, profile.sources);
+    if (values.length === 0) return null;
+
+    return (
+      <div className="min-w-0">
+        <dt className="text-xs text-slate-600 dark:text-slate-400">{spec.label}</dt>
+        <dd className="mt-0.5 space-y-1 text-sm">
+          {values.map((observation, i) => (
+            <div key={`${observation.sourceId}-${i}`}>
+              <ObservationValue observation={observation} isUrl={spec.url === true} />
+              <SourceTag
+                label={SOURCE_TYPE_LABELS[sourceFor(profile, observation.sourceId)]}
+                kind={observation.kind}
+              />
+            </div>
+          ))}
+        </dd>
+      </div>
+    );
+  }
+
   const resolved = resolveField(profile.facts, field, profile.sources);
   if (!resolved) return null;
-
-  const sourceById = new Map(profile.sources.map((s) => [s.id, s]));
 
   return (
     <div className="min-w-0">
@@ -300,7 +356,7 @@ function FactRow({ field, profile }: { field: ProfileField; profile: BusinessPro
                 <li key={`${observation.sourceId}-${i}`}>
                   {String(observation.value)}{" "}
                   <span className="opacity-80">
-                    ({SOURCE_TYPE_LABELS[sourceById.get(observation.sourceId)?.type ?? "directory"]})
+                    ({SOURCE_TYPE_LABELS[sourceFor(profile, observation.sourceId)]})
                   </span>
                 </li>
               ))}
@@ -310,6 +366,11 @@ function FactRow({ field, profile }: { field: ProfileField; profile: BusinessPro
       </dd>
     </div>
   );
+}
+
+/** The type of the source an observation cites. */
+function sourceFor(profile: BusinessProfile, sourceId: string) {
+  return profile.sources.find((s) => s.id === sourceId)?.type ?? "directory";
 }
 
 function ObservationValue({ observation, isUrl }: { observation: Observation; isUrl: boolean }) {

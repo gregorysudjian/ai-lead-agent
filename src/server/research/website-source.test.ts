@@ -191,9 +191,14 @@ describe("nothing here performs a request", () => {
       if (typeof value !== "function") continue;
       // Only the guards are callable. A crawler is explicitly out of scope for
       // this phase, and its absence should fail loudly if that changes.
-      expect(["assertResearchableUrl", "isResearchableUrl", "UnsafeResearchUrlError"]).toContain(
-        name,
-      );
+      // Only guards are callable from this module. The fetcher lives in
+      // safe-fetch.ts, where the DNS pinning is; this file stays pure.
+      expect([
+        "assertResearchableUrl",
+        "isResearchableUrl",
+        "isPublicAddress",
+        "UnsafeResearchUrlError",
+      ]).toContain(name);
     }
   });
 });

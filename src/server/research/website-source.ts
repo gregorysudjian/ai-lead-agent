@@ -80,6 +80,14 @@
  */
 import type { ResearchProviderInput, ResearchProviderResult } from "@/lib/business-profile";
 
+/**
+ * The source id a website research run uses.
+ *
+ * Fixed, and never `lead-snapshot`: the service rejects a researcher that
+ * tries to attribute anything to our own stored record.
+ */
+export const PROFILE_SOURCE_ID = "website-homepage";
+
 /** Identify ourselves honestly, with a contact route, as the project requires. */
 export const RESEARCH_USER_AGENT =
   "LeadFinderResearchBot/0.1 (+contact via the business owner; one request per lead)";
@@ -168,6 +176,25 @@ function isPublicIpv6(host: string): boolean {
 
   if (address.startsWith("2001:db8")) return false;
   return true;
+}
+
+/**
+ * Is a bare IP address (not bracketed) a public destination?
+ *
+ * The same classification the URL guard applies to address literals, exposed
+ * so the network layer can apply it to what DNS actually ANSWERED. Checking
+ * the URL and not the resolved address would leave the only gap that matters.
+ */
+export function isPublicAddress(address: string): boolean {
+  const value = address.trim().toLowerCase();
+  if (value.length === 0) return false;
+
+  const octets = ipv4Octets(value);
+  if (octets !== null) return !isPrivateIpv4(octets);
+
+  // Anything else is treated as IPv6 and must be global unicast.
+  if (!value.includes(":")) return false;
+  return isPublicIpv6(value);
 }
 
 /**

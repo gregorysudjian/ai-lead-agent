@@ -41,9 +41,18 @@ export function deriveLeadSnapshotSource(lead: Lead): SourceRecord {
     id: LEAD_SNAPSHOT_SOURCE_ID,
     type: "lead-snapshot",
     reference: leadSnapshotReference(p.source, p.externalId),
-    fetchedAt: p.fetchedAt,
+    // Normalized so a snapshot stored with a non-canonical but valid ISO form
+    // still satisfies the profile's strict timestamp rule. An unparseable
+    // value is left as-is and rejected at validation, which is correct: a
+    // source that cannot date its own evidence should not be stored.
+    fetchedAt: normalizeTimestamp(p.fetchedAt),
     title: SOURCE_LABELS[p.source] ?? p.source,
   };
+}
+
+function normalizeTimestamp(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
 
 /**
