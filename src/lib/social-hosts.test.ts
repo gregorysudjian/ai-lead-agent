@@ -107,3 +107,43 @@ describe("scoring stops counting a Facebook page as a website", () => {
     expect(social.total).toBe(scoreLead(lead(null)).total);
   });
 });
+
+describe("the lead list and the score tell the same story", () => {
+  it("labels a social-only listing distinctly from a real website", async () => {
+    const { websiteBadgeLabel } = await import("./format");
+
+    // The bug this pins: before, a Facebook page read "Website listed" on a
+    // lead the score had ranked as a top prospect for having no website.
+    expect(websiteBadgeLabel("https://www.facebook.com/letraditionnelbarbier/")).toBe(
+      "Social page only",
+    );
+    expect(websiteBadgeLabel("https://ggbarbershop.com/")).toBe("Website listed");
+    expect(websiteBadgeLabel(null)).toBe("No website listed");
+    expect(websiteBadgeLabel("not a url")).toBe("Website value unusable");
+  });
+
+  it("keeps all four outcomes distinct from one another", async () => {
+    const { websiteBadgeLabel } = await import("./format");
+    const labels = [
+      websiteBadgeLabel(null),
+      websiteBadgeLabel("not a url"),
+      websiteBadgeLabel("https://facebook.com/shop"),
+      websiteBadgeLabel("https://ggbarbershop.com/"),
+    ];
+    expect(new Set(labels).size).toBe(4);
+  });
+
+  it("agrees with scoring on which listings are still prospects", async () => {
+    const { websiteBadgeLabel } = await import("./format");
+
+    for (const website of [null, "https://facebook.com/shop"]) {
+      const factor = websiteFactor(website);
+      // Full marks from scoring, and a label that does not claim a website.
+      expect(factor.points, String(website)).toBe(factor.maxPoints);
+      expect(websiteBadgeLabel(website), String(website)).not.toBe("Website listed");
+    }
+
+    expect(websiteFactor("https://ggbarbershop.com/").points).toBe(0);
+    expect(websiteBadgeLabel("https://ggbarbershop.com/")).toBe("Website listed");
+  });
+});
