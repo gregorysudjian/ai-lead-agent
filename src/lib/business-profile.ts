@@ -69,20 +69,60 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
 };
 
 /**
- * Source precedence, most authoritative first.
+ * Source precedence, per field.
  *
- * A business's own website is the best statement about itself; a third-party
- * index is the weakest, because it is a copy of something else. This ordering
- * decides which observation `resolveField` PREFERS -- it never decides which
- * observations are kept, because all of them are.
+ * One global ordering was wrong the moment a second kind of source existed.
+ * "Which source do we believe?" has a different answer depending on WHAT is
+ * being claimed, and the difference is not a detail:
+ *
+ *   Contact and identity     a business's own website is the best statement
+ *                            about its own phone number, address and name. A
+ *                            third-party index is a copy, so it ranks last.
+ *
+ *   Reputation               a business's own website quoting its own rating
+ *                            is marketing, not evidence. A supported review
+ *                            source outranks everything, and the business's
+ *                            own claim ranks BELOW even our stored snapshot.
+ *
+ * This decides only which observation `resolveField` PREFERS for display. It
+ * never decides which observations are kept, because all of them are, and the
+ * ones that disagree are handed back so a reader can see them.
+ *
+ * "Outranks" is not "is authoritative". A website is the best available source
+ * for a phone number and can still be out of date; the record shows both
+ * values and where each came from, and a human decides.
  */
-export const SOURCE_PRECEDENCE: readonly SourceType[] = [
+const DEFAULT_PRECEDENCE: readonly SourceType[] = [
   "website",
   "directory",
   "social",
   "reviews",
   "lead-snapshot",
 ];
+
+/**
+ * Reputation is the exception, and deliberately inverts the self-report.
+ *
+ * A rating is a claim ABOUT a business, so the business is the party with the
+ * least standing to make it. Nothing supplies these fields yet -- no review
+ * source is connected -- but the policy is written before one is, so the first
+ * adapter cannot quietly define it by being the only implementation.
+ */
+const REPUTATION_PRECEDENCE: readonly SourceType[] = [
+  "reviews",
+  "directory",
+  "lead-snapshot",
+  "social",
+  "website",
+];
+
+/** The precedence that applies to one field. */
+export function sourcePrecedenceForField(field: ProfileField): readonly SourceType[] {
+  return PROFILE_FIELDS[field].area === "reputation" ? REPUTATION_PRECEDENCE : DEFAULT_PRECEDENCE;
+}
+
+/** Kept for callers that want the general ordering. Reputation differs. */
+export const SOURCE_PRECEDENCE = DEFAULT_PRECEDENCE;
 
 /** The reserved id of the source application code always writes. */
 export const LEAD_SNAPSHOT_SOURCE_ID = "lead-snapshot";
@@ -169,7 +209,35 @@ export interface ProfileFieldSpec {
   url?: true;
   /** True when several distinct values are expected rather than a conflict. */
   multiple?: true;
+  /**
+   * Maximum stored length for a string value.
+   *
+   * Every one of these arrives from a page we do not control, so each is
+   * bounded at the size a legitimate value could plausibly need. A profile
+   * stores extracted facts, never a copy of the website.
+   */
+  maxLength?: number;
 }
+
+/**
+ * Bounds on everything a source can put into a profile.
+ *
+ * Fetched content is untrusted, and "untrusted" includes its size. Without
+ * these, one hostile or merely broken page could push an unbounded document
+ * into the database and out again through every reader.
+ */
+export const PROFILE_LIMITS = {
+  sourceId: 64,
+  sourceTitle: 200,
+  sourceReference: 2048,
+  sourcesPerProfile: 10,
+  observationsPerField: 20,
+  coverageNote: 500,
+  limitationLength: 500,
+  limitationCount: 20,
+  /** Applies to any string field that does not set its own `maxLength`. */
+  defaultStringValue: 500,
+} as const;
 
 /**
  * Field definitions, including the value type each must carry.
@@ -179,40 +247,48 @@ export interface ProfileFieldSpec {
  * expected.
  */
 export const PROFILE_FIELDS: Record<ProfileField, ProfileFieldSpec> = {
-  "identity.name": { area: "identity", label: "Business name", type: "string" },
-  "identity.category": { area: "identity", label: "Category", type: "string" },
-  "identity.city": { area: "identity", label: "City", type: "string" },
+  "identity.name": { area: "identity", label: "Business name", type: "string", maxLength: 200 },
+  "identity.category": { area: "identity", label: "Category", type: "string", maxLength: 120 },
+  "identity.city": { area: "identity", label: "City", type: "string", maxLength: 120 },
 
-  "contact.phone": { area: "contact", label: "Phone", type: "string" },
-  "contact.address": { area: "contact", label: "Address", type: "string" },
-  "contact.email": { area: "contact", label: "Email", type: "string" },
+  "contact.phone": { area: "contact", label: "Phone", type: "string", maxLength: 50 },
+  "contact.address": { area: "contact", label: "Address", type: "string", maxLength: 300 },
+  "contact.email": { area: "contact", label: "Email", type: "string", maxLength: 254 },
 
-  "web.website": { area: "web", label: "Website", type: "string", url: true },
+  "web.website": { area: "web", label: "Website", type: "string", url: true, maxLength: 2048 },
   "web.reachable": { area: "web", label: "Website responded", type: "boolean" },
-  "web.pageTitle": { area: "web", label: "Page title", type: "string" },
-  "web.description": { area: "web", label: "Page description", type: "string" },
+  "web.pageTitle": { area: "web", label: "Page title", type: "string", maxLength: 300 },
+  "web.description": { area: "web", label: "Page description", type: "string", maxLength: 1000 },
   "web.socialLink": {
     area: "web",
     label: "Public social link",
     type: "string",
     url: true,
     multiple: true,
+    maxLength: 2048,
   },
-  "web.bookingUrl": { area: "web", label: "Booking link", type: "string", url: true },
+  "web.bookingUrl": { area: "web", label: "Booking link", type: "string", url: true, maxLength: 2048 },
 
   "business.service": {
     area: "business",
     label: "Publicly stated service",
     type: "string",
     multiple: true,
+    maxLength: 200,
   },
   "business.openingHours": {
     area: "business",
     label: "Publicly stated opening hours",
     type: "string",
     multiple: true,
+    maxLength: 200,
   },
-  "business.description": { area: "business", label: "Publicly stated description", type: "string" },
+  "business.description": {
+    area: "business",
+    label: "Publicly stated description",
+    type: "string",
+    maxLength: 1000,
+  },
 
   "reputation.rating": { area: "reputation", label: "Rating", type: "number" },
   "reputation.reviewCount": { area: "reputation", label: "Review count", type: "number" },
@@ -343,8 +419,9 @@ export interface ResolvedField {
 /**
  * Choose the preferred observation for one field, deterministically.
  *
- * Order: source precedence, then the more recent fetch, then source id. The
- * last tiebreak exists so the result never depends on array order.
+ * Order: the precedence THIS FIELD declares (see `sourcePrecedenceForField`),
+ * then the more recent fetch, then source id. The last tiebreak exists so the
+ * result never depends on array order.
  *
  * This is a READ operation. It picks nothing to keep and nothing to drop; the
  * stored profile is unchanged, and `conflicting` hands the caller everything
@@ -359,10 +436,11 @@ export function resolveField(
   const usable = facts[field].filter((o) => byId.has(o.sourceId));
   if (usable.length === 0) return null;
 
+  const precedence = sourcePrecedenceForField(field);
   const rank = (o: Observation) => {
     const source = byId.get(o.sourceId) as SourceRecord;
-    const precedence = SOURCE_PRECEDENCE.indexOf(source.type);
-    return precedence === -1 ? SOURCE_PRECEDENCE.length : precedence;
+    const position = precedence.indexOf(source.type);
+    return position === -1 ? precedence.length : position;
   };
 
   const sorted = [...usable].sort((a, b) => {
