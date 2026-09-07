@@ -160,3 +160,119 @@ export async function researchLead(leadId: string): Promise<BusinessProfile> {
 export async function profilesForLead(leadId: string): Promise<BusinessProfile[]> {
   return getBusinessProfileRepository().listForLead(leadId);
 }
+
+// ---------------------------------------------------------------------------
+// Batch research
+// ---------------------------------------------------------------------------
+
+/**
+ * Research several leads in one deliberate, bounded run.
+ *
+ * ── WHY THIS IS NOT A CRAWLER ─────────────────────────────────────────────
+ *
+ * Every constraint here exists because a research run reaches a real business's
+ * server, and one of the lookups behind it is billable:
+ *
+ *   - it runs ONLY when a person asks; nothing schedules it
+ *   - it is capped, and the cap is small enough to be surveyable
+ *   - leads are researched SEQUENTIALLY, with a pause between them, so we are
+ *     never several requests deep into other people's infrastructure at once
+ *   - it skips leads that already have a profile, so re-running costs nothing
+ *     and is not a way to re-fetch the same sites repeatedly
+ *   - a lead that fails is recorded and SKIPPED. There is no retry: a site that
+ *     timed out is not more likely to answer immediately afterwards, and a
+ *     failed billable lookup repeated is just a bill
+ *
+ * Each profile is written as it is produced, so an interrupted run keeps
+ * everything it had already learned.
+ */
+
+/** The most leads one run may touch. Deliberately small. */
+export const MAX_BATCH_SIZE = 25;
+
+/** Pause between leads. Politeness, not rate-limit evasion. */
+const DEFAULT_DELAY_MS = 1000;
+
+export interface BatchResearchOutcome {
+  leadId: string;
+  name: string;
+  status: "researched" | "failed";
+  /** Client-safe. Never an upstream message. */
+  note: string;
+}
+
+export interface BatchResearchResult {
+  requested: number;
+  attempted: number;
+  researched: number;
+  failed: number;
+  /** Leads with no profile that this run did not reach, because of the cap. */
+  remaining: number;
+  outcomes: BatchResearchOutcome[];
+}
+
+export interface BatchResearchOptions {
+  delayMs?: number;
+  /** Test seam. Production waits for real time. */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export async function researchLeadsWithoutProfiles(
+  limit: number,
+  options: BatchResearchOptions = {},
+): Promise<BatchResearchResult> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_BATCH_SIZE) {
+    throw new RangeError(`limit must be an integer between 1 and ${MAX_BATCH_SIZE}.`);
+  }
+
+  const sleep = options.sleep ?? realSleep;
+  const delayMs = options.delayMs ?? DEFAULT_DELAY_MS;
+
+  const leads = await getLeadRepository().list();
+
+  // One read to learn which leads already have a profile, rather than a query
+  // per lead. The limit is generous enough to cover every profile we hold.
+  const existing = await getBusinessProfileRepository().listRecent(1000);
+  const researched = new Set(existing.map((profile) => profile.leadId));
+
+  const pending = leads.filter((lead) => !researched.has(lead.id));
+  const batch = pending.slice(0, limit);
+
+  const outcomes: BatchResearchOutcome[] = [];
+
+  for (const [index, lead] of batch.entries()) {
+    if (index > 0) await sleep(delayMs);
+
+    try {
+      await researchLead(lead.id);
+      outcomes.push({
+        leadId: lead.id,
+        name: lead.provider.name,
+        status: "researched",
+        note: "Researched.",
+      });
+    } catch (error) {
+      // Detail to the server log; the outcome carries our own sentence.
+      console.error(`[research batch] lead ${lead.id} failed:`, error);
+      outcomes.push({
+        leadId: lead.id,
+        name: lead.provider.name,
+        status: "failed",
+        // No retry, and the run continues: one bad site must not cost the
+        // operator the leads that would have worked.
+        note: "This lead could not be researched. It was skipped, not retried.",
+      });
+    }
+  }
+
+  return {
+    requested: limit,
+    attempted: batch.length,
+    researched: outcomes.filter((o) => o.status === "researched").length,
+    failed: outcomes.filter((o) => o.status === "failed").length,
+    remaining: pending.length - batch.length,
+    outcomes,
+  };
+}
