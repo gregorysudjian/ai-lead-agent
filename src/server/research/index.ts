@@ -1,11 +1,12 @@
 import "server-only";
 
-import { researchProviderName } from "@/server/env";
+import { researchProviderName, websiteLookupName } from "@/server/env";
 
 import { mockResearchProvider } from "./mock";
 import { createResearchOrchestrator } from "./orchestrator";
 import type { ResearchProvider } from "./types";
-import { WEBSITE_SOURCE_VERSION, websiteResearchSource } from "./website";
+import { WEBSITE_SOURCE_VERSION, createWebsiteResearchSource } from "./website";
+import { createGoogleWebsiteLocator, noWebsiteLocator } from "./website-locator";
 
 /**
  * Resolve the configured researcher.
@@ -27,9 +28,20 @@ export function getResearchProvider(): ResearchProvider {
       return createResearchOrchestrator({
         name: "website",
         version: WEBSITE_SOURCE_VERSION,
-        sources: [websiteResearchSource],
+        sources: [createWebsiteResearchSource({ locateWebsite: websiteLocator() })],
       });
   }
+}
+
+/**
+ * How a missing website address is found, if at all.
+ *
+ * Defaults to not looking. Enabling the Google locator is a separate,
+ * deliberate act because it is a billable per-lead request -- and because it is
+ * the one place a third-party directory touches the research path at all.
+ */
+function websiteLocator() {
+  return websiteLookupName() === "google" ? createGoogleWebsiteLocator() : noWebsiteLocator;
 }
 
 export { ResearchProviderError } from "./types";

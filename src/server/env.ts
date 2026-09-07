@@ -258,6 +258,36 @@ export function researchProviderName(): ResearchProviderName {
   return match;
 }
 
+/** How a website is found when the discovery record lists none. */
+const VALID_WEBSITE_LOOKUPS = ["off", "google"] as const;
+export type WebsiteLookupName = (typeof VALID_WEBSITE_LOOKUPS)[number];
+
+/**
+ * Whether research may look up a business to find its website address.
+ *
+ * Defaults to "off". Separate from RESEARCH_PROVIDER and from
+ * DISCOVERY_SOURCES on purpose: this is a per-lead billable lookup against a
+ * directory, and it should not be switched on as a side effect of enabling
+ * something else.
+ *
+ * "google" uses Google Places to answer ONE question -- where is this
+ * business's own website -- and keeps nothing but the URL. See
+ * `research/website-locator.ts` for why that boundary exists and what the Maps
+ * Platform terms permit us to store.
+ */
+export function websiteLookupName(): WebsiteLookupName {
+  const raw = process.env.WEBSITE_LOOKUP?.trim().toLowerCase();
+  if (!raw) return "off";
+
+  const match = VALID_WEBSITE_LOOKUPS.find((name) => name === raw);
+  if (!match) {
+    throw new Error(
+      `Invalid WEBSITE_LOOKUP: expected one of ${VALID_WEBSITE_LOOKUPS.join(", ")}.`,
+    );
+  }
+  return match;
+}
+
 export function analysisProviderName(): AnalysisProviderName {
   const raw = process.env.ANALYSIS_PROVIDER?.trim().toLowerCase();
   if (!raw) return "mock";

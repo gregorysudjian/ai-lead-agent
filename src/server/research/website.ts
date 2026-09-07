@@ -12,6 +12,7 @@ import { extractFromHtml } from "./html-extract";
 import { checkRobots } from "./robots";
 import { SafeFetchError, safeFetch, type SafeFetchOptions } from "./safe-fetch";
 import { PROFILE_SOURCE_ID, assertResearchableUrl } from "./website-source";
+import { noWebsiteLocator, type LocatedWebsite, type WebsiteLocator } from "./website-locator";
 import type { ResearchSource } from "./types";
 
 /**
@@ -48,6 +49,15 @@ export interface WebsiteResearchOptions {
   /** Test seams, passed through to the fetch layer. Unused in production. */
   fetchOptions?: SafeFetchOptions;
   now?: () => Date;
+  /**
+   * How to find a site when the discovery record lists none.
+   *
+   * Defaults to finding nothing, so this source behaves exactly as it did
+   * before and no request reaches a third-party directory unless a locator is
+   * deliberately configured. See `website-locator.ts` for why a locator may
+   * return only a URL.
+   */
+  locateWebsite?: WebsiteLocator;
 }
 
 function notResearched(note: string): ResearchCoverage[] {
@@ -97,30 +107,41 @@ export function createWebsiteResearchSource(
   options: WebsiteResearchOptions = {},
 ): ResearchSource {
   const now = options.now ?? (() => new Date());
+  const locate = options.locateWebsite ?? noWebsiteLocator;
 
   return {
     name: "website",
     area: "web",
 
     async gather(input: ResearchProviderInput): Promise<ResearchProviderResult> {
-      // No listed website means NO REQUEST. There is no discovery step in this
-      // phase: we do not go looking for a site the provider did not name.
-      if (input.website === null) {
+      // No listed website: ask the locator, which may be configured to look a
+      // known business up in a directory. It returns a URL or nothing -- never
+      // any other fact -- so what we end up storing is still our own reading of
+      // the business's own page.
+      let located: LocatedWebsite | null = null;
+      let websiteUrl = input.website;
+
+      if (websiteUrl === null) {
+        located = await locate(input);
+        websiteUrl = located?.url ?? null;
+      }
+
+      if (websiteUrl === null) {
         return {
           sources: [],
           observations: [],
           coverage: notResearched(
-            "The discovery record listed no website, and this research does not search for one.",
+            "The discovery record listed no website, and none was found for this business.",
           ),
           limitations: [
-            "No website was listed, so none was fetched. That is not proof the business has none.",
+            "No website was listed or found, so none was fetched. That is not proof the business has none.",
           ],
         };
       }
 
       let target: URL;
       try {
-        target = assertResearchableUrl(input.website);
+        target = assertResearchableUrl(websiteUrl);
       } catch {
         return {
           sources: [],
@@ -184,6 +205,15 @@ export function createWebsiteResearchSource(
         "Only values the page marked up as such were recorded -- a phone number in a tel: link, an address in structured data. Prose was not interpreted.",
         "No services, rating or review count was taken from the site: a business describing itself is not an independent source for either.",
       ];
+
+      if (located !== null) {
+        // Provenance for the POINTER, kept separate from the evidence. The
+        // facts below come from the page itself; only the address of the page
+        // came from elsewhere, and a reader should be able to see that.
+        limitations.push(
+          `The discovery record listed no website. This address was located by matching the business in Google Places on ${located.matchedBy}, and only the address was taken from there -- every fact below was read from the page itself.`,
+        );
+      }
 
       if (response.chain.length > 1) {
         limitations.push(
