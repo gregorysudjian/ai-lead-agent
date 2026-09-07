@@ -188,10 +188,13 @@ describe("the demo states only what the lead recorded", () => {
     expect(html).toContain("100 Rue Test");
   });
 
-  it("says 'Not listed yet' rather than inventing a missing phone or address", () => {
+  it("shows an empty slot rather than inventing a missing phone or address", () => {
     const html = render(spec({ business: { phone: null, address: null } }));
-    expect(html).toContain("Not listed yet");
+    expect(html).toContain("To be added");
     expect(html).not.toContain('href="tel:');
+    // Our internal vocabulary about a provider record has no place on a page
+    // meant to read as the business's own site.
+    expect(html).not.toContain("Not listed");
   });
 
   it("renders every theme without falling back or throwing", () => {

@@ -314,7 +314,9 @@ function Contact({
             </dt>
             <dd className={`mt-1 text-lg font-medium ${theme.heading}`}>
               {business.phone === null ? (
-                <span className={theme.muted}>Not listed yet</span>
+                // A neutral empty slot. "Not listed" is OUR vocabulary about a
+                // provider record, and has no meaning to a visitor.
+                <span className={theme.muted}>To be added</span>
               ) : href ? (
                 <a href={href} className="underline underline-offset-4">
                   {business.phone}
@@ -330,7 +332,7 @@ function Contact({
               Address
             </dt>
             <dd className={`mt-1 text-base ${theme.body}`}>
-              {business.address ?? <span className={theme.muted}>Not listed yet</span>}
+              {business.address ?? <span className={theme.muted}>To be added</span>}
             </dd>
           </div>
 

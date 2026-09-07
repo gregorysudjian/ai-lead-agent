@@ -197,6 +197,11 @@ export const DEMO_SECTION_KINDS: readonly DemoSectionKind[] = [
  *
  * No business name. No contact values. No URLs. No ids, no timestamps, no
  * provider metadata. Wording, structure and theme only.
+ *
+ * Every string here is customer-facing copy in the business's voice. It is not
+ * the place for notes to the business owner, for descriptions of the website
+ * itself, or for anything in our internal vocabulary -- "provider", "listed",
+ * "analysis", "draft". The preview states what it is in its own chrome.
  */
 export interface DemoSiteContent {
   /** Used for the document title and the hero. Prose, rendered as text. */
