@@ -301,6 +301,48 @@ describe("responses are checked before they are believed", () => {
     }
   });
 
+  it("carries the status on the error, so a caller need not parse the message", async () => {
+    // robots.txt handling turns on 4xx versus 5xx, and RFC 9309 gives those
+    // opposite meanings. Reading the number back out of prose would be a
+    // parser nobody signed up for.
+    for (const status of [400, 401, 403, 404, 410, 429, 500, 503]) {
+      const { requester } = scripted([html("", status)]);
+      const thrown = await safeFetch("https://example.com/", {
+        resolver: alwaysPublic,
+        requester,
+      }).catch((e: unknown) => e);
+
+      expect((thrown as SafeFetchError).status, String(status)).toBe(status);
+    }
+  });
+
+  it("leaves the status undefined for every failure that was not an HTTP response", async () => {
+    const noStatus = [
+      new SafeFetchError("x", "timeout"),
+      new SafeFetchError("x", "dns"),
+      new SafeFetchError("x", "network"),
+      new SafeFetchError("x", "too-large"),
+      new SafeFetchError("x", "unsafe-url"),
+      new SafeFetchError("x", "redirect-loop"),
+      new SafeFetchError("x", "unsupported-content-type"),
+    ];
+    for (const error of noStatus) expect(error.status, error.reason).toBeUndefined();
+  });
+
+  it("puts no response body on the error", async () => {
+    const { requester } = scripted([
+      { status: 503, headers: { "content-type": "text/html" }, body: "<secret>internal</secret>" },
+    ]);
+    const thrown = (await safeFetch("https://example.com/", {
+      resolver: alwaysPublic,
+      requester,
+    }).catch((e: unknown) => e)) as SafeFetchError;
+
+    expect(thrown.status).toBe(503);
+    expect(thrown.message).not.toContain("secret");
+    expect(thrown.message).toBe("The server answered 503.");
+  });
+
   it("rejects a content type that is not markup", async () => {
     for (const type of ["application/pdf", "image/png", "application/octet-stream", "text/plain"]) {
       const { requester } = scripted([

@@ -17,12 +17,21 @@ import { SafeFetchError, safeFetch, type SafeFetchOptions } from "./safe-fetch";
  *   2xx        parse it and obey it
  *   4xx        no robots file exists, so nothing is disallowed -- fetch
  *   5xx        the site is telling us it is broken; treat as full disallow
- *   anything   network failure, timeout, oversized file, non-text response,
- *   else       a file we cannot parse at all -- treat as full disallow
+ *   anything   network failure, timeout, DNS failure, unsafe or refused
+ *   else       redirect, oversized file, non-text response, or an HTTP
+ *              failure carrying no usable status -- treat as full disallow
  *
  * The asymmetry is deliberate. A 404 is a definite statement that there are no
  * rules. A timeout is not a statement about anything, and guessing "allowed"
- * from silence is how a polite fetcher becomes an impolite one.
+ * from silence is how a polite fetcher becomes an impolite one. A 5xx is on
+ * the silent side of that line: it says the server is broken, not that we may
+ * proceed. Acting on it as though it were a 404 is the one mistake this table
+ * exists to prevent, so the status is carried on `SafeFetchError` rather than
+ * inferred.
+ *
+ * A file that IS retrieved and names no group for us is a different case: the
+ * rules were read, and none of them apply. That allows the fetch, and it is
+ * decided below by `parseRobots`, not here.
  *
  * The robots file is fetched through the SAME SSRF-safe layer as the page, so
  * a redirect on robots.txt cannot reach anywhere the page could not.
@@ -41,6 +50,9 @@ export interface RobotsDecision {
   /** One plain sentence, safe to show a user and to store as a limitation. */
   reason: string;
 }
+
+/** Said for every failure that leaves the rules unknown rather than absent. */
+const UNREADABLE = "The site's robots.txt could not be read, so the page was not fetched.";
 
 interface RobotsRule {
   allow: boolean;
@@ -155,22 +167,30 @@ export async function checkRobots(
     });
     text = response.body;
   } catch (error) {
-    const reason = error instanceof SafeFetchError ? error.reason : "network";
+    // A 4xx is the ONLY failure that means anything permissive. Everything
+    // else -- including a 5xx, which used to be collapsed in with it -- is a
+    // failure to learn the rules, and that is not consent.
+    if (error instanceof SafeFetchError && error.reason === "http-error") {
+      if (error.status !== undefined && error.status >= 400 && error.status < 500) {
+        return {
+          allowed: true,
+          reason: "No robots.txt was published, so no rule forbids this page.",
+        };
+      }
 
-    if (reason === "http-error") {
-      // A 4xx is "there are no rules"; a 5xx is a broken server. We cannot see
-      // the status from here, so the conservative reading applies to both --
-      // except that a missing robots.txt is by far the common case, and
-      // treating every site without one as off-limits would make the feature
-      // useless. RFC 9309 says 4xx means allow, so a plain HTTP error is
-      // treated as "no rules published".
-      return { allowed: true, reason: "No robots.txt was published, so no rule forbids this page." };
+      if (error.status !== undefined && error.status >= 500) {
+        return {
+          allowed: false,
+          reason: "The site reported an error for its robots.txt, so the page was not fetched.",
+        };
+      }
+
+      // An HTTP failure we cannot classify -- no status reached us, or a
+      // status outside 4xx/5xx. Unknown is treated as unreadable.
+      return { allowed: false, reason: UNREADABLE };
     }
 
-    return {
-      allowed: false,
-      reason: "The site's robots.txt could not be read, so the page was not fetched.",
-    };
+    return { allowed: false, reason: UNREADABLE };
   }
 
   const { rules, matchedGroup } = parseRobots(text);
