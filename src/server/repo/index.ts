@@ -9,6 +9,9 @@ import { createDemoSiteRepository, supabaseDemoSiteRepository } from "./demo-sup
 import { InMemoryDemoSiteTableGateway } from "./demo-table";
 import type { DemoSiteRepository } from "./demo-types";
 import { jsonLeadRepository } from "./json";
+import { createOutreachRepository, supabaseOutreachRepository } from "./outreach-supabase";
+import { InMemoryOutreachTableGateway } from "./outreach-table";
+import type { OutreachRepository } from "./outreach-types";
 import {
   createBusinessProfileRepository,
   supabaseBusinessProfileRepository,
@@ -32,6 +35,7 @@ import type { LeadRepository } from "./types";
 const localAnalysisGateway = new InMemoryAnalysisTableGateway();
 const localDemoSiteGateway = new InMemoryDemoSiteTableGateway();
 const localBusinessProfileGateway = new InMemoryBusinessProfileTableGateway();
+const localOutreachGateway = new InMemoryOutreachTableGateway();
 
 export function getLeadRepository(): LeadRepository {
   const name = leadRepositoryName();
@@ -110,3 +114,24 @@ export function getBusinessProfileRepository(): BusinessProfileRepository {
 
 export type { BusinessProfileRepository } from "./profile-types";
 export { BusinessProfileRepositoryError } from "./profile-types";
+
+/**
+ * Resolve the outreach repository.
+ *
+ * Same selector as every other store. The JSON lead store has no outreach file
+ * backing, so the local path uses an in-memory gateway -- adequate for
+ * development, and explicitly not durable.
+ */
+export function getOutreachRepository(): OutreachRepository {
+  const name = leadRepositoryName();
+
+  switch (name) {
+    case "json":
+      return createOutreachRepository(localOutreachGateway);
+    case "supabase":
+      return supabaseOutreachRepository();
+  }
+}
+
+export type { OutreachRepository, OutreachUpdate } from "./outreach-types";
+export { OutreachRepositoryError } from "./outreach-types";

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AnalysisPanel } from "@/components/analysis-panel";
 import { DemoPanel } from "@/components/demo-panel";
+import { OutreachPanel } from "@/components/outreach-panel";
 import { ResearchPanel } from "@/components/research-panel";
 import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { PriorityBadge, StatusBadge } from "@/components/lead-row";
@@ -31,6 +32,7 @@ import { analysesForLead } from "@/server/analysis-service";
 import { getDemoSiteProvider } from "@/server/demo";
 import { demoSitesForLead } from "@/server/demo-service";
 import { getResearchProvider } from "@/server/research";
+import { outreachForLead } from "@/server/outreach-service";
 import { profilesForLead } from "@/server/research-service";
 import { getLeadRepository } from "@/server/repo";
 
@@ -81,6 +83,15 @@ export default async function LeadDetailPage({
     profiles = await profilesForLead(id);
   } catch (error) {
     console.error(`[lead ${id}] could not read business profiles:`, error);
+  }
+
+  // The contact sheet and outreach log. A read failure must not break the
+  // page: an outreach store being down says nothing about the lead.
+  let outreach: Awaited<ReturnType<typeof outreachForLead>> | null = null;
+  try {
+    outreach = await outreachForLead(id);
+  } catch (error) {
+    console.error(`[lead ${id}] could not read outreach:`, error);
   }
 
   const analysisProvider = getAnalysisProvider();
@@ -186,6 +197,14 @@ export default async function LeadDetailPage({
         profiles={profiles}
         researcher={{ name: researcher.name, version: researcher.version }}
       />
+
+      {outreach ? (
+        <OutreachPanel
+          leadId={lead.id}
+          sheet={outreach.sheet}
+          records={outreach.records}
+        />
+      ) : null}
 
       <AnalysisPanel
         leadId={lead.id}
