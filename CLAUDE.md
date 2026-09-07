@@ -146,6 +146,35 @@ hours, and place ID -> flag the ones with no website.
   `anon`/`authenticated` no access, and `service_role` limited to the verbs in
   use.
 
+- **A `BusinessProfile` holds sourced facts; every fact names its source.**
+  Research is a separate step producing a separate object -- enrichment never
+  lands on `Lead`, `Analysis` or `DemoSite`. A fact is an `Observation`
+  carrying a `sourceId` that must resolve to a `SourceRecord` in the same
+  profile, checked on every read, so "where did we learn this?" always has an
+  answer. `ObservationKind` is `stated | observed` and deliberately has no
+  `inferred` member: a profile records evidence, an `Analysis` records
+  proposals, and nothing may blur the two. Conflicting sources are all kept --
+  reading one preferred value is a pure, non-destructive operation with a
+  documented precedence (the business's own website first, our stored
+  discovery record last). An empty field means nobody looked; `coverage` says
+  which, and absence is never reported as a confirmed absence. Profiles are
+  append-only, because the evidence behind a conversation with a business
+  owner must stay exactly as it was on the day.
+
+- **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
+  Research happens once and everything downstream should eventually read the
+  sourced profile rather than independently going and looking. Analysis and
+  demo generation still read the lead snapshot directly; migrating them is a
+  deliberate step, not something to do in passing.
+
+- **Nothing fetches a URL without `assertResearchableUrl`.** A website URL
+  arrives from a publicly editable database, so pointing our server at it is an
+  SSRF primitive unless constrained: http(s) only, no credentials, default
+  ports, no private or link-local address, and DNS re-resolved with every
+  redirect hop re-validated. Fetched page text is untrusted data forever -- it
+  is stored as observations attributed to that page, and never concatenated
+  into a model prompt as instructions.
+
 - **Server Components read the repository; Client Components call the API.**
   A page renders by calling `getLeadRepository()` directly -- never by fetching
   its own API over HTTP, which is a pointless round trip to the same process.

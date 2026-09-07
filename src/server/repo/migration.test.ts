@@ -377,3 +377,97 @@ describe("demo_sites table schema", () => {
     }
   });
 });
+
+describe("business_profiles table security", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("enables RLS", () => {
+    expect(sql).toContain("alter table public.business_profiles enable row level security");
+    // The file-wide "creates NO policies" test covers policy absence, so RLS on
+    // with no policy means anon and authenticated can reach nothing.
+  });
+
+  it("starts every API role from zero rather than trusting inherited defaults", () => {
+    expect(sql).toContain(
+      "revoke all on table public.business_profiles from anon, authenticated, service_role",
+    );
+  });
+
+  it("grants service_role ONLY select and insert", () => {
+    expect(sql).toContain("grant select, insert on table public.business_profiles to service_role");
+    for (const verb of ["update", "delete", "truncate", "references", "trigger"]) {
+      expect(sql).not.toContain(`grant select, insert, ${verb} on table public.business_profiles`);
+      expect(sql).not.toContain(`grant ${verb} on table public.business_profiles`);
+    }
+    expect(sql).not.toContain("grant all on table public.business_profiles");
+  });
+
+  it("revokes before it grants, so the grant survives", () => {
+    const revoke = sql.indexOf(
+      "revoke all on table public.business_profiles from anon, authenticated, service_role",
+    );
+    const grant = sql.indexOf(
+      "grant select, insert on table public.business_profiles to service_role",
+    );
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+  });
+
+  it("never grants anything on business_profiles to a browser-facing role", () => {
+    const grants = sql
+      .split("\n")
+      .filter((l) => l.startsWith("grant ") && l.includes("business_profiles"));
+    expect(grants.length).toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toContain("to service_role");
+      expect(grant).not.toContain("anon");
+      expect(grant).not.toContain("authenticated");
+    }
+  });
+});
+
+describe("business_profiles table schema", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("references a lead, cascading on delete", () => {
+    expect(sql).toContain("lead_id uuid not null references public.leads (id) on delete cascade");
+  });
+
+  it("constrains status to the single persisted state", () => {
+    expect(sql).toContain("check (status in ('complete'))");
+  });
+
+  it("stores the profile document as a single jsonb column", () => {
+    expect(sql).toContain("profile jsonb not null");
+  });
+
+  it("records which researcher produced the row", () => {
+    expect(sql).toContain("researcher_name text not null");
+    expect(sql).toContain("researcher_version text not null");
+  });
+
+  it("indexes the two lookups the repository performs", () => {
+    expect(sql).toContain("create index business_profiles_lead_id_created_at_idx");
+    expect(sql).toContain("create index business_profiles_created_at_idx");
+  });
+
+  it("stores no HTML, stylesheet or free-standing URL column", () => {
+    for (const forbidden of ["html", "css", "url ", "script"]) {
+      expect(sql).not.toContain(`${forbidden} text`);
+    }
+  });
+
+  it("does not alter or drop any existing table", () => {
+    for (const forbidden of [
+      "drop table public.leads",
+      "drop table public.lead_analyses",
+      "drop table public.demo_sites",
+      "alter table public.leads drop",
+      "alter table public.lead_analyses drop",
+      "alter table public.demo_sites drop",
+      "delete from public.leads",
+    ]) {
+      expect(sql).not.toContain(forbidden);
+    }
+  });
+});

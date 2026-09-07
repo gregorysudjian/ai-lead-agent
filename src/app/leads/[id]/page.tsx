@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AnalysisPanel } from "@/components/analysis-panel";
 import { DemoPanel } from "@/components/demo-panel";
+import { ResearchPanel } from "@/components/research-panel";
 import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { PriorityBadge, StatusBadge } from "@/components/lead-row";
 import { StatusToggle } from "@/components/status-toggle";
@@ -29,6 +30,8 @@ import { getAnalysisProvider } from "@/server/analysis";
 import { analysesForLead } from "@/server/analysis-service";
 import { getDemoSiteProvider } from "@/server/demo";
 import { demoSitesForLead } from "@/server/demo-service";
+import { getResearchProvider } from "@/server/research";
+import { profilesForLead } from "@/server/research-service";
 import { getLeadRepository } from "@/server/repo";
 
 /**
@@ -72,7 +75,16 @@ export default async function LeadDetailPage({
     console.error(`[lead ${id}] could not read demo sites:`, error);
   }
 
+  // Business profiles likewise. A read failure must not break the lead page.
+  let profiles: Awaited<ReturnType<typeof profilesForLead>> = [];
+  try {
+    profiles = await profilesForLead(id);
+  } catch (error) {
+    console.error(`[lead ${id}] could not read business profiles:`, error);
+  }
+
   const analysisProvider = getAnalysisProvider();
+  const researcher = getResearchProvider();
   const demoProvider = getDemoSiteProvider();
   const latestAnalysis = analyses[0] ?? null;
 
@@ -168,6 +180,12 @@ export default async function LeadDetailPage({
           ) : null}
         </div>
       </Card>
+
+      <ResearchPanel
+        leadId={lead.id}
+        profiles={profiles}
+        researcher={{ name: researcher.name, version: researcher.version }}
+      />
 
       <AnalysisPanel
         leadId={lead.id}

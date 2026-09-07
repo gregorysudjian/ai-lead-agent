@@ -9,6 +9,12 @@ import { createDemoSiteRepository, supabaseDemoSiteRepository } from "./demo-sup
 import { InMemoryDemoSiteTableGateway } from "./demo-table";
 import type { DemoSiteRepository } from "./demo-types";
 import { jsonLeadRepository } from "./json";
+import {
+  createBusinessProfileRepository,
+  supabaseBusinessProfileRepository,
+} from "./profile-supabase";
+import { InMemoryBusinessProfileTableGateway } from "./profile-table";
+import type { BusinessProfileRepository } from "./profile-types";
 import { supabaseLeadRepository } from "./supabase";
 import type { LeadRepository } from "./types";
 
@@ -25,6 +31,7 @@ import type { LeadRepository } from "./types";
 /** Process-lifetime stores for the local (non-Supabase) configuration. */
 const localAnalysisGateway = new InMemoryAnalysisTableGateway();
 const localDemoSiteGateway = new InMemoryDemoSiteTableGateway();
+const localBusinessProfileGateway = new InMemoryBusinessProfileTableGateway();
 
 export function getLeadRepository(): LeadRepository {
   const name = leadRepositoryName();
@@ -82,3 +89,24 @@ export function getDemoSiteRepository(): DemoSiteRepository {
 
 export type { DemoSiteRepository } from "./demo-types";
 export { DemoSiteRepositoryError } from "./demo-types";
+
+/**
+ * Resolve the business-profile repository.
+ *
+ * Same selector as every other store. The JSON lead store has no profile file
+ * backing, so the local path uses an in-memory gateway -- adequate for
+ * development, and explicitly not durable.
+ */
+export function getBusinessProfileRepository(): BusinessProfileRepository {
+  const name = leadRepositoryName();
+
+  switch (name) {
+    case "json":
+      return createBusinessProfileRepository(localBusinessProfileGateway);
+    case "supabase":
+      return supabaseBusinessProfileRepository();
+  }
+}
+
+export type { BusinessProfileRepository } from "./profile-types";
+export { BusinessProfileRepositoryError } from "./profile-types";
