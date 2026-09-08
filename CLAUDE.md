@@ -177,8 +177,14 @@ hours, and place ID -> flag the ones with no website.
   clock time. Generic copy reads as a placeholder; one wrong specific reads as
   a lie and costs the conversation. Copy must also never invite an action the
   page cannot back -- no "give us a call" above a missing phone number. Real
-  hours, when research read them on the business's own site, always beat the
-  sample schedule.
+  hours always beat the sample schedule, whether research read them on the
+  business's own site or `parseOsmOpeningHours` recovered them from the
+  discovery snapshot; with real hours and a real contact route the section is
+  confirmed rather than marked. That parser is all-or-nothing by design: it
+  understands a small, unambiguous subset of `opening_hours` and returns null
+  for everything else, because a half-read schedule renders a confident, wrong
+  "Closed" -- and a customer-facing page lists only the days it holds, never
+  filling the rest in as closed the way the internal record view may.
 
 - **A demo's look is derived from facts, not from prose, and must vary between
   businesses.** `content.layout` picks one of four whole-page compositions and

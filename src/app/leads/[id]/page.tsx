@@ -294,11 +294,14 @@ export default async function LeadDetailPage({
 
           <h3 className="mt-6 text-sm font-semibold">Opening hours</h3>
           {provider.source === "osm" && provider.openingHours === null ? (
-            // Do not say "Not listed": OpenStreetMap may well carry hours for
-            // this business. We simply do not import them yet, and claiming the
-            // provider listed nothing would misreport the data.
+            // Still not "Not listed". OSM hours ARE imported now, but only when
+            // the whole value falls inside the subset `parseOsmOpeningHours`
+            // fully understands -- a seasonal or holiday-qualified schedule is
+            // refused rather than half-read. So null here means one of two
+            // things, and saying which keeps the record honest.
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-              Opening hours are not imported from OpenStreetMap in this version.
+              No hours recorded. OpenStreetMap either lists none for this
+              business, or lists them in a form too complex to import safely.
             </p>
           ) : (
             <OpeningHoursTable hours={provider.openingHours} />

@@ -282,9 +282,11 @@ businesses have a Facebook page and a contact form and no `.com`.
   `contact:instagram` tags that are not imported yet. For a business with no
   website, the Facebook page often *is* the website — and that reframes the
   pitch honestly, which the draft composer already tries hard to do.
-- **Import OSM opening hours.** The lead page currently apologises for their
-  absence. `opening_hours` is a well-specified OSM field; parsing it into the
-  existing `OpeningHours` type is self-contained and removes a visible hole.
+- ~~**Import OSM opening hours.**~~ **DONE.** `parseOsmOpeningHours` reads the
+  tag all-or-nothing: a small unambiguous subset is parsed, everything else
+  returns null rather than a half-understood schedule. About a third of live
+  Montreal results carry a value it accepts. Demos now show a business's real
+  hours, and their contact section is confirmed rather than marked sample.
 
 **Done when:** a researched lead with a contact page yields an email carrying a
 source, and a website-less lead can still surface a social contact point.
