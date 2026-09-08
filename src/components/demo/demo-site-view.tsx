@@ -7,6 +7,7 @@ import type {
 } from "@/lib/demo-site";
 import { samplesForCategory } from "@/lib/demo-samples";
 
+import { demoFontVars } from "./fonts";
 import { Icon, iconForService } from "./icons";
 import { DEMO_THEMES, type DemoThemeTokens } from "./theme";
 
@@ -989,7 +990,13 @@ export function DemoSiteView({ spec }: { spec: DemoSiteSpec }) {
   const phoneHref = business.phone ? telHref(business.phone) : null;
 
   return (
-    <div className={`min-h-screen ${theme.page}`}>
+    // `demo-root` scopes the type to this page; the two custom properties
+    // choose the faces. See `fonts.ts` for why this is CSS rather than a
+    // Tailwind arbitrary value.
+    <div
+      className={`demo-root min-h-screen ${theme.page}`}
+      style={demoFontVars(content.theme)}
+    >
       <header className={`sticky top-0 z-10 ${theme.nav}`}>
         <div className={`${SHELL} flex h-16 items-center justify-between gap-6`}>
           {/* The brand is the business name from application-owned facts. */}
@@ -997,8 +1004,8 @@ export function DemoSiteView({ spec }: { spec: DemoSiteSpec }) {
             {business.name}
           </a>
 
-          <div className="hidden items-center gap-7 md:flex">
-            <nav aria-label="Demo site" className="flex items-center gap-7">
+          <div className="flex items-center gap-4 sm:gap-7">
+            <nav aria-label="Demo site" className="hidden items-center gap-7 md:flex">
               {content.navigation.map((item) => (
                 <a
                   key={item.targetSectionId}
@@ -1010,15 +1017,61 @@ export function DemoSiteView({ spec }: { spec: DemoSiteSpec }) {
               ))}
             </nav>
 
-            {/* A real site puts its main action in the bar. Resolves to the
-                stored number, or to the contact section when none was listed --
-                never to a dead `tel:`. */}
+            {/* A real site puts its main action in the bar, and KEEPS IT ON A
+                PHONE. This used to sit inside the `md:` group with the links,
+                so on mobile the header was a business name and nothing else --
+                no navigation and, worse, no way to call. Local businesses are
+                browsed on phones almost exclusively, so that was the one
+                breakpoint where it had to work.
+
+                Resolves to the stored number, or to the contact section when
+                none was listed -- never to a dead `tel:`. */}
             <a
               href={phoneHref ?? `#${contactAnchor}`}
-              className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-colors ${theme.buttonPrimary}`}
+              className={`inline-flex shrink-0 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-colors ${theme.buttonPrimary}`}
             >
               {phoneHref ? "Call us" : "Get in touch"}
             </a>
+
+            {/* The mobile menu. A `<details>` element rather than a state hook:
+                this renderer is a Server Component and must stay one, and a
+                disclosure is exactly what the browser already does natively.
+                No JavaScript, so it works before hydration and without it. */}
+            {content.navigation.length > 0 ? (
+              <details className="relative md:hidden">
+                <summary
+                  aria-label="Open menu"
+                  className={`flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg ${theme.navLink}`}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    className="h-5 w-5"
+                  >
+                    <path d="M4 7h16M4 12h16M4 17h16" />
+                  </svg>
+                </summary>
+
+                <nav
+                  aria-label="Demo site"
+                  className={`absolute right-0 z-20 mt-2 w-52 rounded-xl p-2 shadow-lg ${theme.card}`}
+                >
+                  {content.navigation.map((item) => (
+                    <a
+                      key={item.targetSectionId}
+                      href={`#${item.targetSectionId}`}
+                      className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${theme.navLink}`}
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </details>
+            ) : null}
           </div>
         </div>
       </header>

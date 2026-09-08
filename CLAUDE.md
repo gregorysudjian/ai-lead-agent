@@ -195,7 +195,18 @@ hours, and place ID -> flag the ones with no website.
   the business's own name picks between two suitable options, so two salons on
   one street differ and regenerating never silently redesigns a site already
   shown to someone. Tailwind classes must be complete literals -- an assembled
-  `grid-cols-${n}` type-checks, renders, and is silently never emitted.
+  `grid-cols-${n}` type-checks, renders, and is silently never emitted. The
+  reverse trap is just as real: Tailwind v4 scans COMMENTS as well as code, so
+  writing a syntactically valid arbitrary-value utility inside a comment emits
+  it as a real rule. Documenting one with an ellipsis where the variable goes
+  produced an invalid declaration and broke every page in the app. Describe
+  such utilities in words; never spell them out.
+
+  Demo typography is set by plain CSS (`.demo-root` / `.demo-display` in
+  `globals.css`) reading two custom properties, not by Tailwind utilities --
+  a font that silently fails to apply is exactly the regression nobody
+  notices. Faces are self-hosted through `next/font`, so a demo page still
+  fetches nothing from a third party at runtime.
 
 - **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the

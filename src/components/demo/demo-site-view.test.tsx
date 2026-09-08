@@ -140,9 +140,43 @@ describe("untrusted strings render as text, never as markup", () => {
     }
   });
 
-  it("emits no inline stylesheet and no style attribute", () => {
+  it("emits no inline stylesheet", () => {
     expect(html).not.toContain("<style");
-    expect(html).not.toContain(" style=");
+  });
+
+  it("emits exactly one style attribute, carrying only our own font variables", () => {
+    // The guard used to be "no style attribute anywhere", which is the right
+    // instinct: a generated string reaching a style attribute is a CSS
+    // injection, and none of them may.
+    //
+    // One application-owned exception now exists -- the page root sets the two
+    // custom properties that choose its typefaces (see `fonts.ts`). So the
+    // assertion narrows rather than relaxes: there must be exactly one style
+    // attribute, and its contents must be only those two properties. A second
+    // one, or any other declaration, fails here.
+    const styles = [...html.matchAll(/ style="([^"]*)"/g)].map((m) => m[1]);
+    expect(styles).toHaveLength(1);
+
+    const declarations = styles[0]
+      .split(";")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    for (const declaration of declarations) {
+      expect(declaration, `unexpected declaration: ${declaration}`).toMatch(
+        /^--demo-(?:display|body):var\(--demo-font-[a-z_]+\)$/,
+      );
+    }
+    expect(declarations).toHaveLength(2);
+  });
+
+  it("keeps generated content out of every style attribute", () => {
+    // The property this whole rule exists for, asserted directly rather than
+    // implied by the absence of the attribute.
+    const styles = [...html.matchAll(/ style="([^"]*)"/g)].map((m) => m[1]).join(" ");
+    expect(styles).not.toContain("hostile");
+    expect(styles).not.toContain("background");
+    expect(styles).not.toContain("expression");
   });
 });
 

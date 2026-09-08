@@ -24,3 +24,25 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/*
+ * Demo-site typography.
+ *
+ * A demo is a customer's proposed website, not part of this dashboard, so it
+ * sets its own faces rather than inheriting Geist. `--demo-display` and
+ * `--demo-body` are set per theme on the page root; see `demo/fonts.ts`.
+ *
+ * Written as plain CSS on purpose. A Tailwind arbitrary-value font utility
+ * would work, but a utility Tailwind fails to emit fails silently, and a
+ * heading that quietly falls back to the body face is easy to miss.
+ *
+ * That utility's syntax is not spelled out here either: Tailwind scans
+ * comments, so writing it inside one emits it as a real rule.
+ */
+.demo-root {
+  font-family: var(--demo-body), system-ui, sans-serif;
+}
+
+.demo-root .demo-display {
+  font-family: var(--demo-display), Georgia, serif;
+}
