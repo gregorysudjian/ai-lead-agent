@@ -14,10 +14,11 @@
  */
 import { z } from "zod";
 
-import type { DemoSiteGeneratorResult, DemoTheme } from "@/lib/demo-site";
-import { DEMO_THEME_LABELS } from "@/lib/demo-site";
+import type { DemoLayout, DemoSiteGeneratorResult, DemoTheme } from "@/lib/demo-site";
+import { DEMO_LAYOUT_LABELS, DEMO_THEME_LABELS } from "@/lib/demo-site";
 
 const THEMES = Object.keys(DEMO_THEME_LABELS) as [DemoTheme, ...DemoTheme[]];
+const LAYOUTS = Object.keys(DEMO_LAYOUT_LABELS) as [DemoLayout, ...DemoLayout[]];
 
 /**
  * Section ids double as HTML anchor fragments.
@@ -111,6 +112,7 @@ export const demoContentSchema = z.object({
   siteTitle: line(120),
   tagline: line(200),
   theme: z.enum(THEMES),
+  layout: z.enum(LAYOUTS),
   navigation: z
     .array(z.object({ label: line(40), targetSectionId: sectionId }))
     .min(2)

@@ -180,6 +180,23 @@ hours, and place ID -> flag the ones with no website.
   hours, when research read them on the business's own site, always beat the
   sample schedule.
 
+- **A demo's look is derived from facts, not from prose, and must vary between
+  businesses.** `content.layout` picks one of four whole-page compositions and
+  `content.theme` one of five palettes; both are NAMES from closed sets, and
+  the renderer owns every grid, size and colour behind them. The layout is
+  chosen page-level rather than per-section, because a page whose hero,
+  services and gallery each pick their own arrangement reads as three designs
+  stapled together -- coherence is most of what separates a designed page from
+  a generated one. The theme is chosen by CATEGORY first: matching keywords
+  against the analysis's free-text `designDirection` once gave every business
+  in the database the same theme, because "high contrast for readability" is a
+  note about legibility and matched the loudest palette. Prose is a bad thing
+  to pattern match; a category is a fact. Within a category, a stable hash of
+  the business's own name picks between two suitable options, so two salons on
+  one street differ and regenerating never silently redesigns a site already
+  shown to someone. Tailwind classes must be complete literals -- an assembled
+  `grid-cols-${n}` type-checks, renders, and is silently never emitted.
+
 - **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the
   sourced profile rather than independently going and looking. Analysis and

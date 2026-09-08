@@ -29,9 +29,10 @@ import type {
   DemoSiteDraft,
   DemoSiteSpec,
   DemoSiteStatus,
+  DemoLayout,
   DemoTheme,
 } from "@/lib/demo-site";
-import { DEMO_THEME_LABELS } from "@/lib/demo-site";
+import { DEMO_LAYOUT_LABELS, DEMO_THEME_LABELS } from "@/lib/demo-site";
 import type { BusinessSource } from "@/lib/types";
 
 /** The `demo_sites` table shape. Database implementation detail. */
@@ -289,6 +290,16 @@ export function toDemoSiteContent(value: unknown): DemoSiteContent {
   const theme = str(c.theme, "spec.content.theme");
   if (!(theme in DEMO_THEME_LABELS)) fail("spec.content.theme", "is not a known theme");
 
+  // Tolerated when absent, like `sample`: the field was added after demos had
+  // already been stored, and rejecting those rows would make every previously
+  // generated demo unreadable. "classic" is the design those pages were
+  // actually rendered with, so an old demo keeps looking exactly as it did.
+  // A present-but-unknown value is still a hard failure -- that is corruption.
+  const layout = c.layout === undefined || c.layout === null
+    ? "classic"
+    : str(c.layout, "spec.content.layout");
+  if (!(layout in DEMO_LAYOUT_LABELS)) fail("spec.content.layout", "is not a known layout");
+
   const sections = nonEmptyList(c.sections, "spec.content.sections", toSection);
   const ids = new Set(sections.map((s) => s.id));
   if (ids.size !== sections.length) fail("spec.content.sections", "contains duplicate section ids");
@@ -322,6 +333,7 @@ export function toDemoSiteContent(value: unknown): DemoSiteContent {
     siteTitle: str(c.siteTitle, "spec.content.siteTitle"),
     tagline: str(c.tagline, "spec.content.tagline"),
     theme: theme as DemoTheme,
+    layout: layout as DemoLayout,
     navigation,
     sections,
     footer: { note: str(footer.note, "spec.content.footer.note") },

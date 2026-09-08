@@ -106,6 +106,35 @@ export const DEMO_THEME_LABELS: Record<DemoTheme, string> = {
 };
 
 /**
+ * The page composition.
+ *
+ * A closed set of whole-page designs, chosen by the generator the same way a
+ * theme is: it picks a NAME, and the renderer owns every layout decision
+ * behind that name. No CSS, grid definition or class string crosses the
+ * generator boundary.
+ *
+ * Page-level rather than per-section on purpose. Letting each section pick its
+ * own arrangement would produce more permutations and worse sites: a page
+ * whose hero is editorial, services are a card grid and gallery is a mosaic
+ * reads as three designs stapled together. Coherence is most of what separates
+ * a professional-looking page from a generated-looking one, so the choice is
+ * made once and applied throughout.
+ *
+ *   classic    Centred hero, card grid, split about. Safe and familiar.
+ *   editorial  Asymmetric hero, services as a ruled list, large quiet type.
+ *   showcase   Full-bleed hero, alternating service rows, gallery led.
+ *   compact    Tighter rhythm and a single column. For one-page sites.
+ */
+export type DemoLayout = "classic" | "editorial" | "showcase" | "compact";
+
+export const DEMO_LAYOUT_LABELS: Record<DemoLayout, string> = {
+  classic: "Classic",
+  editorial: "Editorial",
+  showcase: "Showcase",
+  compact: "Compact",
+};
+
+/**
  * What a call-to-action does.
  *
  * Deliberately an ENUM rather than a URL. The renderer resolves `call` against
@@ -260,6 +289,8 @@ export interface DemoSiteContent {
   siteTitle: string;
   tagline: string;
   theme: DemoTheme;
+  /** Whole-page composition. See `DemoLayout`. */
+  layout: DemoLayout;
   navigation: DemoNavItem[];
   /** Rendered in this order. */
   sections: DemoSection[];

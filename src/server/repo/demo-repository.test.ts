@@ -41,6 +41,7 @@ const spec = (name = "Salon Test"): DemoSiteSpec => ({
     siteTitle: name,
     tagline: "Hair salon · Montreal",
     theme: "calm-minimal",
+    layout: "classic",
     navigation: [{ label: "Visit", targetSectionId: "visit" }],
     sections: [
       {
