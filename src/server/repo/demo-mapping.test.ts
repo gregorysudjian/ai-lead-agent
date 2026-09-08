@@ -44,6 +44,7 @@ const spec = (): DemoSiteSpec => ({
       {
         kind: "hero",
         id: "top",
+        sample: false,
         eyebrow: "Hair salon · Montreal",
         heading: "A hair salon in Montreal",
         subheading: "Clear on a phone, quick to load.",
@@ -53,6 +54,7 @@ const spec = (): DemoSiteSpec => ({
       {
         kind: "offering",
         id: "services",
+        sample: false,
         heading: "What we do",
         intro: "Sections a finished site would carry.",
         items: [{ title: "What we do", body: "A plain description." }],
@@ -60,6 +62,7 @@ const spec = (): DemoSiteSpec => ({
       {
         kind: "contact",
         id: "visit",
+        sample: false,
         heading: "Find us",
         body: "Our phone number and address are below.",
         hoursNote: "Opening hours appear here once you confirm them.",
@@ -67,6 +70,7 @@ const spec = (): DemoSiteSpec => ({
       {
         kind: "cta",
         id: "start",
+        sample: false,
         heading: "Ready when you are",
         body: "One clear next step.",
         cta: { label: "Call us", action: "call" },
@@ -325,5 +329,46 @@ describe("a draft is validated before it can be persisted", () => {
     expect(Object.keys(validated.spec).sort()).toEqual(["business", "content"]);
     expect(validated.spec).not.toHaveProperty("provider");
     expect(validated.spec).not.toHaveProperty("facts");
+  });
+});
+
+describe("demos stored before the sample flag existed", () => {
+  /**
+   * A real failure: adding a required `sample` field made every previously
+   * stored demo unreadable, and the demos index went blank with "could not be
+   * loaded". Old rows are read, not rejected -- and they are read
+   * conservatively.
+   */
+  const withoutSampleFlags = () =>
+    row({
+      spec: corrupt((s) => {
+        const content = s.content as { sections: Record<string, unknown>[] };
+        for (const section of content.sections) delete section.sample;
+      }) as DemoSiteRow["spec"],
+    });
+
+  it("reads a section that has no sample flag", () => {
+    expect(() => rowToDemoSite(withoutSampleFlags())).not.toThrow();
+  });
+
+  it("treats a missing flag as sample, never as confirmed", () => {
+    // Unknown provenance reads as "we cannot vouch for this". Defaulting the
+    // other way would silently promote old placeholder copy to confirmed,
+    // which is the one outcome the flag exists to prevent.
+    const demo = rowToDemoSite(withoutSampleFlags());
+    for (const section of demo.spec.content.sections) {
+      expect(section.sample, section.kind).toBe(true);
+    }
+  });
+
+  it("still rejects a flag of the wrong type", () => {
+    // Absent is age; present-but-wrong is corruption, and corruption fails.
+    const corrupted = row({
+      spec: corrupt((s) => {
+        const content = s.content as { sections: Record<string, unknown>[] };
+        content.sections[0].sample = "yes";
+      }) as DemoSiteRow["spec"],
+    });
+    expect(() => rowToDemoSite(corrupted)).toThrow(DemoSiteRowMappingError);
   });
 });

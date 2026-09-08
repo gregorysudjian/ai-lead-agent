@@ -5,6 +5,8 @@ import type {
   DemoSiteSpec,
 } from "@/lib/demo-site";
 
+import { samplesForCategory } from "@/lib/demo-samples";
+
 import { DEMO_THEMES, type DemoThemeTokens } from "./theme";
 
 /**
@@ -93,6 +95,27 @@ function CtaButton({
   );
 }
 
+/**
+ * The marker on a section whose copy is placeholder rather than evidenced.
+ *
+ * Deliberately small. The thorough disclosure lives in the preview chrome,
+ * which lists every sample section by name and which a generator cannot
+ * reach; this is the reminder in place, so someone scrolling the page cannot
+ * mistake a services list we wrote for one the business gave us.
+ *
+ * It is driven by `section.sample`, which `enforceSampleFlags` recomputed from
+ * the facts held -- not by anything the generator claimed.
+ */
+function SampleTag({ theme, className = "" }: { theme: DemoThemeTokens; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wider uppercase ${theme.sampleTag} ${className}`}
+    >
+      Sample content
+    </span>
+  );
+}
+
 function SectionHeading({
   children,
   theme,
@@ -141,6 +164,7 @@ function Hero({
         >
           {section.eyebrow}
         </p>
+        {section.sample ? <SampleTag theme={theme} className="ml-2 align-middle" /> : null}
 
         <h1
           className={`mt-6 max-w-3xl text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-6xl ${theme.display}`}
@@ -185,6 +209,7 @@ function Offering({
   return (
     <section id={section.id} className={`${SECTION_PADDING} ${banded ? theme.band : ""}`}>
       <div className={SHELL}>
+        {section.sample ? <SampleTag theme={theme} className="mb-4" /> : null}
         <SectionHeading theme={theme}>{section.heading}</SectionHeading>
         <p className={`mt-4 max-w-2xl text-base leading-relaxed text-pretty ${theme.body}`}>
           {section.intro}
@@ -222,6 +247,7 @@ function Positioning({
     <section id={section.id} className={`${SECTION_PADDING} ${banded ? theme.band : ""}`}>
       <div className={`${SHELL} grid gap-12 lg:grid-cols-2 lg:gap-20`}>
         <div>
+          {section.sample ? <SampleTag theme={theme} className="mb-4" /> : null}
           <SectionHeading theme={theme}>{section.heading}</SectionHeading>
           <p className={`mt-6 text-base leading-relaxed text-pretty ${theme.body}`}>
             {section.body}
@@ -258,6 +284,7 @@ function Gallery({
   return (
     <section id={section.id} className={`${SECTION_PADDING} ${banded ? theme.band : ""}`}>
       <div className={SHELL}>
+        {section.sample ? <SampleTag theme={theme} className="mb-4" /> : null}
         <SectionHeading theme={theme}>{section.heading}</SectionHeading>
         <p className={`mt-4 max-w-2xl text-base leading-relaxed text-pretty ${theme.body}`}>
           {section.body}
@@ -314,6 +341,7 @@ function Contact({
     <section id={section.id} className={`${SECTION_PADDING} ${banded ? theme.band : ""}`}>
       <div className={`${SHELL} grid gap-12 lg:grid-cols-2 lg:gap-20`}>
         <div>
+          {section.sample ? <SampleTag theme={theme} className="mb-4" /> : null}
           <SectionHeading theme={theme}>{section.heading}</SectionHeading>
           <p className={`mt-6 text-base leading-relaxed text-pretty ${theme.body}`}>
             {section.body}
@@ -355,10 +383,18 @@ function Contact({
             <dt className={`text-xs font-medium tracking-wide uppercase ${theme.muted}`}>
               Opening hours
             </dt>
-            {/* Real hours ONLY when the business published them on its own site
-                and research read them there. Otherwise the generator's note,
-                which says they are still to be confirmed. A fabricated schedule
-                is the single worst thing a demo could show an owner. */}
+            {/* Real hours when the business published them on its own site and
+                research read them there. Otherwise a plausible schedule for the
+                category, rendered by APPLICATION code from `demo-samples.ts`
+                and tagged as sample right here in the card.
+
+                The distinction is the whole point. A blank line taught an owner
+                nothing; a schedule presented as theirs would be the single worst
+                thing a demo could show them. A schedule visibly labelled as a
+                placeholder shows the design and asks the question.
+
+                The generator never writes a time: `hoursNote` is prose, and the
+                schema has no field a schedule could occupy. */}
             <dd className={`mt-1 text-base ${theme.body}`}>
               {business.openingHours.length > 0 ? (
                 <ul>
@@ -367,19 +403,30 @@ function Contact({
                   ))}
                 </ul>
               ) : (
-                section.hoursNote
+                <>
+                  <ul className="tabular-nums">
+                    {samplesForCategory(business.category).hours.map((entry) => (
+                      <li key={entry}>{entry}</li>
+                    ))}
+                  </ul>
+                  <SampleTag theme={theme} className="mt-3" />
+                </>
               )}
             </dd>
           </div>
 
-          <div className="pt-5">
-            <dt className={`text-xs font-medium tracking-wide uppercase ${theme.muted}`}>
-              Follow
-            </dt>
-            <dd className={`mt-1 text-base ${theme.body}`}>
-              {business.socialLinks.length > 0 ? (
-                // The profiles the business links to from its OWN site. Never a
-                // guessed handle: a wrong link in a demo is worse than none.
+          {/* Omitted entirely when there is nothing to show. Phone and address
+              stay visible when empty, because a blank there is a question the
+              owner needs to answer; a business with no social presence has
+              nothing to answer, and an empty row would just look unfinished. */}
+          {business.socialLinks.length > 0 ? (
+            <div className="pt-5">
+              <dt className={`text-xs font-medium tracking-wide uppercase ${theme.muted}`}>
+                Follow
+              </dt>
+              <dd className={`mt-1 text-base ${theme.body}`}>
+                {/* The profiles the business links to from its OWN site. Never a
+                    guessed handle: a wrong link in a demo is worse than none. */}
                 <ul className="space-y-1">
                   {business.socialLinks.map((link) => (
                     <li key={link}>
@@ -394,11 +441,9 @@ function Contact({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <span className={theme.muted}>To be added</span>
-              )}
-            </dd>
-          </div>
+              </dd>
+            </div>
+          ) : null}
         </dl>
       </div>
     </section>
@@ -420,6 +465,7 @@ function CallToAction({
     <section id={section.id} className={theme.ctaBand}>
       <div className={`${SHELL} flex flex-col items-start gap-8 py-16 sm:py-20 lg:flex-row lg:items-center lg:justify-between`}>
         <div className="max-w-2xl">
+          {section.sample ? <SampleTag theme={theme} className="mb-4" /> : null}
           <h2
             className={`text-3xl font-semibold tracking-tight text-balance sm:text-4xl ${theme.ctaHeading}`}
           >

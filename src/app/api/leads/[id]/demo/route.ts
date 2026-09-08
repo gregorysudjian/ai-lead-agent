@@ -9,6 +9,8 @@ import {
   LeadNotFoundError,
 } from "@/server/demo-service";
 import { DemoSiteRepositoryError } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 /**
  * POST /api/leads/[id]/demo  -- generate a demo site and persist it
@@ -41,6 +43,12 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
+  const limited = enforceRateLimit("demo", guard.session.sub);
+  if (limited) return limited;
+
   const { id } = await context.params;
 
   // An empty body is valid and means "use the latest analysis".
@@ -91,6 +99,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   try {

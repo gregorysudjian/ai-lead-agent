@@ -39,9 +39,16 @@ const ctaSchema = z.object({
 
 const line = (max: number) => z.string().min(1).max(max);
 
+/**
+ * `sample` marks a section whose copy is category-typical placeholder content
+ * rather than something evidenced about this business. A generator must
+ * declare it, but the declaration is not trusted: `enforceSampleFlags` OR-s in
+ * what the held facts require, so the flag can only ever become MORE true.
+ */
 const heroSection = z.object({
   kind: z.literal("hero"),
   id: sectionId,
+  sample: z.boolean(),
   eyebrow: line(80),
   heading: line(120),
   subheading: line(300),
@@ -52,6 +59,7 @@ const heroSection = z.object({
 const offeringSection = z.object({
   kind: z.literal("offering"),
   id: sectionId,
+  sample: z.boolean(),
   heading: line(120),
   intro: line(400),
   items: z
@@ -63,6 +71,7 @@ const offeringSection = z.object({
 const positioningSection = z.object({
   kind: z.literal("positioning"),
   id: sectionId,
+  sample: z.boolean(),
   heading: line(120),
   body: line(700),
   points: z.array(line(200)).min(2).max(5),
@@ -71,6 +80,7 @@ const positioningSection = z.object({
 const gallerySection = z.object({
   kind: z.literal("gallery"),
   id: sectionId,
+  sample: z.boolean(),
   heading: line(120),
   body: line(400),
   // A placeholder says plainly what a real photograph would go here. We do not
@@ -81,6 +91,7 @@ const gallerySection = z.object({
 const contactSection = z.object({
   kind: z.literal("contact"),
   id: sectionId,
+  sample: z.boolean(),
   heading: line(120),
   body: line(400),
   /** Prose about hours. Never a schedule -- the model is not given the hours. */
@@ -90,6 +101,7 @@ const contactSection = z.object({
 const ctaSection = z.object({
   kind: z.literal("cta"),
   id: sectionId,
+  sample: z.boolean(),
   heading: line(120),
   body: line(400),
   cta: ctaSchema,

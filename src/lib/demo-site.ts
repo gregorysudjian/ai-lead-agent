@@ -146,6 +146,22 @@ export interface DemoPlaceholder {
 }
 
 /**
+ * ── THE `sample` FLAG ─────────────────────────────────────────────────────
+ *
+ * Every section carries `sample`. It is true when the section's copy includes
+ * category-typical placeholder content rather than something we can evidence
+ * about this business, and the renderer tags such sections visibly.
+ *
+ * The flag is NOT the generator's word. `enforceSampleFlags` recomputes it
+ * from the facts actually held and can only ever turn it ON -- a generator
+ * cannot mark invented copy as confirmed. See `demo-sample-policy.ts`.
+ *
+ * Why allow sample content at all: the businesses worth approaching have no
+ * website, so a strictly evidenced demo is a page of empty slots that no owner
+ * can picture as their site. Marked sample copy shows the design honestly.
+ * See `demo-samples.ts` for what such copy may and may not say.
+ */
+/**
  * The ordered page sections.
  *
  * A discriminated union so a new section type is an additive change that the
@@ -155,6 +171,8 @@ export type DemoSection =
   | {
       kind: "hero";
       id: string;
+      /** See `DemoSectionBase` note above the union. */
+      sample: boolean;
       eyebrow: string;
       heading: string;
       subheading: string;
@@ -164,6 +182,8 @@ export type DemoSection =
   | {
       kind: "offering";
       id: string;
+      /** See `DemoSectionBase` note above the union. */
+      sample: boolean;
       heading: string;
       intro: string;
       items: DemoOfferingItem[];
@@ -171,6 +191,8 @@ export type DemoSection =
   | {
       kind: "positioning";
       id: string;
+      /** See `DemoSectionBase` note above the union. */
+      sample: boolean;
       heading: string;
       body: string;
       points: string[];
@@ -178,6 +200,8 @@ export type DemoSection =
   | {
       kind: "gallery";
       id: string;
+      /** See `DemoSectionBase` note above the union. */
+      sample: boolean;
       heading: string;
       body: string;
       placeholders: DemoPlaceholder[];
@@ -185,6 +209,8 @@ export type DemoSection =
   | {
       kind: "contact";
       id: string;
+      /** See `DemoSectionBase` note above the union. */
+      sample: boolean;
       heading: string;
       body: string;
       /** Prose about hours; never a fabricated schedule. */
@@ -193,6 +219,8 @@ export type DemoSection =
   | {
       kind: "cta";
       id: string;
+      /** See `DemoSectionBase` note above the union. */
+      sample: boolean;
       heading: string;
       body: string;
       cta: DemoCta;

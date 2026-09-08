@@ -2,6 +2,8 @@ import "server-only";
 
 import type { DemoSite } from "@/lib/demo-site";
 import { deriveDemoSiteBusiness, toDemoGeneratorInput } from "@/lib/demo-facts";
+import { enforceSampleFlags } from "@/lib/demo-sample-policy";
+import { analyseLead } from "@/server/analysis-service";
 import { getDemoSiteProvider } from "@/server/demo";
 import {
   getAnalysisRepository,
@@ -97,7 +99,15 @@ export async function generateDemoSite(
 
   // Generator errors and invalid output both surface as exceptions; nothing
   // partial is persisted. The repository validates the spec before writing.
-  const content = await generator.generate(toDemoGeneratorInput(business, analysis.recommendations));
+  const generated = await generator.generate(
+    toDemoGeneratorInput(business, analysis.recommendations),
+  );
+
+  // SAMPLE MARKING IS NOT THE GENERATOR'S CALL. Whatever it declared, the
+  // flags are recomputed here from the facts we actually hold and OR-ed in, so
+  // a generator can only ever mark more content as sample -- never present
+  // invented copy as confirmed. See `demo-sample-policy.ts`.
+  const content = enforceSampleFlags(generated, business);
 
   return getDemoSiteRepository().create(lead.id, analysis.id, {
     // Identity of the generator is read from the generator itself, not from its
@@ -105,6 +115,34 @@ export async function generateDemoSite(
     generator: { name: generator.name, model: generator.model },
     spec: { business, content },
   });
+}
+
+/**
+ * Generate a demo for a lead in one step, analysing it first if it has none.
+ *
+ * The one-click path behind the "Generate website" button. `generateDemoSite`
+ * still requires an analysis and still refuses to invent one -- this wraps it
+ * rather than weakening it, so the pipeline CLAUDE.md declares
+ * (`Lead -> Analysis -> DemoSite`) is walked in full, just without making the
+ * operator click through it.
+ *
+ * COST NOTE. Analysis and demo generation are separate providers, and either
+ * can be a paid one. This function can therefore trigger TWO billable calls
+ * where the manual path would have triggered one at a time. Both default to
+ * their free deterministic implementations; the UI says what will run before
+ * the click.
+ *
+ * An existing analysis is reused rather than re-run. Regenerating a demo is
+ * cheap and common; re-analysing to get the same recommendations is not.
+ */
+export async function generateDemoSiteForLead(leadId: string): Promise<DemoSite> {
+  const lead = await getLeadRepository().findById(leadId);
+  if (!lead) throw new LeadNotFoundError(leadId);
+
+  const existing = await getAnalysisRepository().latestForLead(leadId);
+  const analysis = existing ?? (await analyseLead(leadId));
+
+  return generateDemoSite(leadId, analysis.id);
 }
 
 /** Demo sites for a lead, newest first. */

@@ -82,6 +82,27 @@ function bool(value: unknown, field: string): boolean {
   return value;
 }
 
+/**
+ * Read a section's `sample` flag, tolerating records written before it existed.
+ *
+ * The flag was added after demos had already been stored. Those rows have no
+ * `sample` key, and rejecting them would make every previously generated demo
+ * unreadable -- which is exactly what happened when this was a plain `bool`.
+ *
+ * Missing means TRUE, not false. A demo written before we tracked provenance
+ * has content of UNKNOWN provenance, and the honest reading of unknown is "we
+ * cannot vouch for this". Defaulting to false would silently promote old
+ * placeholder copy to "confirmed", which is the one outcome the whole flag
+ * exists to prevent.
+ *
+ * A present-but-wrong-typed value is still a hard failure: that is corruption,
+ * not age.
+ */
+function sampleFlag(value: unknown, field: string): boolean {
+  if (value === undefined || value === null) return true;
+  return bool(value, field);
+}
+
 function list<T>(value: unknown, field: string, each: (v: unknown, f: string) => T): T[] {
   if (!Array.isArray(value)) fail(field, "must be an array");
   return value.map((entry, i) => each(entry, `${field}[${i}]`));
@@ -198,6 +219,7 @@ function toSection(value: unknown, field: string): DemoSection {
       return {
         kind: "hero",
         id,
+        sample: sampleFlag(s.sample, `${field}.sample`),
         eyebrow: str(s.eyebrow, `${field}.eyebrow`),
         heading: str(s.heading, `${field}.heading`),
         subheading: str(s.subheading, `${field}.subheading`),
@@ -211,6 +233,7 @@ function toSection(value: unknown, field: string): DemoSection {
       return {
         kind: "offering",
         id,
+        sample: sampleFlag(s.sample, `${field}.sample`),
         heading: str(s.heading, `${field}.heading`),
         intro: str(s.intro, `${field}.intro`),
         items: nonEmptyList(s.items, `${field}.items`, toOfferingItem),
@@ -219,6 +242,7 @@ function toSection(value: unknown, field: string): DemoSection {
       return {
         kind: "positioning",
         id,
+        sample: sampleFlag(s.sample, `${field}.sample`),
         heading: str(s.heading, `${field}.heading`),
         body: str(s.body, `${field}.body`),
         points: nonEmptyList(s.points, `${field}.points`, str),
@@ -227,6 +251,7 @@ function toSection(value: unknown, field: string): DemoSection {
       return {
         kind: "gallery",
         id,
+        sample: sampleFlag(s.sample, `${field}.sample`),
         heading: str(s.heading, `${field}.heading`),
         body: str(s.body, `${field}.body`),
         placeholders: nonEmptyList(s.placeholders, `${field}.placeholders`, toPlaceholder),
@@ -235,6 +260,7 @@ function toSection(value: unknown, field: string): DemoSection {
       return {
         kind: "contact",
         id,
+        sample: sampleFlag(s.sample, `${field}.sample`),
         heading: str(s.heading, `${field}.heading`),
         body: str(s.body, `${field}.body`),
         hoursNote: str(s.hoursNote, `${field}.hoursNote`),
@@ -243,6 +269,7 @@ function toSection(value: unknown, field: string): DemoSection {
       return {
         kind: "cta",
         id,
+        sample: sampleFlag(s.sample, `${field}.sample`),
         heading: str(s.heading, `${field}.heading`),
         body: str(s.body, `${field}.body`),
         cta: toCta(s.cta, `${field}.cta`),

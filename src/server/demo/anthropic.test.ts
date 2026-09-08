@@ -50,6 +50,7 @@ const VALID = {
     {
       kind: "hero" as const,
       id: "hero",
+      sample: true,
       eyebrow: "Montreal",
       heading: "Crisp",
       subheading: "A barber shop in Montreal.",
@@ -59,6 +60,7 @@ const VALID = {
     {
       kind: "positioning" as const,
       id: "about",
+      sample: true,
       heading: "About",
       body: "A short paragraph about the shop goes here.",
       points: ["Barbering", "Montreal"],
@@ -66,6 +68,7 @@ const VALID = {
     {
       kind: "contact" as const,
       id: "contact",
+      sample: true,
       heading: "Visit",
       body: "Come by the shop.",
       hoursNote: "Opening hours to be confirmed.",
@@ -272,7 +275,25 @@ describe("the prompt forbids the claims a demo must not make", () => {
 
   it("states the one rule in terms of what we actually know", () => {
     expect(DEMO_SYSTEM_PROMPT).toContain("NAME, CATEGORY and CITY");
-    expect(DEMO_SYSTEM_PROMPT).toContain("could this sentence be false?");
+    // The test the model is asked to apply to its own sentences. The wording
+    // moved when sample content was allowed; the rule it encodes did not.
+    expect(DEMO_SYSTEM_PROMPT).toContain("that is simply wrong about us");
+  });
+
+  it("draws the line at the checkable specific, not at all unevidenced copy", () => {
+    // Sample copy is permitted, so the prompt can no longer forbid everything
+    // unproven. What it must still forbid is the specific an owner can check.
+    expect(DEMO_SYSTEM_PROMPT).toContain("CHECKABLE SPECIFIC");
+    for (const forbidden of ["a price", "a founding year", "an award", "a review score"]) {
+      expect(DEMO_SYSTEM_PROMPT).toContain(forbidden);
+    }
+  });
+
+  it("explains that the sample flag is recomputed, not trusted", () => {
+    // A model told its answer is final has an incentive to under-report. Told
+    // the flag is OR-ed with the application's own, it has none.
+    expect(DEMO_SYSTEM_PROMPT).toContain("Marking sample content");
+    expect(DEMO_SYSTEM_PROMPT).toContain("cannot mark invented copy as confirmed");
   });
 
   it("keeps our internal vocabulary out of customer-facing copy", () => {
