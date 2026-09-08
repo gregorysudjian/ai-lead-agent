@@ -8,6 +8,7 @@
  */
 import { classifyOsmCategory, type SupportedCategory } from "./categories";
 import type { DiscoveredBusiness } from "../types";
+import { parseOsmOpeningHours } from "./opening-hours";
 
 export type OsmElementType = "node" | "way" | "relation";
 
@@ -133,10 +134,15 @@ export interface NormalizeOptions {
  * platform and nothing in its tags is a substitute. Fabricating or inferring
  * them would poison the Phase 4 score with invented data.
  *
- * `openingHours` is always null. OSM's `opening_hours` is a rich domain syntax
- * (rules, ranges, holidays, seasonal variation) that does not map onto our
- * simple day/opens/closes model. A partial parser would render confident but
- * wrong "Closed" days, which is worse than admitting we have no data.
+ * `openingHours` is parsed from OSM's `opening_hours` by a deliberately narrow
+ * parser that understands the whole value or none of it. The original reason
+ * for discarding the tag still stands -- "a partial parser would render
+ * confident but wrong 'Closed' days, which is worse than admitting we have no
+ * data" -- so `parseOsmOpeningHours` refuses everything outside a small,
+ * unambiguous subset and returns null rather than a half-understood schedule.
+ * Hours are the most useful thing a small business publishes and Overpass
+ * already sends them, so the tag is worth reading; it is only worth reading
+ * safely.
  */
 export function normalizeOsmElement(
   element: OsmElement,
@@ -162,7 +168,7 @@ export function normalizeOsmElement(
     website: firstTagValue(tags, WEBSITE_KEYS),
     rating: null,
     reviewCount: null,
-    openingHours: null,
+    openingHours: parseOsmOpeningHours(tags.opening_hours),
     fetchedAt: options.fetchedAt,
   };
 }

@@ -308,7 +308,19 @@ function contactFor(
   return {
     kind: "contact",
     id: SECTION.contact,
-    sample: true,
+    // The one section whose honesty the generator can actually judge, so it
+    // does not blanket-declare `true` like the others.
+    //
+    // Its copy is an invitation rather than a claim, and the values beside it
+    // -- phone, address, hours -- are rendered by application code from facts.
+    // So when we hold real published hours AND a real way to reach the
+    // business, nothing here is placeholder and the section is confirmed.
+    //
+    // This matters because `enforceSampleFlags` only ever ORs the flag ON. A
+    // hardcoded `true` here would mean a business whose real opening hours we
+    // parsed from OpenStreetMap still had them tagged "sample content" -- the
+    // best fact we hold about a website-less business, disclaimed away.
+    sample: !(input.openingHoursListed && (input.phoneListed || input.addressListed)),
     heading: input.addressListed ? "Find us" : "Get in touch",
     body,
     hoursNote: input.openingHoursListed

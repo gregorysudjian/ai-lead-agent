@@ -225,7 +225,15 @@ describe("O. response handling", () => {
       website: "https://real.example.com",
       rating: null,
       reviewCount: null,
-      openingHours: null,
+      // Parsed now: the fixture tags "Mo-Fr 09:00-17:00", which is inside the
+      // subset `parseOsmOpeningHours` fully understands.
+      openingHours: [
+        { day: "monday", opens: "09:00", closes: "17:00" },
+        { day: "tuesday", opens: "09:00", closes: "17:00" },
+        { day: "wednesday", opens: "09:00", closes: "17:00" },
+        { day: "thursday", opens: "09:00", closes: "17:00" },
+        { day: "friday", opens: "09:00", closes: "17:00" },
+      ],
       fetchedAt: "2026-09-05T12:00:00.000Z",
     });
     // Same numeric id, different element type -> distinct leads.

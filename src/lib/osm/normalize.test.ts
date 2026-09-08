@@ -216,10 +216,35 @@ describe("J/K/L/M. fixed provider semantics", () => {
     expect(business.reviewCount).toBeNull();
   });
 
-  it("K. openingHours stays null even when raw opening_hours exists", () => {
-    // Deliberate: OSM opening_hours is a rich syntax our model cannot express,
-    // and a partial parser would render confident but wrong "Closed" days.
-    expect(business.openingHours).toBeNull();
+  it("K. openingHours is parsed when the value is one we fully understand", () => {
+    // This used to be unconditionally null, because OSM's opening_hours is a
+    // rich syntax and "a partial parser would render confident but wrong
+    // 'Closed' days". That reasoning still holds -- it is now enforced by
+    // `parseOsmOpeningHours` refusing anything outside a small subset, rather
+    // than by discarding a field Overpass already sends us.
+    expect(business.openingHours).toEqual([
+      { day: "tuesday", opens: "10:00", closes: "19:00" },
+      { day: "wednesday", opens: "10:00", closes: "19:00" },
+      { day: "thursday", opens: "10:00", closes: "19:00" },
+      { day: "friday", opens: "10:00", closes: "19:00" },
+      { day: "saturday", opens: "10:00", closes: "19:00" },
+    ]);
+  });
+
+  it("K. openingHours stays null when the value is outside that subset", () => {
+    // The guarantee that matters: a value we cannot fully model produces
+    // "nobody told us", never a half-understood schedule.
+    const seasonal = normalizeOsmElement(
+      element({ tags: { name: "Salon Test", opening_hours: "Apr-Sep Mo-Fr 09:00-17:00" } }),
+      OPTIONS,
+    );
+    expect(seasonal?.openingHours).toBeNull();
+
+    const missing = normalizeOsmElement(
+      element({ tags: { name: "Salon Test" } }),
+      OPTIONS,
+    );
+    expect(missing?.openingHours).toBeNull();
   });
 
   it("L. source is always osm", () => {

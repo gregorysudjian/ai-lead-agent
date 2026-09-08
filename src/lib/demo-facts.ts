@@ -9,6 +9,7 @@ import type { AnalysisRecommendations } from "./analysis";
 import type { BusinessProfile, ProfileField } from "./business-profile";
 import { resolveField } from "./business-profile";
 import type { DemoSiteBusiness, DemoSiteGeneratorInput } from "./demo-site";
+import { formatOpeningHoursLines } from "./format";
 import { isUsableText } from "./scoring";
 import type { Lead } from "./types";
 
@@ -73,7 +74,21 @@ export function deriveDemoSiteBusiness(
   const p = lead.provider;
 
   const socialLinks = allFromProfile(profile, "web.socialLink");
-  const openingHours = allFromProfile(profile, "business.openingHours");
+  // Profile first, then the discovery snapshot -- the same precedence phone
+  // and address already use, and for the same reason: hours the business
+  // published on its own site beat a directory's copy of them.
+  //
+  // This fallback used to be missing, so a lead whose OSM record carried real
+  // hours still showed the category's sample schedule. Now that the OSM tag is
+  // parsed, that gap would have wasted the best fact we hold about a business
+  // with no website.
+  const profileHours = allFromProfile(profile, "business.openingHours");
+  const openingHours =
+    profileHours.length > 0
+      ? profileHours
+      : lead.provider.openingHours
+        ? formatOpeningHoursLines(lead.provider.openingHours)
+        : [];
   const bookingUrl = fromProfile(profile, "web.bookingUrl");
   const ownDescription = fromProfile(profile, "web.description");
 

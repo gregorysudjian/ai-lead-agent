@@ -144,14 +144,55 @@ describe("the generator declares its own content as sample", () => {
    * as confirmed. The generator should still be honest on its own account,
    * because a future reader will reasonably assume that it is.
    */
-  it("marks every section it writes as sample", async () => {
+  it("marks every section sample for a business we know nothing about", async () => {
     for (const siteType of HANDLED_SITE_TYPES) {
       const content = await mockDemoSiteProvider.generate(
-        input({ recommendedSiteType: siteType }),
+        input({ recommendedSiteType: siteType, openingHoursListed: false }),
       );
       for (const section of content.sections) {
         expect(section.sample, `${siteType} / ${section.kind}`).toBe(true);
       }
+    }
+  });
+
+  it("confirms the contact section once real hours and a contact route exist", async () => {
+    // The payoff from parsing OpenStreetMap's `opening_hours`. Its copy is an
+    // invitation rather than a claim, and the values beside it are rendered
+    // from facts -- so with real published hours and a real way to reach the
+    // business, nothing in it is placeholder.
+    //
+    // Without this the best fact we hold about a website-less business would
+    // still carry a "sample content" tag, because `enforceSampleFlags` only
+    // ever ORs the flag on and a hardcoded `true` can never be withdrawn.
+    const content = await mockDemoSiteProvider.generate(
+      input({ openingHoursListed: true, phoneListed: true }),
+    );
+    const contact = content.sections.find((s) => s.kind === "contact");
+    expect(contact?.sample).toBe(false);
+  });
+
+  it("keeps the contact section sample when the hours are real but nothing can be reached", async () => {
+    const content = await mockDemoSiteProvider.generate(
+      input({ openingHoursListed: true, phoneListed: false, addressListed: false }),
+    );
+    expect(content.sections.find((s) => s.kind === "contact")?.sample).toBe(true);
+  });
+
+  it("keeps the contact section sample when the hours are ours rather than theirs", async () => {
+    const content = await mockDemoSiteProvider.generate(
+      input({ openingHoursListed: false, phoneListed: true, addressListed: true }),
+    );
+    expect(content.sections.find((s) => s.kind === "contact")?.sample).toBe(true);
+  });
+
+  it("still marks the invented sections sample even with full contact evidence", async () => {
+    // Real hours confirm the contact block. They say nothing about a services
+    // list we wrote, so those stay marked.
+    const content = await mockDemoSiteProvider.generate(
+      input({ openingHoursListed: true, phoneListed: true, addressListed: true }),
+    );
+    for (const kind of ["hero", "offering", "positioning"] as const) {
+      expect(content.sections.find((s) => s.kind === kind)?.sample, kind).toBe(true);
     }
   });
 });

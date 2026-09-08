@@ -168,8 +168,13 @@ So unevidenced sections carry realistic, category-typical copy from
    reads as a lie. It also never invites an action the page cannot back — no
    "give us a call" above a missing phone number.
 
-Real facts always win: hours read from the business's own site replace the
-sample schedule, and the name, phone and address are copied from the lead.
+Real facts always win. Opening hours come from the business's own site when
+research read them there, and otherwise from OpenStreetMap's `opening_hours`
+tag — parsed by a deliberately narrow reader that understands a value whole or
+returns nothing, since a half-read schedule renders a confident, wrong
+"Closed". With real hours and a real way to make contact, the contact section
+is confirmed rather than marked as sample. Name, phone and address are copied
+from the lead.
 
 The store is append-only, so a demo already shown to a prospect is never
 rewritten. The index groups by business and shows the newest, with a count of

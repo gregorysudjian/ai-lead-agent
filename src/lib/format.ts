@@ -189,12 +189,84 @@ export interface OpeningHoursRow {
  */
 export function formatOpeningHours(hours: OpeningHours): OpeningHoursRow[] {
   return WEEKDAY_ORDER.map((day) => {
-    const entry = hours.find((h) => h.day === day);
+    // Every window, not just the first. A day can carry two -- a restaurant
+    // closing between lunch and dinner -- and `find` silently dropped the
+    // evening service, understating the business on its own record.
+    const windows = hours.filter((h) => h.day === day);
     return {
       day: WEEKDAY_LABELS[day],
-      hours: entry ? `${entry.opens} - ${entry.closes}` : "Closed",
+      hours:
+        windows.length > 0
+          ? windows.map((w) => `${w.opens} - ${w.closes}`).join(", ")
+          : "Closed",
     };
   });
+}
+
+/**
+ * Opening hours as display lines, for a customer-facing page.
+ *
+ * Two differences from `formatOpeningHours`, both deliberate:
+ *
+ * 1. **Days we hold nothing for are omitted, never rendered as "Closed".**
+ *    Our type says an absent day is closed and OSM says the same, so the
+ *    internal record view is entitled to show it. A demo is not: it is shown
+ *    to the owner, and OSM tagging is often incomplete. "Saturday: Closed"
+ *    printed under the name of a shop that opens on Saturday is exactly the
+ *    checkable wrong specific that costs the conversation.
+ *
+ * 2. **Consecutive days sharing hours are grouped**, because that is how a
+ *    real site writes them -- "Monday to Friday", not five identical rows.
+ *
+ * Returns an empty array when there is nothing to show, so a caller can fall
+ * back to sample hours rather than rendering an empty block.
+ */
+export function formatOpeningHoursLines(hours: OpeningHours): string[] {
+  // Collapse to one entry per day first, so grouping compares whole days.
+  const byDay = new Map<string, string>();
+  for (const day of WEEKDAY_ORDER) {
+    const windows = hours.filter((h) => h.day === day);
+    if (windows.length === 0) continue;
+    byDay.set(day, windows.map((w) => `${w.opens} - ${w.closes}`).join(", "));
+  }
+
+  const lines: string[] = [];
+  let runStart: (typeof WEEKDAY_ORDER)[number] | null = null;
+  let runEnd: (typeof WEEKDAY_ORDER)[number] | null = null;
+  let runHours: string | null = null;
+
+  const flush = () => {
+    if (runStart === null || runEnd === null || runHours === null) return;
+    const label =
+      runStart === runEnd
+        ? WEEKDAY_LABELS[runStart]
+        : `${WEEKDAY_LABELS[runStart]} to ${WEEKDAY_LABELS[runEnd]}`;
+    lines.push(`${label}   ${runHours}`);
+    runStart = null;
+    runEnd = null;
+    runHours = null;
+  };
+
+  for (const day of WEEKDAY_ORDER) {
+    const value = byDay.get(day);
+    if (value === undefined) {
+      // A gap breaks the run: "Monday to Friday" must not span a closed
+      // Wednesday, which would be a claim we cannot support.
+      flush();
+      continue;
+    }
+    if (runHours === value && runEnd !== null) {
+      runEnd = day;
+      continue;
+    }
+    flush();
+    runStart = day;
+    runEnd = day;
+    runHours = value;
+  }
+  flush();
+
+  return lines;
 }
 
 /** Readable absolute timestamp. Fixed locale so server and client agree. */
