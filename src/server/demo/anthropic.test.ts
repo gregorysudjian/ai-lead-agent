@@ -42,6 +42,7 @@ const VALID = {
   siteTitle: "Crisp",
   tagline: "A barber shop in Montreal",
   theme: "warm-classic" as const,
+  layout: "classic" as const,
   navigation: [
     { label: "Home", targetSectionId: "hero" },
     { label: "Contact", targetSectionId: "contact" },

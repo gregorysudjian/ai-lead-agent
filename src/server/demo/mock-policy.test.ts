@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DemoSiteGeneratorInput } from "@/lib/demo-site";
 
-import { HANDLED_SITE_TYPES, mockDemoSiteProvider } from "./mock";
+import { HANDLED_SITE_TYPES, layoutFor, mockDemoSiteProvider } from "./mock";
 
 /**
  * The line the generator holds, now that it may write sample copy.
@@ -286,6 +286,84 @@ describe("the page never invites an action we cannot back", () => {
       const hero = content.sections[0];
       if (hero.kind !== "hero") throw new Error("unreachable");
       expect(hero.primaryCta.action).toBe(phoneListed ? "call" : "scroll");
+    }
+  });
+});
+
+describe("layouts differ between businesses", () => {
+  /**
+   * "The websites are very similar" was the complaint. A theme changed the
+   * colours, but every page used the same arrangement, so a portfolio of demos
+   * read as one template with the names swapped.
+   *
+   * The layout is chosen from the business's own NAME rather than its
+   * category, so two salons on the same street get visibly different pages.
+   */
+  const NAMES = [
+    "Salon Bella", "Coiffure Rivard", "Studio Neuf", "Chez Mostafa",
+    "Le Petit Salon", "Atelier Coupe", "Maison Claire", "Salon Nord",
+    "Beau Cheveux", "La Boucle", "Tresse et Cie", "Salon Lumiere",
+  ];
+
+  it("does not give every business the same layout", () => {
+    const layouts = new Set(
+      NAMES.map((businessName) => layoutFor(input({ businessName }))),
+    );
+    // The real assertion: more than one design in use across a dozen salons.
+    expect(layouts.size).toBeGreaterThan(1);
+  });
+
+  it("spreads businesses across every general-purpose layout", () => {
+    const layouts = new Set(
+      NAMES.map((businessName) => layoutFor(input({ businessName }))),
+    );
+    for (const expected of ["classic", "editorial", "showcase"]) {
+      expect(layouts.has(expected as never), `no business landed on ${expected}`).toBe(true);
+    }
+  });
+
+  it("is stable for the same business", () => {
+    // Regenerating must not silently redesign a site the operator already
+    // showed someone. The choice is a hash, not a counter or a clock.
+    for (const businessName of NAMES) {
+      const first = layoutFor(input({ businessName }));
+      const second = layoutFor(input({ businessName }));
+      expect(second, businessName).toBe(first);
+    }
+  });
+
+  it("ignores the category, so two salons can differ", () => {
+    const a = layoutFor(input({ businessName: "Salon Bella", category: "Hair salon" }));
+    const b = layoutFor(input({ businessName: "Salon Bella", category: "Bakery" }));
+    expect(b).toBe(a);
+  });
+
+  it("always uses compact for a one-page site", () => {
+    // A real constraint, not a preference: the other designs assume enough
+    // sections to establish a rhythm and look sparse when handed four.
+    for (const businessName of NAMES) {
+      expect(
+        layoutFor(input({ businessName, recommendedSiteType: "one-page-site" })),
+        businessName,
+      ).toBe("compact");
+    }
+  });
+
+  it("always uses showcase for a portfolio site", () => {
+    for (const businessName of NAMES) {
+      expect(
+        layoutFor(input({ businessName, recommendedSiteType: "portfolio-site" })),
+        businessName,
+      ).toBe("showcase");
+    }
+  });
+
+  it("puts a layout on every page it generates", async () => {
+    for (const siteType of HANDLED_SITE_TYPES) {
+      const content = await mockDemoSiteProvider.generate(
+        input({ recommendedSiteType: siteType }),
+      );
+      expect(content.layout, siteType).toBeTruthy();
     }
   });
 });

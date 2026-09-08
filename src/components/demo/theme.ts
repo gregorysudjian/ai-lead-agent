@@ -41,6 +41,21 @@ export interface DemoThemeTokens {
   rule: string;
   /** The small marker on a section carrying sample content. */
   sampleTag: string;
+  /** Container for a service icon. Quieter than `marker`, which is filled. */
+  iconWrap: string;
+  /** Accent text, for rules, numerals and small labels in editorial layouts. */
+  accent: string;
+  /** A hairline rule in the accent colour. */
+  accentRule: string;
+  /**
+   * Divider colour for `divide-y` lists.
+   *
+   * Separate from `rule` because they are different CSS properties. `rule` is
+   * a border-color on the element itself; `divide-*` sets a border on the
+   * CHILDREN, and border-color does not inherit -- so without this the
+   * dividers fall back to currentColor and read far too heavy.
+   */
+  divide: string;
 }
 
 export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
@@ -70,6 +85,10 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     footer: "border-t border-stone-200 bg-[#f7f0e6] text-stone-600",
     rule: "border-stone-200",
     sampleTag: "bg-stone-200/80 text-stone-600 ring-1 ring-stone-300/70",
+    iconWrap: "bg-amber-100/80 text-amber-900 ring-1 ring-amber-200/80",
+    accent: "text-amber-800",
+    accentRule: "bg-amber-700/40",
+    divide: "divide-stone-200",
   },
 
   "fresh-modern": {
@@ -98,6 +117,10 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     footer: "border-t border-slate-200 bg-slate-50 text-slate-600",
     rule: "border-slate-200",
     sampleTag: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
+    iconWrap: "bg-teal-50 text-teal-700 ring-1 ring-teal-200",
+    accent: "text-teal-700",
+    accentRule: "bg-teal-600/40",
+    divide: "divide-slate-200",
   },
 
   "bold-contrast": {
@@ -126,6 +149,10 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     footer: "border-t-2 border-neutral-900 bg-neutral-50 text-neutral-700",
     rule: "border-neutral-300",
     sampleTag: "bg-neutral-200 text-neutral-700 ring-1 ring-neutral-400",
+    iconWrap: "bg-neutral-900 text-lime-400",
+    accent: "text-neutral-900",
+    accentRule: "bg-neutral-900",
+    divide: "divide-neutral-300",
   },
 
   "calm-minimal": {
@@ -154,6 +181,10 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     footer: "border-t border-slate-100 bg-white text-slate-500",
     rule: "border-slate-100",
     sampleTag: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
+    iconWrap: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100",
+    accent: "text-indigo-700",
+    accentRule: "bg-indigo-500/35",
+    divide: "divide-slate-100",
   },
 
   "elegant-dark": {
@@ -182,5 +213,9 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     footer: "border-t border-white/10 bg-zinc-950 text-zinc-500",
     rule: "border-white/10",
     sampleTag: "bg-white/10 text-zinc-400 ring-1 ring-white/15",
+    iconWrap: "bg-white/5 text-amber-200 ring-1 ring-amber-200/25",
+    accent: "text-amber-200",
+    accentRule: "bg-amber-200/40",
+    divide: "divide-white/10",
   },
 };

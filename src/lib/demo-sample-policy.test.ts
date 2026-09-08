@@ -96,6 +96,7 @@ function content(sections: DemoSection[]): DemoSiteContent {
     siteTitle: "Salon Bella",
     tagline: "Hair salon in Montreal",
     theme: "calm-minimal",
+    layout: "classic",
     navigation: [],
     sections,
     footer: { note: "n" },

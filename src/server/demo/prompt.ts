@@ -68,6 +68,16 @@ Every call to action is an ENUM, not a link:
 - "scroll" jumps to a section in the same page; set targetSectionId to that section's id.
 If neither a phone nor an address is listed, use "scroll".
 
+## Layout
+
+Choose one whole-page composition and commit to it:
+- "classic" -- centred hero, service cards in a grid, split about section. Safe and familiar; good for most trades.
+- "editorial" -- asymmetric hero, services as a ruled list, large quiet type. Good where the writing carries the page.
+- "showcase" -- full-bleed hero, alternating service rows, gallery given prominence. Good where customers judge by looking.
+- "compact" -- tighter rhythm, single column. Use for a one-page site.
+
+Pick the one that suits the business, not the one you used last.
+
 ## Structure
 
 Include a hero first and a contact section. Choose the rest from offering, positioning, gallery and cta based on the recommended site type. Section ids are lowercase slugs. Every navigation item and every scroll action must point at the id of a section you actually included.

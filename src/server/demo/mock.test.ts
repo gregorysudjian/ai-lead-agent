@@ -254,24 +254,65 @@ describe("it invents no business facts", () => {
   });
 });
 
-describe("design direction maps to our own themes, never to arbitrary styling", () => {
+describe("theme selection is led by the category, not by prose", () => {
   const base = input();
 
-  it("resolves recognised moods deterministically", () => {
-    expect(themeFor({ ...base, designDirection: { ...base.designDirection, tone: "warm" } })).toBe(
-      "warm-classic",
-    );
+  it("ignores the design direction for a category we have an opinion about", () => {
+    // The bug this replaces: the deterministic analyser describes its palette
+    // as "high contrast for readability" -- a note about LEGIBILITY -- and
+    // theme selection matched the words "high contrast" against the loud
+    // lime-on-black theme. Every florist, dentist and bakery in the database
+    // came out looking like a skate shop.
+    const salon = { ...base, category: "Hair salon" };
+    const asAnalysed = themeFor({
+      ...salon,
+      designDirection: {
+        ...salon.designDirection,
+        palette: "Two neutrals plus one accent colour, high contrast for readability",
+      },
+    });
+    expect(asAnalysed).not.toBe("bold-contrast");
+    // And the prose genuinely has no say: a different palette, same answer.
     expect(
-      themeFor({ ...base, designDirection: { ...base.designDirection, tone: "elegant dark" } }),
-    ).toBe("elegant-dark");
-    expect(
-      themeFor({ ...base, designDirection: { ...base.designDirection, tone: "bold", palette: "" } }),
-    ).toBe("bold-contrast");
+      themeFor({ ...salon, designDirection: { ...salon.designDirection, palette: "muted" } }),
+    ).toBe(asAnalysed);
   });
 
-  it("falls back to a site-type default when the mood is unrecognised", () => {
+  it("never gives a florist the loudest theme", () => {
+    for (const businessName of ["Verdure Chic", "Chora Design Floral", "Fleuriste Lynda"]) {
+      expect(themeFor({ ...base, category: "Florist", businessName })).not.toBe("bold-contrast");
+    }
+  });
+
+  it("varies the theme between businesses in the same category", () => {
+    // Two salons on the same street must not get identical pages.
+    const themes = new Set(
+      ["Salon Bella", "Coiffure Rivard", "Studio Neuf", "Maison Claire", "La Boucle"].map(
+        (businessName) => themeFor({ ...base, category: "Hair salon", businessName }),
+      ),
+    );
+    expect(themes.size).toBeGreaterThan(1);
+  });
+
+  it("is stable for the same business", () => {
+    const salon = { ...base, category: "Hair salon", businessName: "Salon Bella" };
+    expect(themeFor(salon)).toBe(themeFor(salon));
+  });
+
+  it("consults the mood only for a category it does not recognise", () => {
+    const unknown = { ...base, category: "Locksmith" };
+    expect(
+      themeFor({ ...unknown, designDirection: { ...unknown.designDirection, tone: "warm" } }),
+    ).toBe("warm-classic");
+    expect(
+      themeFor({ ...unknown, designDirection: { ...unknown.designDirection, tone: "elegant dark" } }),
+    ).toBe("elegant-dark");
+  });
+
+  it("falls back to a site-type default for an unknown category and mood", () => {
     const blank = {
       ...base,
+      category: "Locksmith",
       designDirection: { tone: "x", palette: "y", imagery: "z", typography: "w" },
     };
     expect(themeFor({ ...blank, recommendedSiteType: "booking-focused-site" })).toBe("fresh-modern");
@@ -282,6 +323,7 @@ describe("design direction maps to our own themes, never to arbitrary styling", 
   it("only ever returns a theme we defined", () => {
     const hostile = {
       ...base,
+      category: "Locksmith",
       designDirection: {
         tone: "background:red;color:#fff",
         palette: "<style>body{display:none}</style>",
@@ -290,6 +332,15 @@ describe("design direction maps to our own themes, never to arbitrary styling", 
       },
     };
     expect(themeFor(hostile) in DEMO_THEME_LABELS).toBe(true);
+  });
+
+  it("returns a defined theme for every supported category", () => {
+    for (const category of [
+      "Hair salon", "Barber shop", "Beauty salon", "Nail salon", "Restaurant",
+      "Cafe", "Dentist", "Pharmacy", "Bakery", "Gym", "Florist", "Car repair",
+    ]) {
+      expect(themeFor({ ...base, category }) in DEMO_THEME_LABELS, category).toBe(true);
+    }
   });
 });
 

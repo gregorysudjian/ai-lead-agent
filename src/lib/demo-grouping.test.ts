@@ -36,6 +36,7 @@ function demo(over: Partial<DemoSite> & Pick<DemoSite, "id" | "leadId">): DemoSi
         siteTitle: "Salon Bella",
         tagline: "Hair salon in Montreal",
         theme: "calm-minimal",
+        layout: "classic",
         navigation: [],
         sections: [],
         footer: { note: "n" },

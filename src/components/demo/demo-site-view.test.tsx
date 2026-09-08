@@ -12,7 +12,8 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { DemoSiteSpec, DemoTheme } from "@/lib/demo-site";
+import type {
+  DemoLayout, DemoSiteSpec, DemoTheme } from "@/lib/demo-site";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
 
 import { DemoSiteView, telHref } from "./demo-site-view";
@@ -24,6 +25,7 @@ const JS_URL = "javascript:alert(3)";
 const spec = (over: {
   business?: Partial<DemoSiteSpec["business"]>;
   theme?: DemoTheme;
+  layout?: DemoLayout;
   hostile?: boolean;
 } = {}): DemoSiteSpec => {
   const text = over.hostile ? XSS : "Plain copy";
@@ -48,6 +50,7 @@ const spec = (over: {
       siteTitle: text,
       tagline: text,
       theme: over.theme ?? "calm-minimal",
+      layout: over.layout ?? "classic",
       navigation: [{ label: text, targetSectionId: "services" }],
       sections: [
         {

@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   DemoCta,
+  DemoLayout,
   DemoSection,
   DemoSiteContent,
   DemoSiteGeneratorInput,
@@ -71,39 +72,74 @@ const SECTION = {
 } as const;
 
 /**
- * Map the analysis's free-text design direction onto one of OUR themes.
+ * Themes that suit each kind of business, most specific keyword first.
  *
- * The analysis describes a mood in prose ("warm and local", "high contrast").
- * That prose is never used as styling: it is matched against keywords here and
- * collapsed to a single enum value, and the renderer owns every colour and
- * spacing decision behind that value. An unrecognized description falls back
- * to a category default rather than to anything the text asked for.
+ * TWO per category, not one, so a street of hair salons does not become a
+ * street of identical pages. The pair is chosen to be appropriate rather than
+ * merely different: a florist may be elegant or warm, but never lime-on-black.
+ */
+const THEMES_BY_CATEGORY: readonly [string, readonly DemoTheme[]][] = [
+  ["barber", ["bold-contrast", "warm-classic"]],
+  ["hair", ["calm-minimal", "elegant-dark"]],
+  ["nail", ["elegant-dark", "fresh-modern"]],
+  ["beauty", ["elegant-dark", "calm-minimal"]],
+  ["restaurant", ["warm-classic", "elegant-dark"]],
+  ["cafe", ["warm-classic", "calm-minimal"]],
+  ["bakery", ["warm-classic", "calm-minimal"]],
+  ["dentist", ["fresh-modern", "calm-minimal"]],
+  ["dental", ["fresh-modern", "calm-minimal"]],
+  ["pharmacy", ["fresh-modern", "calm-minimal"]],
+  ["gym", ["bold-contrast", "fresh-modern"]],
+  ["florist", ["elegant-dark", "warm-classic"]],
+  ["flower", ["elegant-dark", "warm-classic"]],
+  ["car", ["bold-contrast", "fresh-modern"]],
+  ["garage", ["bold-contrast", "fresh-modern"]],
+  ["repair", ["bold-contrast", "fresh-modern"]],
+];
+
+/**
+ * Which theme this business gets.
+ *
+ * ── WHY THE CATEGORY WINS ─────────────────────────────────────────────────
+ *
+ * This used to read the analysis's free-text `designDirection` first and match
+ * keywords against it. That gave one theme to every business in the database.
+ * The deterministic analyser describes its palette as "two neutrals plus one
+ * accent colour, high contrast for readability" -- a note about LEGIBILITY --
+ * and the phrase "high contrast" matched the loud lime-on-black theme. Every
+ * florist, dentist and bakery came out looking like a skate shop.
+ *
+ * So the category leads. It is a FACT about the business, whereas the design
+ * direction is prose written about it, and prose is a bad thing to pattern
+ * match: the words that describe a mood overlap with the words that describe
+ * a requirement. The free text is still consulted, but only for a category we
+ * have no opinion about, where a weak hint beats an arbitrary default.
+ *
+ * Within a category the business's NAME picks between two suitable themes, so
+ * two salons on the same street differ. Same hash as `layoutFor`, so the
+ * choice is stable across regenerations.
  */
 export function themeFor(input: DemoSiteGeneratorInput): DemoTheme {
+  const category = input.category.trim().toLowerCase();
+
+  for (const [keyword, choices] of THEMES_BY_CATEGORY) {
+    if (category.includes(keyword)) {
+      return choices[stableHash(input.businessName) % choices.length];
+    }
+  }
+
+  // An unfamiliar category. Now the analysis's prose is worth something,
+  // because there is nothing better to go on. "high contrast" is deliberately
+  // NOT matched here -- see above for what it actually means.
   const mood =
     `${input.designDirection.tone} ${input.designDirection.palette} ${input.designDirection.typography}`.toLowerCase();
 
   if (mood.includes("dark") || mood.includes("luxur") || mood.includes("elegant")) {
     return "elegant-dark";
   }
-  if (mood.includes("high contrast") || mood.includes("bold")) return "bold-contrast";
-  if (mood.includes("warm") || mood.includes("local") || mood.includes("traditional")) {
-    return "warm-classic";
-  }
-  if (mood.includes("minimal") || mood.includes("calm") || mood.includes("clean")) {
-    return "calm-minimal";
-  }
-
-  // Category default, so two salons do not both land on the same grey page.
-  // Deterministic, and never derived from the free text above.
-  const category = input.category.trim().toLowerCase();
-  if (category.includes("restaurant") || category.includes("bakery")) return "warm-classic";
-  if (category.includes("cafe")) return "warm-classic";
-  if (category.includes("barber") || category.includes("gym")) return "bold-contrast";
-  if (category.includes("beauty") || category.includes("nail") || category.includes("florist")) {
-    return "elegant-dark";
-  }
-  if (category.includes("dentist") || category.includes("pharmacy")) return "fresh-modern";
+  if (mood.includes("bold")) return "bold-contrast";
+  if (mood.includes("warm") || mood.includes("traditional")) return "warm-classic";
+  if (mood.includes("minimal") || mood.includes("calm")) return "calm-minimal";
 
   switch (input.recommendedSiteType) {
     case "menu-and-location-site":
@@ -115,6 +151,52 @@ export function themeFor(input: DemoSiteGeneratorInput): DemoTheme {
     default:
       return "calm-minimal";
   }
+}
+
+/**
+ * A stable hash of a string.
+ *
+ * FNV-1a, chosen because it is four lines and deterministic. Nothing here is
+ * security-sensitive -- it exists only to spread businesses across the
+ * available page designs in a way that does not change between runs.
+ */
+function stableHash(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    // >>> 0 keeps it an unsigned 32-bit value; Math.imul avoids float drift.
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+/**
+ * Which whole-page design this business gets.
+ *
+ * The complaint this answers: every generated site looked the same. Theme
+ * changed the colours, but the arrangement -- centred hero, card grid,
+ * split about -- was identical on every page, so a portfolio of demos read as
+ * one template with the names swapped.
+ *
+ * The layout is chosen from the business's own NAME rather than its category,
+ * so two hair salons on the same street get visibly different pages. It is a
+ * hash, so it is stable: regenerating a demo for the same business produces
+ * the same design, and the operator does not have to explain why the site they
+ * showed last week looks different today.
+ *
+ * A one-page site is always `compact`. That is a real constraint rather than a
+ * preference: the other three designs assume enough sections to establish a
+ * rhythm, and they look sparse when handed four.
+ */
+export function layoutFor(input: DemoSiteGeneratorInput): DemoLayout {
+  if (input.recommendedSiteType === "one-page-site") return "compact";
+
+  // A portfolio is chosen for businesses judged by looking, and `showcase`
+  // leads with the gallery, so the two belong together.
+  if (input.recommendedSiteType === "portfolio-site") return "showcase";
+
+  const choices: DemoLayout[] = ["classic", "editorial", "showcase"];
+  return choices[stableHash(input.businessName) % choices.length];
 }
 
 /**
@@ -323,6 +405,7 @@ class MockDemoSiteProvider implements DemoSiteProvider {
       siteTitle: input.businessName,
       tagline: `${input.category} in ${input.city}`,
       theme: themeFor(input),
+      layout: layoutFor(input),
       navigation: sections
         .filter((section) => section.kind !== "hero")
         .map((section) => ({ label: NAV_LABELS[section.kind], targetSectionId: section.id })),
