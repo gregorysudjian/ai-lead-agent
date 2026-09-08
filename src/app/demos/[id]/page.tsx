@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { OsmAttribution } from "@/components/attribution";
 import { DemoSiteView } from "@/components/demo/demo-site-view";
+import { DEMO_FONT_VARIABLES } from "@/components/demo/fonts";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
 import { sampleSectionLabels } from "@/lib/demo-sample-policy";
 import { formatTimestamp } from "@/lib/format";
@@ -76,7 +77,8 @@ export default async function DemoPreviewPage({
   const sampleSections = sampleSectionLabels(content);
 
   return (
-    <div>
+    // The font variables must resolve on an ancestor of the preview.
+    <div className={DEMO_FONT_VARIABLES}>
       {/* ---- Application-owned admin bar. Never generated. ---------------- */}
       <div className="border-b border-slate-800 bg-slate-900 text-slate-300">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
