@@ -53,6 +53,7 @@ const spec = (over: {
         {
           kind: "hero",
           id: "top",
+          sample: false,
           eyebrow: text,
           heading: text,
           subheading: text,
@@ -62,6 +63,7 @@ const spec = (over: {
         {
           kind: "offering",
           id: "services",
+          sample: false,
           heading: text,
           intro: text,
           items: [{ title: text, body: text }],
@@ -69,6 +71,7 @@ const spec = (over: {
         {
           kind: "positioning",
           id: "about",
+          sample: false,
           heading: text,
           body: text,
           points: [text],
@@ -76,6 +79,7 @@ const spec = (over: {
         {
           kind: "gallery",
           id: "work",
+          sample: false,
           heading: text,
           body: text,
           placeholders: [{ label: text }],
@@ -83,6 +87,7 @@ const spec = (over: {
         {
           kind: "contact",
           id: "visit",
+          sample: false,
           heading: text,
           body: text,
           hoursNote: text,
@@ -90,6 +95,7 @@ const spec = (over: {
         {
           kind: "cta",
           id: "start",
+          sample: false,
           heading: text,
           body: text,
           cta: { label: text, action: "scroll", targetSectionId: "visit" },
@@ -153,6 +159,7 @@ describe("links are constructed by the application, never by the generator", () 
     hostile.content.sections[0] = {
       kind: "hero",
       id: "top",
+      sample: false,
       eyebrow: JS_URL,
       heading: JS_URL,
       subheading: JS_URL,

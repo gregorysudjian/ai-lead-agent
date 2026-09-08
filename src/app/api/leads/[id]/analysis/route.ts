@@ -1,6 +1,8 @@
 import { AnalysisProviderError } from "@/server/analysis";
 import { analyseLead, analysesForLead, LeadNotFoundError } from "@/server/analysis-service";
 import { AnalysisRepositoryError } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 /**
  * POST /api/leads/[id]/analysis  -- run an analysis and persist it
@@ -19,6 +21,12 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
+  const limited = enforceRateLimit("analysis", guard.session.sub);
+  if (limited) return limited;
+
   const { id } = await context.params;
 
   try {
@@ -52,6 +60,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   try {

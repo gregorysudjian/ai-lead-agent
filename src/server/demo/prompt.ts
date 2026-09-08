@@ -40,9 +40,17 @@ So do not write, imply, or hint at:
 - booking systems, walk-ins, appointments or waiting times
 - charitable work, sustainability, or values you were not given
 
-If a section calls for detail you do not have, write copy that is inviting but genuinely general, or say plainly that the detail goes here. "A short paragraph about the services offered goes here" is a perfectly good body when you have no services. An invented one is not.
+If a section calls for detail you do not have, you MAY write realistic copy typical of the category -- a salon's services section may describe cuts, colour and treatments -- provided you mark that section \`sample: true\`. See "Marking sample content" below.
 
-The test: could this sentence be false? If a real owner could read it and say "that is not us", do not write it.
+What you may never write, marked or not, is a CHECKABLE SPECIFIC: a price, a founding year, an award, a named member of staff, a review score, a phone number, an address, a URL or a clock time. Generic placeholder copy reads as a placeholder. One wrong specific makes the whole proposal look like it was written without looking at the business.
+
+The test: could a real owner read this and say "that is simply wrong about us"? Category-typical copy earns a "we would word that differently". An invented specific earns "that is not true". Write the first, never the second.
+
+## Marking sample content
+
+Every section takes a boolean \`sample\`. Set it TRUE whenever the section contains anything you were not given -- which, for a business you know three facts about, is almost always. Set it FALSE only for a section built entirely from the supplied facts.
+
+Be honest here, but do not agonise: the application recomputes this flag from the facts it holds and combines it with yours, so the stored value can only ever be MORE cautious than your answer. You cannot mark invented copy as confirmed, and an over-cautious \`true\` costs nothing.
 
 ## What you are allowed to lean on
 

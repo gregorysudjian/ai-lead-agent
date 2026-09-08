@@ -55,7 +55,7 @@ describe("the generator is deterministic and offline", () => {
 
   it("identifies itself by a ruleset version, not a model", () => {
     expect(mockDemoSiteProvider.name).toBe("mock");
-    expect(mockDemoSiteProvider.model).toBe("deterministic-demo-rules-v1");
+    expect(mockDemoSiteProvider.model).toBe("deterministic-demo-rules-v2");
   });
 
   it("rejects a business with no usable name", async () => {
@@ -92,13 +92,10 @@ describe("every recommended site type produces a coherent site", () => {
       input({ recommendedSiteType: "booking-focused-site" }),
     );
 
-    // The layout proposes appointments; nobody told us the business takes
-    // them, so no label, heading or body may say that it does.
-    const offering = content.sections.find((s) => s.kind === "offering");
-    if (offering?.kind !== "offering") throw new Error("unreachable");
-    const appointments = offering.items.find((i) => i.title === "Appointments");
-    expect(appointments?.body).toBe("To be added.");
-
+    // Sample copy may describe appointments -- it is marked as sample. What
+    // may never happen is an ACTION we cannot back: the button resolves to a
+    // phone call or an in-page scroll, never to a booking system nobody told
+    // us about. `DemoCtaAction` has no member that could express one.
     const hero = content.sections[0];
     if (hero.kind !== "hero") throw new Error("unreachable");
     expect(hero.primaryCta.label.toLowerCase()).not.toContain("book");
@@ -230,7 +227,11 @@ describe("it invents no business facts", () => {
     const content = await mockDemoSiteProvider.generate(input());
     const contact = content.sections.find((s) => s.kind === "contact");
     if (contact?.kind !== "contact") throw new Error("unreachable");
-    expect(contact.hoursNote).toBe("Opening hours to be added.");
+
+    // The note is prose. The schedule itself -- real hours when we hold them,
+    // a clearly-tagged sample when we do not -- is rendered by application
+    // code from `spec.business`, so no generator can write a time into it.
+    expect(contact.hoursNote).not.toMatch(/[0-9]/);
   });
 
   it("has no field in which a URL could be returned at all", async () => {
@@ -435,241 +436,8 @@ describe("the copy speaks to the business's customers, not to us", () => {
     const contact = content.sections.find((s) => s.kind === "contact");
     if (contact?.kind !== "contact") throw new Error("unreachable");
 
-    // Hours are never invented, and the note is a plain placeholder rather
-    // than an instruction aimed at the owner.
-    expect(contact.hoursNote).toBe("Opening hours to be added.");
-    expect(contact.hoursNote.toLowerCase()).not.toContain("you");
-  });
-});
-
-describe("the copy asserts nothing we cannot evidence", () => {
-  /**
-   * A business we know almost nothing about: a name, a category and a city,
-   * with no phone, no address, no website and no reputation data. Whatever the
-   * generator writes for this input is, by definition, everything it is
-   * willing to say without evidence.
-   */
-  const bare = (over: Partial<DemoSiteGeneratorInput> = {}) =>
-    input({
-      businessName: "Nordvik",
-      category: "Bakery",
-      city: "Oslo",
-      phoneListed: false,
-      addressListed: false,
-      websiteListed: false,
-      ...over,
-    });
-
-  /**
-   * Claims about the business that no stored fact supports.
-   *
-   * The first block is the wording this test was written to remove; the rest
-   * are the equivalents it would be easy to reach for next.
-   */
-  const UNSUPPORTED = [
-    // Previously present, verbatim.
-    "careful work",
-    "a straight answer",
-    "no surprises",
-    "do the work properly",
-    "plain answers",
-    "no runaround",
-    "respects your time",
-    "one call is all it takes",
-    "easy to reach",
-    "easy to get to",
-    "happy to help",
-    "take it from there",
-    "with no guesswork",
-    "closed door",
-    "suits you",
-    "finished lately",
-    "everything you need",
-    "serving ",
-    // Equivalents it would be easy to reach for next.
-    "quality",
-    "professional",
-    "reliable",
-    "trusted",
-    "honest",
-    "friendly",
-    "welcoming",
-    "fast",
-    "quick",
-    "convenient",
-    "affordable",
-    "value for money",
-    "best",
-    "leading",
-    "expert",
-    "experienced",
-    "specialist",
-    "specialise",
-    "specialize",
-    "guarantee",
-    "we promise",
-    "years of",
-    "award",
-    "popular",
-    "regulars",
-    "satisfied",
-    "satisfaction",
-    "highly rated",
-    "well known",
-    "always",
-    "surrounding areas",
-    "service area",
-    "we serve",
-  ];
-
-  /** Everything the generator wrote, as one lowercase blob. */
-  const copy = (content: Awaited<ReturnType<typeof mockDemoSiteProvider.generate>>) =>
-    JSON.stringify(content).toLowerCase();
-
-  it("makes no unsupported claim, for any layout or combination of facts", async () => {
-    for (const siteType of HANDLED_SITE_TYPES) {
-      for (const phoneListed of [true, false]) {
-        for (const addressListed of [true, false]) {
-          const text = copy(
-            await mockDemoSiteProvider.generate(
-              bare({ recommendedSiteType: siteType, phoneListed, addressListed }),
-            ),
-          );
-          for (const claim of UNSUPPORTED) {
-            expect(text, `${siteType} must not claim "${claim.trim()}"`).not.toContain(claim);
-          }
-        }
-      }
-    }
-  });
-
-  it("says nothing about a minimal business beyond its name, category and city", async () => {
-    const content = await mockDemoSiteProvider.generate(bare());
-
-    // Every word the generator produced, minus the three facts it holds, the
-    // JSON field names, and a small vocabulary of neutral connectives and
-    // invitations. Anything left over would be a claim smuggled in as prose.
-    const ALLOWED = new Set([
-      "",
-      // The facts.
-      "nordvik",
-      "bakery",
-      "oslo",
-      // Neutral structure, invitations and empty-slot markers.
-      "a", "about", "action", "added", "address", "and", "appointments", "be", "below",
-      "body", "call", "come", "contact", "cta", "details", "do", "eyebrow", "find",
-      "footer", "gallery", "get", "give", "heading", "hero", "hours", "hoursnote", "how",
-      "id", "image", "images", "in", "intro", "is", "items", "kind", "label", "menu",
-      "navigation", "note", "offering", "opening", "or", "our", "phone", "placeholders",
-      "points", "positioning", "primarycta", "scroll", "secondarycta", "sections", "see",
-      "services", "sitetitle", "start", "subheading", "tagline", "targetsectionid",
-      "theme", "title", "to", "top", "touch", "us", "visit", "we", "what", "where",
-      "work", "number", "directions",
-      // Theme names, which are enum values rather than prose.
-      "calm", "minimal", "warm", "classic", "fresh", "modern", "bold", "contrast",
-      "elegant", "dark",
-    ]);
-
-    const used = new Set(JSON.stringify(content).toLowerCase().split(/[^a-z]+/));
-    const unexpected = [...used].filter((w) => !ALLOWED.has(w));
-    expect(unexpected, "unexpected vocabulary in a minimal-facts demo").toEqual([]);
-  });
-
-  it("does not turn a listed address into a claim about serving the city", async () => {
-    const text = copy(await mockDemoSiteProvider.generate(bare({ addressListed: true })));
-
-    for (const phrase of [
-      "serving",
-      "we serve",
-      "service area",
-      "surrounding",
-      "across oslo",
-      "all of oslo",
-      "throughout",
-    ]) {
-      expect(text).not.toContain(phrase);
-    }
-    // What a listed address does support: that there is one, in that city.
-    expect(text).toContain("find nordvik in oslo");
-  });
-
-  it("invents no opening hours when none are known", async () => {
-    for (const siteType of HANDLED_SITE_TYPES) {
-      const content = await mockDemoSiteProvider.generate(bare({ recommendedSiteType: siteType }));
-      const text = copy(content);
-
-      for (const day of ["monday", "tuesday", "saturday", "sunday", "weekday", "weekend", "daily"]) {
-        expect(text).not.toContain(day);
-      }
-      const words = text.split(/[^a-z0-9]+/);
-      for (const time of ["am", "pm", "late", "early"]) {
-        expect(words).not.toContain(time);
-      }
-
-      const contact = content.sections.find((s) => s.kind === "contact");
-      if (contact?.kind !== "contact") throw new Error("unreachable");
-      expect(contact.hoursNote).toBe("Opening hours to be added.");
-    }
-  });
-
-  it("does not assert completed or recent work in a portfolio layout", async () => {
-    const content = await mockDemoSiteProvider.generate(
-      bare({ recommendedSiteType: "portfolio-site" }),
-    );
-    const gallery = content.sections.find((s) => s.kind === "gallery");
-    if (gallery?.kind !== "gallery") throw new Error("unreachable");
-
-    // Empty, numbered slots: the layout is visible, the content plainly absent.
-    expect(gallery.heading).toBe("Gallery");
-    expect(gallery.body).toBe("Images to be added.");
-    for (const placeholder of gallery.placeholders) {
-      expect(placeholder.label).toMatch(/^Image [0-9]+$/);
-    }
-
-    const text = copy(content);
-    for (const claim of [
-      "recent work",
-      "our work",
-      "completed",
-      "projects",
-      "portfolio of",
-      "premises",
-      "we have done",
-      "in progress",
-    ]) {
-      expect(text).not.toContain(claim);
-    }
-  });
-
-  it("does not assert a known menu or catalogue in a menu layout", async () => {
-    const content = await mockDemoSiteProvider.generate(
-      bare({ recommendedSiteType: "menu-and-location-site" }),
-    );
-    const offering = content.sections.find((s) => s.kind === "offering");
-    if (offering?.kind !== "offering") throw new Error("unreachable");
-
-    const menu = offering.items.find((i) => i.title === "Menu");
-    expect(menu?.body).toBe("To be added.");
-
-    const text = copy(content);
-    for (const claim of ["our menu", "full list", "everything we", "dishes", "we serve", "freshly"]) {
-      expect(text).not.toContain(claim);
-    }
-  });
-
-  it("invites no contact route it cannot back with a listed value", async () => {
-    const none = copy(await mockDemoSiteProvider.generate(bare()));
-    expect(none).not.toContain("call us");
-    expect(none).not.toContain("give us a call");
-    expect(none).not.toContain("come and see us");
-    expect(none).toContain("to be added");
-
-    const phoneOnly = copy(await mockDemoSiteProvider.generate(bare({ phoneListed: true })));
-    expect(phoneOnly).toContain("call us");
-    expect(phoneOnly).not.toContain("come and find us");
-
-    const addressOnly = copy(await mockDemoSiteProvider.generate(bare({ addressListed: true })));
-    expect(addressOnly).toContain("come and find us");
-    expect(addressOnly).not.toContain("call us");
+    // The note addresses the visitor, never the owner, and carries no times.
+    expect(contact.hoursNote).not.toMatch(/[0-9]/);
+    expect(contact.hoursNote.toLowerCase()).not.toContain("to be added");
   });
 });

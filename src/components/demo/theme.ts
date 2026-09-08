@@ -39,6 +39,8 @@ export interface DemoThemeTokens {
   ctaButton: string;
   footer: string;
   rule: string;
+  /** The small marker on a section carrying sample content. */
+  sampleTag: string;
 }
 
 export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
@@ -67,6 +69,7 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     ctaButton: "bg-amber-400 text-stone-900 hover:bg-amber-300",
     footer: "border-t border-stone-200 bg-[#f7f0e6] text-stone-600",
     rule: "border-stone-200",
+    sampleTag: "bg-stone-200/80 text-stone-600 ring-1 ring-stone-300/70",
   },
 
   "fresh-modern": {
@@ -94,6 +97,7 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     ctaButton: "bg-white text-teal-800 hover:bg-teal-50",
     footer: "border-t border-slate-200 bg-slate-50 text-slate-600",
     rule: "border-slate-200",
+    sampleTag: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
   },
 
   "bold-contrast": {
@@ -121,6 +125,7 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     ctaButton: "bg-neutral-900 text-lime-400 hover:bg-neutral-800",
     footer: "border-t-2 border-neutral-900 bg-neutral-50 text-neutral-700",
     rule: "border-neutral-300",
+    sampleTag: "bg-neutral-200 text-neutral-700 ring-1 ring-neutral-400",
   },
 
   "calm-minimal": {
@@ -148,6 +153,7 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     ctaButton: "bg-white text-slate-900 hover:bg-slate-100",
     footer: "border-t border-slate-100 bg-white text-slate-500",
     rule: "border-slate-100",
+    sampleTag: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
   },
 
   "elegant-dark": {
@@ -175,5 +181,6 @@ export const DEMO_THEMES: Record<DemoTheme, DemoThemeTokens> = {
     ctaButton: "bg-zinc-950 text-amber-200 hover:bg-zinc-900",
     footer: "border-t border-white/10 bg-zinc-950 text-zinc-500",
     rule: "border-white/10",
+    sampleTag: "bg-white/10 text-zinc-400 ring-1 ring-white/15",
   },
 };

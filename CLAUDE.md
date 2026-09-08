@@ -161,6 +161,25 @@ hours, and place ID -> flag the ones with no website.
   append-only, because the evidence behind a conversation with a business
   owner must stay exactly as it was on the day.
 
+- **A demo site may show sample content, but never a checkable invention, and
+  never unmarked.** A business worth approaching has no website, so a demo
+  built strictly from evidence is a page of "To be added." slots that no owner
+  can picture as their site. Generated pages therefore use category-typical
+  placeholder copy from `demo-samples.ts`. Three rules keep that honest.
+  (1) Every unevidenced section is marked `sample`, tagged visibly in the page
+  and listed by name in the preview chrome. (2) The marking is not the
+  generator's word: `enforceSampleFlags` recomputes it from the facts actually
+  held and OR-s it in, so a generator can only ever mark MORE as sample, never
+  present invention as confirmed. An analysis is not evidence -- a proposal
+  cannot confirm a fact. (3) Sample copy stays editable-generic and never
+  states a CHECKABLE SPECIFIC: no price, founding year, award, certification,
+  named staff member, testimonial, review score, phone number, address, URL or
+  clock time. Generic copy reads as a placeholder; one wrong specific reads as
+  a lie and costs the conversation. Copy must also never invite an action the
+  page cannot back -- no "give us a call" above a missing phone number. Real
+  hours, when research read them on the business's own site, always beat the
+  sample schedule.
+
 - **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the
   sourced profile rather than independently going and looking. Analysis and

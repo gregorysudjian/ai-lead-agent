@@ -4,15 +4,24 @@ import { notFound } from "next/navigation";
 import { OsmAttribution } from "@/components/attribution";
 import { DemoSiteView } from "@/components/demo/demo-site-view";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
+import { sampleSectionLabels } from "@/lib/demo-sample-policy";
 import { formatTimestamp } from "@/lib/format";
+import { requireSession } from "@/server/auth";
 import { getDemoSiteRepository } from "@/server/repo";
 
 /**
  * Internal preview of one generated demo site.
  *
- * NOT a public URL. It is a page inside the dashboard application, reachable
- * only by someone already using the tool; nothing here is deployed, published
- * or shared with the business.
+ * NOT a public URL, and now enforced rather than asserted. This page requires
+ * a session like every other page in the dashboard: the id is a UUID, but an
+ * unguessable identifier is not an access control, and this preview carries a
+ * named business plus copy written about it.
+ *
+ * That means there is currently no way to show a demo to the business it was
+ * generated for. That is deliberate. Sharing a demo is a separate feature with
+ * its own decisions -- a scoped share token, an expiry, a record of who it was
+ * shown to -- and inheriting it by accident from "the URL is hard to guess" is
+ * not the same thing.
  *
  * The dashboard chrome is deliberately absent (see `isChromeless` in
  * AppShell) so the preview reads as the proposed customer website rather than
@@ -23,6 +32,10 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Guarded too: metadata renders the business name into the document title,
+  // which is a real disclosure even when the body below never renders.
+  await requireSession();
   try {
     const demo = await getDemoSiteRepository().findById(id);
     // `absolute` so the tab reads as the proposed site rather than carrying
@@ -41,6 +54,9 @@ export default async function DemoPreviewPage({
 }) {
   const { id } = await params;
 
+  // Authorization boundary. See `requireSession` in server/auth/dal.ts.
+  await requireSession();
+
   let demo;
   try {
     demo = await getDemoSiteRepository().findById(id);
@@ -52,6 +68,12 @@ export default async function DemoPreviewPage({
   if (!demo) notFound();
 
   const { business, content } = demo.spec;
+
+  // Recomputed at render time from the stored flags, which were themselves
+  // recomputed from held facts when the demo was generated. The chrome is
+  // where this disclosure belongs: a generator cannot reach it, and it
+  // survives a screenshot that crops the inline tags.
+  const sampleSections = sampleSectionLabels(content);
 
   return (
     <div>
@@ -86,13 +108,22 @@ export default async function DemoPreviewPage({
           {/* The honesty lives here, in our chrome, where a generator cannot
               reach it -- rather than being sprinkled through the mock copy. */}
           <p className="text-[11px] leading-relaxed text-slate-400">
-            Draft proposal. The wording and layout are a starting point; no services, prices,
-            opening hours, reviews, credentials or staff details on this page were supplied by
-            the business. Business name, phone and address are copied from the lead record.
+            Draft proposal. Business name, phone and address are copied from the lead
+            record. Nothing on this page was supplied or approved by the business.
             {business.websiteListed
               ? " The provider listed an existing website for this business."
               : " The provider listed no website for this business, which is not proof that none exists."}
           </p>
+
+          {sampleSections.length > 0 ? (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-amber-300/90">
+              <span className="font-semibold">Sample content:</span>{" "}
+              {sampleSections.join(", ")}. These sections show what the finished page
+              would say, written from what is typical for a {business.category.toLowerCase()}{" "}
+              rather than from anything we know about this business. Confirm every line
+              with the owner before using it.
+            </p>
+          ) : null}
           {business.source === "osm" ? (
             <OsmAttribution tone="inverted" className="mt-1" />
           ) : null}

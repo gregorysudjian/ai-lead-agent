@@ -46,6 +46,7 @@ const spec = (name = "Salon Test"): DemoSiteSpec => ({
       {
         kind: "hero",
         id: "top",
+        sample: false,
         eyebrow: "Hair salon · Montreal",
         heading: "A hair salon in Montreal",
         subheading: "Easy to find, easy to contact.",
@@ -55,6 +56,7 @@ const spec = (name = "Salon Test"): DemoSiteSpec => ({
       {
         kind: "contact",
         id: "visit",
+        sample: false,
         heading: "Find us",
         body: "Our phone number and address are below.",
         hoursNote: "Opening hours appear here once you confirm them.",
