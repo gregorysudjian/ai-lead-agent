@@ -3,6 +3,8 @@ import { z } from "zod";
 import { discoverCandidates } from "@/server/discovery-service";
 import { DiscoveryFailedError, DiscoveryValidationError } from "@/server/discovery";
 import { LeadRepositoryError } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 /**
  * POST /api/discovery
@@ -40,6 +42,12 @@ function errorResponse(
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
+  const limited = enforceRateLimit("discovery", guard.session.sub);
+  if (limited) return limited;
+
   let rawBody: unknown;
   try {
     rawBody = await request.json();

@@ -56,6 +56,30 @@ export const DEFAULT_QUERY_TIMEOUT_SECONDS = 25;
 export const DISPLAY_RESULT_LIMIT = 60;
 
 /**
+ * The furthest a deliberate "search deeper" may go.
+ *
+ * A search for one category in one city returns the SAME bounded set every
+ * time: Overpass answers in a stable order, so the first sixty hair salons in
+ * Montreal are the first sixty on every run and a second search finds nothing
+ * new. An operator working through a city needs to see past that window.
+ *
+ * Still bounded, and bounded for the same reason as before: this is an
+ * internal review workflow, not a bulk export, and the public Overpass
+ * instance is shared community infrastructure. Going deeper is one explicit
+ * click producing one request -- nothing pages, polls or retries on its own.
+ */
+export const MAX_SEARCH_LIMIT = 200;
+
+/** Clamp a requested result count into what we are willing to ask for. */
+export function clampSearchLimit(requested: number | undefined): number {
+  if (requested === undefined) return DISPLAY_RESULT_LIMIT;
+  if (!Number.isFinite(requested)) return DISPLAY_RESULT_LIMIT;
+  const whole = Math.floor(requested);
+  if (whole < 1) return DISPLAY_RESULT_LIMIT;
+  return Math.min(whole, MAX_SEARCH_LIMIT);
+}
+
+/**
  * What we actually ask Overpass for: one MORE than we will show.
  *
  * The extra element is a truncation sentinel, nothing else. If the response

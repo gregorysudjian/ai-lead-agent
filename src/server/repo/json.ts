@@ -163,6 +163,7 @@ class JsonLeadRepository implements LeadRepository {
       // businesses inside one batch collapse into a single lead.
       const leads = [...store.leads];
       const touched: Lead[] = [];
+      const createdIds: string[] = [];
       let created = 0;
       let updated = 0;
 
@@ -178,6 +179,7 @@ class JsonLeadRepository implements LeadRepository {
           const lead = createLead(business, now);
           leads.push(lead);
           touched.push(lead);
+          createdIds.push(lead.id);
           created += 1;
         }
       }
@@ -187,7 +189,7 @@ class JsonLeadRepository implements LeadRepository {
         await writeStore({ version: 1, leads });
       }
 
-      return { created, updated, leads: touched };
+      return { created, updated, leads: touched, createdIds };
     });
   }
 

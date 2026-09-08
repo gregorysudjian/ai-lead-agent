@@ -88,6 +88,7 @@ export function createSupabaseLeadRepository(
     ): Promise<UpsertSummary> {
       const timestamp = now().toISOString();
       const touched: Lead[] = [];
+      const createdIds: string[] = [];
       let created = 0;
       let updated = 0;
 
@@ -114,6 +115,7 @@ export function createSupabaseLeadRepository(
           try {
             await gateway.insertRow(leadToRow(lead));
             touched.push(lead);
+            createdIds.push(lead.id);
             created += 1;
           } catch (error) {
             if (!(error instanceof UniqueViolationError)) throw error;
@@ -136,7 +138,7 @@ export function createSupabaseLeadRepository(
         throw asRepositoryError(error, "Could not save discovered businesses.");
       }
 
-      return { created, updated, leads: touched };
+      return { created, updated, leads: touched, createdIds };
     },
   };
 }

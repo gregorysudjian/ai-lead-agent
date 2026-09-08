@@ -16,6 +16,17 @@ export interface UpsertSummary {
   updated: number;
   /** The resulting leads, in the order the businesses were supplied. */
   leads: Lead[];
+  /**
+   * The ids of the leads that were CREATED by this batch.
+   *
+   * `created` says how many; this says which. A search needs that to tell the
+   * operator which results are new to them and which they have already seen --
+   * without it, re-running a search shows the same sixty businesses with no
+   * indication that fifty-eight of them are already in the store.
+   *
+   * Ids rather than indices, so it stays meaningful if `leads` is reordered.
+   */
+  createdIds: string[];
 }
 
 export interface LeadRepository {

@@ -1,6 +1,8 @@
 import { ResearchProviderError } from "@/server/research";
 import { LeadNotFoundError, profilesForLead, researchLead } from "@/server/research-service";
 import { BusinessProfileRepositoryError } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 /**
  * POST /api/leads/[id]/research  -- run one research pass and persist it
@@ -24,6 +26,12 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
+  const limited = enforceRateLimit("research", guard.session.sub);
+  if (limited) return limited;
+
   const { id } = await context.params;
 
   try {
@@ -56,6 +64,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   try {
