@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { discoverAndSaveLeads } from "@/server/lead-discovery";
 import { ProviderUnavailableError, ProviderValidationError } from "@/server/places";
+import { requireApiSession } from "@/server/auth";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 /**
  * POST /api/search
@@ -22,6 +24,13 @@ import { ProviderUnavailableError, ProviderValidationError } from "@/server/plac
 const searchRequestSchema = z.strictObject({
   category: z.string().trim().min(1, "category is required").max(100),
   city: z.string().trim().min(1, "city is required").max(100),
+  /**
+   * How deep to search. Optional; the provider clamps it to MAX_SEARCH_LIMIT.
+   *
+   * Validated as a bounded integer here as well, so an absurd value is a 400
+   * rather than something the provider has to defend against.
+   */
+  limit: z.number().int().min(1).max(200).optional(),
 });
 
 /** Shape returned for any rejected request. Never contains internal detail. */
@@ -34,6 +43,12 @@ function errorResponse(
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
+  const limited = enforceRateLimit("search", guard.session.sub);
+  if (limited) return limited;
+
   // A malformed body is a client error, not a crash.
   let rawBody: unknown;
   try {
@@ -55,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
   const query = parsed.data;
 
   try {
-    const { results, saved, meta } = await discoverAndSaveLeads(query);
+    const { results, hits, saved, meta } = await discoverAndSaveLeads(query);
 
     // An empty result set is a successful search, not an error.
     // `meta` describes this search (was it capped?), not any stored lead.
@@ -64,6 +79,9 @@ export async function POST(request: Request): Promise<Response> {
       count: results.length,
       saved,
       results,
+      // Each result with its lead id and whether this search created it, so
+      // the UI can separate "new to you" from "already in your leads".
+      hits,
       meta,
     });
   } catch (error) {

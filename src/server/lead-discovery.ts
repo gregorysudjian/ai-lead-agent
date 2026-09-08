@@ -22,9 +22,27 @@ import { getLeadRepository } from "@/server/repo";
  * be able to change the database.
  */
 
+/**
+ * One search result, annotated with whether it was new to us.
+ *
+ * The annotation is the point. Searching "Hair salon in Montreal" twice returns
+ * the same businesses both times -- Overpass answers in a stable order, so the
+ * list is identical -- and without this the second search looks like it found
+ * sixty businesses when it found none the operator had not already seen.
+ */
+export interface DiscoveryHit {
+  business: DiscoveredBusiness;
+  /** Our internal lead id, so the UI can link straight to the record. */
+  leadId: string;
+  /** True when this batch created the lead, rather than refreshing one. */
+  isNew: boolean;
+}
+
 export interface DiscoveryResult {
   query: BusinessSearchQuery;
   results: DiscoveredBusiness[];
+  /** The same results, each carrying its lead id and whether it is new. */
+  hits: DiscoveryHit[];
   saved: { created: number; updated: number };
   /**
    * Facts about the search itself, passed straight through from the provider.
@@ -43,9 +61,23 @@ export async function discoverAndSaveLeads(
   // we must never claim a search succeeded when nothing was stored.
   const summary = await getLeadRepository().upsertDiscovered(businesses);
 
+  // `summary.leads` is returned in the order the businesses were supplied, so
+  // index i of one corresponds to index i of the other. `createdIds` says
+  // which of those leads this batch actually created.
+  const created = new Set(summary.createdIds);
+  const hits: DiscoveryHit[] = businesses.map((business, index) => {
+    const lead = summary.leads[index];
+    return {
+      business,
+      leadId: lead.id,
+      isNew: created.has(lead.id),
+    };
+  });
+
   return {
     query,
     results: businesses,
+    hits,
     saved: { created: summary.created, updated: summary.updated },
     meta,
   };

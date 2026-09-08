@@ -81,6 +81,20 @@ export interface DiscoveredBusiness {
 export interface BusinessSearchQuery {
   category: string;
   city: string;
+  /**
+   * How many results to ask the provider for. Omitted means the default.
+   *
+   * Exists because a search for one category in one city returns the SAME
+   * bounded set every time -- Overpass answers in a stable order, so the first
+   * sixty hair salons in Montreal are the first sixty every time, and a second
+   * search finds nothing new. This lets an operator deliberately look further
+   * down the same list.
+   *
+   * Bounded and clamped by the provider (see `MAX_SEARCH_LIMIT`). It is not a
+   * crawl control: one explicit click still means one request, and nothing
+   * polls, retries or pages automatically.
+   */
+  limit?: number;
 }
 
 // ---------------------------------------------------------------------------

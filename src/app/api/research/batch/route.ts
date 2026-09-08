@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { MAX_BATCH_SIZE, researchLeadsWithoutProfiles } from "@/server/research-service";
+import { requireApiSession } from "@/server/auth";
+import { enforceRateLimit } from "@/server/rate-limit";
 
 /**
  * POST /api/research/batch -- research up to N leads that have no profile yet
@@ -19,6 +21,12 @@ const batchRequestSchema = z.strictObject({
 });
 
 export async function POST(request: Request): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
+  const limited = enforceRateLimit("researchBatch", guard.session.sub);
+  if (limited) return limited;
+
   let rawBody: unknown;
   try {
     rawBody = await request.json();

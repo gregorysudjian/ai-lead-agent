@@ -6,8 +6,7 @@ import { normalizeOsmElements } from "@/lib/osm/normalize";
 import {
   buildOverpassQuery,
   DEFAULT_QUERY_TIMEOUT_SECONDS,
-  DISPLAY_RESULT_LIMIT,
-  OVERPASS_QUERY_LIMIT,
+  clampSearchLimit,
 } from "@/lib/osm/query";
 import type { BusinessSearchQuery } from "@/lib/types";
 import { overpassApiUrl } from "@/server/env";
@@ -185,7 +184,14 @@ export function createOpenStreetMapProvider(
         );
       }
 
-      const cacheKey = `${city.key}|${category.key}`;
+      // Clamped here, once, so nothing downstream has to trust the caller.
+      const displayLimit = clampSearchLimit(query.limit);
+
+      // The depth is part of the cache key. Without it a deliberate "search
+      // deeper" would be answered from the cached shallow result -- the exact
+      // same sixty businesses, which is the bug this whole change exists to
+      // fix, reintroduced one layer down.
+      const cacheKey = `${city.key}|${category.key}|${displayLimit}`;
       if (useCache) {
         const cached = readCache(cacheKey);
         if (cached) return cached;
@@ -198,7 +204,7 @@ export function createOpenStreetMapProvider(
         // Ask for one more than we will show; the extra is only a sentinel.
         const overpassQuery = buildOverpassQuery(city, category, {
           timeoutSeconds: DEFAULT_QUERY_TIMEOUT_SECONDS,
-          limit: OVERPASS_QUERY_LIMIT,
+          limit: displayLimit + 1,
         });
 
         const elements = await runOverpassQuery(
@@ -211,17 +217,17 @@ export function createOpenStreetMapProvider(
         // drops nameless or malformed records. That is deliberate and
         // conservative: the provider query reached its cap, so more matching
         // provider records may exist even if some of these were unusable.
-        const truncated = elements.length > DISPLAY_RESULT_LIMIT;
+        const truncated = elements.length > displayLimit;
 
         const businesses = normalizeOsmElements(elements, {
           requestedCategory: category,
           cityLabel: city.label,
           fetchedAt: now().toISOString(),
-        }).slice(0, DISPLAY_RESULT_LIMIT);
+        }).slice(0, displayLimit);
 
         const result: ProviderSearchResult = {
           businesses,
-          meta: { truncated, limit: DISPLAY_RESULT_LIMIT },
+          meta: { truncated, limit: displayLimit },
         };
 
         if (useCache) writeCache(cacheKey, result);
