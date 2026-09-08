@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { markSent, updateOutreach } from "@/server/outreach-service";
 import { OutreachRepositoryError } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
 
 /**
  * PATCH /api/outreach/[id] -- a human's changes to one outreach record
@@ -31,6 +32,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   let rawBody: unknown;

@@ -35,6 +35,7 @@ import { getResearchProvider } from "@/server/research";
 import { outreachForLead } from "@/server/outreach-service";
 import { profilesForLead } from "@/server/research-service";
 import { getLeadRepository } from "@/server/repo";
+import { requireSession } from "@/server/auth";
 
 /**
  * Lead detail: a review workspace.
@@ -50,6 +51,9 @@ export default async function LeadDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // Authorization boundary. See `requireSession` in server/auth/dal.ts.
+  await requireSession();
 
   let lead;
   try {

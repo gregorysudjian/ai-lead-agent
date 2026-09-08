@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { draftOutreach, LeadNotFoundError, outreachForLead } from "@/server/outreach-service";
 import { OutreachRepositoryError } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
 
 /**
  * GET  /api/leads/[id]/outreach  -- contact sheet plus every record for a lead
@@ -31,6 +32,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   try {
@@ -48,6 +52,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   let rawBody: unknown;

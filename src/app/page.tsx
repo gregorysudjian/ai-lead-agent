@@ -11,6 +11,7 @@ import { SystemStatus } from "@/components/system-status";
 import { Card, EmptyState, ErrorPanel, LINK, PageHeader, SectionHeading } from "@/components/ui/primitives";
 import { availableDiscoverySources } from "@/server/discovery-service";
 import { loadLeads } from "@/server/leads-page-data";
+import { requireSession } from "@/server/auth";
 
 /**
  * Dashboard.
@@ -26,6 +27,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
+  // The authorization boundary for this page. Proxy already redirected a
+  // visitor with no cookie; this is the check that actually verifies one.
+  await requireSession();
   const { leads, loadFailed } = await loadLeads("dashboard");
   // Names only. Which sources are enabled is configuration, not a secret; the
   // credentials behind them never leave the server.

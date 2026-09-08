@@ -1,4 +1,5 @@
 import { getLeadRepository } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
 
 /**
  * GET /api/leads
@@ -14,6 +15,9 @@ import { getLeadRepository } from "@/server/repo";
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   try {
     const leads = await getLeadRepository().list();
     return Response.json({ count: leads.length, leads });
