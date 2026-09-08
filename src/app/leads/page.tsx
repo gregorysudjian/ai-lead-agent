@@ -1,6 +1,7 @@
 import { LeadsBrowser } from "@/components/leads-browser";
 import { ErrorPanel, PageHeader } from "@/components/ui/primitives";
 import { loadLeads } from "@/server/leads-page-data";
+import { requireSession } from "@/server/auth";
 
 /** Full lead browsing. Server Component; filtering happens client-side. */
 export const dynamic = "force-dynamic";
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Leads" };
 
 export default async function LeadsPage() {
+  // The authorization boundary for this page. Proxy already redirected a
+  // visitor with no cookie; this is the check that actually verifies one.
+  await requireSession();
   const { leads, loadFailed } = await loadLeads("leads");
 
   return (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { SignOutButton } from "./sign-out-button";
 import { FOCUS_RING } from "./ui/primitives";
 
 /**
@@ -32,12 +33,17 @@ const NAV: NavItem[] = [
 /**
  * Routes that render WITHOUT the dashboard chrome.
  *
- * A demo-site preview is meant to look like the customer's proposed website,
- * not like our admin tool, so the sidebar, the wordmark and the page container
- * are all omitted for it. The `/demos` index itself keeps the chrome; only an
- * individual preview drops it.
+ * Two unrelated reasons, both ending in "no sidebar":
+ *
+ * - A demo-site preview is meant to look like the customer's proposed website,
+ *   not like our admin tool. The `/demos` index itself keeps the chrome; only
+ *   an individual preview drops it.
+ * - The login page has no session yet, so a nav bar of links the visitor
+ *   cannot follow -- and a sign-out button for a session they do not have --
+ *   would be nonsense.
  */
 function isChromeless(pathname: string): boolean {
+  if (pathname === "/login") return true;
   return /^\/demos\/[^/]+$/.test(pathname);
 }
 
@@ -125,7 +131,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavLinks />
         </nav>
         <div className="border-t border-slate-200 p-3 dark:border-slate-800">
-          <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-500">
+          <SignOutButton />
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-500">
             Internal prototype. Review leads manually; nothing is contacted automatically.
           </p>
         </div>
@@ -152,6 +159,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="border-t border-slate-200 p-3 dark:border-slate-800"
           >
             <NavLinks onNavigate={() => setMenuOpen(false)} />
+            <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-800">
+              <SignOutButton />
+            </div>
           </nav>
         ) : null}
       </div>

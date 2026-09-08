@@ -1,0 +1,53 @@
+name: CI
+
+# The test suite is where this project's hard rules are actually enforced --
+# provider boundaries, the lead/provider split, SSRF guards, and now that every
+# page and route handler is behind a session. Running it by hand is running it
+# sometimes, so it runs here on every push and every pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel an in-flight run when the same branch is pushed again. The later
+# commit is the one anyone cares about.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the version this is developed against. `npm ci` needs the
+          # lockfile, and the cache key is derived from it.
+          node-version: "24"
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what the
+      # lockfile says and fails if the lockfile and package.json disagree,
+      # which is the property CI wants and a developer's machine does not.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # The build must not depend on real credentials. Every provider in
+          # this app defaults to its mock or refuses to run, so the only values
+          # needed are the two that have no safe default -- and these are
+          # throwaway CI values, not secrets. If a build ever starts needing a
+          # real key, that is a bug in the provider boundary, not a reason to
+          # add a secret here.
+          SESSION_SECRET: ci-only-session-secret-not-used-to-sign-anything-real
+          AUTH_PASSWORD: ci-only-placeholder-password

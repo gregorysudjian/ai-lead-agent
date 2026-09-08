@@ -1,5 +1,7 @@
 import "server-only";
 
+import { MIN_SESSION_SECRET_LENGTH } from "./auth/token";
+
 /**
  * Single, validated entry point for environment configuration.
  *
@@ -7,6 +9,9 @@ import "server-only";
  * time rather than shipping configuration logic (and one day secrets) to the
  * browser.
  */
+
+/** Minimum operator password length, enforced at configuration time. */
+export const MIN_AUTH_PASSWORD_LENGTH = 12;
 
 export type PlacesProviderName = "mock" | "osm" | "google";
 
@@ -342,4 +347,63 @@ export function anthropicApiKey(): string {
     );
   }
   return key;
+}
+
+// ---------------------------------------------------------------------------
+// Authentication
+// ---------------------------------------------------------------------------
+
+/**
+ * The secret used to sign session cookies.
+ *
+ * There is deliberately NO default and no development fallback. Every other
+ * setting in this file defaults to the safe option; for a signing secret the
+ * safe option is to refuse to run, because a built-in default is a published
+ * default -- anyone reading this repository could mint a valid session.
+ *
+ * Generate one with:  openssl rand -base64 32
+ *
+ * The value is never logged, echoed or included in an error: the messages
+ * below name the VARIABLE only. It must never be prefixed `NEXT_PUBLIC_`.
+ */
+export function sessionSecret(): string {
+  const secret = process.env.SESSION_SECRET?.trim();
+  if (!secret) {
+    throw new Error(
+      "SESSION_SECRET is not set. Generate one with `openssl rand -base64 32` " +
+        "and add it to .env.local.",
+    );
+  }
+  if (secret.length < MIN_SESSION_SECRET_LENGTH) {
+    throw new Error(
+      `SESSION_SECRET is too short: it must be at least ${MIN_SESSION_SECRET_LENGTH} ` +
+        "characters. Generate one with `openssl rand -base64 32`.",
+    );
+  }
+  return secret;
+}
+
+/**
+ * The operator's password.
+ *
+ * One password for one human. This is not a user database and is not trying to
+ * be one: the app has a single operator, so a shared-secret login is the honest
+ * amount of machinery. Adding real accounts means adding a users table, and
+ * `SessionPayload.sub` already has somewhere to put the answer.
+ *
+ * Like the signing secret: no default, no development fallback, never logged.
+ */
+export function authPassword(): string {
+  const password = process.env.AUTH_PASSWORD?.trim();
+  if (!password) {
+    throw new Error(
+      "AUTH_PASSWORD is not set. Choose a password and add it to .env.local.",
+    );
+  }
+  if (password.length < MIN_AUTH_PASSWORD_LENGTH) {
+    throw new Error(
+      `AUTH_PASSWORD is too short: it must be at least ${MIN_AUTH_PASSWORD_LENGTH} characters.`,
+    );
+  }
+  return password;
 }

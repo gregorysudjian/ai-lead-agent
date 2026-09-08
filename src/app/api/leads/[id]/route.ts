@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getLeadRepository } from "@/server/repo";
+import { requireApiSession } from "@/server/auth";
 
 /**
  * PATCH /api/leads/[id]
@@ -22,6 +23,9 @@ export async function PATCH(
   // Next 16 passes route params as a Promise.
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const guard = await requireApiSession();
+  if (!guard.ok) return guard.response;
+
   const { id } = await context.params;
 
   let rawBody: unknown;
