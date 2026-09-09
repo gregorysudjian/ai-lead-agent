@@ -18,10 +18,18 @@
 -- No markup and no payload. This table stores identity, a secret, three
 -- timestamps and one operator note. The demo itself stays in demo_sites.
 --
+-- SAFE TO RUN TWICE. Every statement here is idempotent. Migrations in this
+-- project are applied by hand through the SQL editor, and a migration applied
+-- by hand will sometimes be applied twice -- half-running one and then being
+-- unable to re-run it is a worse failure than the duplication it guards
+-- against. The final NOTIFY matters for the same reason: PostgREST serves the
+-- REST API from a CACHED schema, so a table created without it exists in the
+-- database and is still reported as missing to the application.
+--
 -- SECURITY, declared explicitly as CLAUDE.md requires. Nothing here relies on
 -- default privileges, even though 20260906130000 already revoked them.
 
-create table public.demo_shares (
+create table if not exists public.demo_shares (
   id uuid primary key,
 
   -- Cascade: a share grants access to one demo, and a share pointing at a
@@ -54,7 +62,7 @@ create table public.demo_shares (
 
 -- "Shares for this demo, newest first" -- the operator's view of what has been
 -- handed out for one business, and whether any of it is still live.
-create index demo_shares_demo_id_created_at_idx
+create index if not exists demo_shares_demo_id_created_at_idx
   on public.demo_shares (demo_id, created_at desc);
 
 -- The unique constraint on token already provides the index the public lookup
@@ -91,3 +99,16 @@ grant select, insert, update on table public.demo_shares to service_role;
 -- data only through the server, as service_role, after the application has
 -- checked the share is neither expired nor revoked.
 alter table public.demo_shares enable row level security;
+
+-- ---- Make the API see it -------------------------------------------------
+--
+-- PostgREST answers every REST request from a schema cache it built at start
+-- up. A table created without telling it to reload EXISTS in the database and
+-- is still reported to the application as
+--
+--   PGRST205: Could not find the table 'public.demo_shares' in the schema cache
+--
+-- which reads exactly like the migration never ran. This is the statement that
+-- makes the difference, and it is why this file ends here rather than at the
+-- RLS line above.
+notify pgrst, 'reload schema';
