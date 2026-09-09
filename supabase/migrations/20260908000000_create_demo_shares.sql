@@ -18,18 +18,21 @@
 -- No markup and no payload. This table stores identity, a secret, three
 -- timestamps and one operator note. The demo itself stays in demo_sites.
 --
--- SAFE TO RUN TWICE. Every statement here is idempotent. Migrations in this
--- project are applied by hand through the SQL editor, and a migration applied
--- by hand will sometimes be applied twice -- half-running one and then being
--- unable to re-run it is a worse failure than the duplication it guards
--- against. The final NOTIFY matters for the same reason: PostgREST serves the
--- REST API from a CACHED schema, so a table created without it exists in the
--- database and is still reported as missing to the application.
+-- STRICT, like every migration here: no IF NOT EXISTS guards. An unexpected
+-- pre-existing table must fail loudly rather than be silently adapted to, so
+-- re-running this on a database that already has the table is an error you
+-- see. `migration.test.ts` enforces that across every file in this directory.
+--
+-- The final NOTIFY is not optional. PostgREST serves the REST API from a
+-- schema cache built at start up, so a table created without it exists in the
+-- database and is still reported to the application as
+-- "PGRST205: could not find the table" -- indistinguishable from a migration
+-- that never ran. Omitting it cost a debugging session.
 --
 -- SECURITY, declared explicitly as CLAUDE.md requires. Nothing here relies on
 -- default privileges, even though 20260906130000 already revoked them.
 
-create table if not exists public.demo_shares (
+create table public.demo_shares (
   id uuid primary key,
 
   -- Cascade: a share grants access to one demo, and a share pointing at a
@@ -62,7 +65,7 @@ create table if not exists public.demo_shares (
 
 -- "Shares for this demo, newest first" -- the operator's view of what has been
 -- handed out for one business, and whether any of it is still live.
-create index if not exists demo_shares_demo_id_created_at_idx
+create index demo_shares_demo_id_created_at_idx
   on public.demo_shares (demo_id, created_at desc);
 
 -- The unique constraint on token already provides the index the public lookup

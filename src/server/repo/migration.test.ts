@@ -88,8 +88,15 @@ describe("migration schema properties", () => {
   const sql = statementsOnly(migrationSql());
 
   it("is strict: no IF NOT EXISTS / IF EXISTS guards", () => {
-    // This is the first migration and has never been applied. It must fail on an
-    // unexpected pre-existing table rather than adapt to a schema we did not author.
+    // Applies to EVERY migration in the directory, not just the first -- this
+    // assertion reads them all concatenated. A migration must fail on an
+    // unexpected pre-existing table rather than adapt to a schema we did not
+    // author, because "it ran and changed nothing" and "it ran and built what
+    // I expected" are indistinguishable afterwards.
+    //
+    // The tension is real: these are applied by hand through a SQL editor, and
+    // a hand-applied migration can be half-run. The answer is to fix the
+    // database deliberately, not to make every migration silently tolerant.
     expect(sql).not.toContain("if not exists");
     expect(sql).not.toContain("if exists");
   });
