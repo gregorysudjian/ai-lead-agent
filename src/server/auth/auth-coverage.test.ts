@@ -24,8 +24,16 @@ import { SESSION_COOKIE } from "./session";
 
 const APP_DIR = path.join(process.cwd(), "src", "app");
 
-/** Pages that are meant to be reachable without a session. */
-const PUBLIC_PAGES = new Set(["login/page.tsx"]);
+/**
+ * Pages that are meant to be reachable without a session.
+ *
+ * Two, and each earns it differently. `/login` has nothing to protect. `/s/`
+ * serves one demo to the business it was made for, and its access control is
+ * the share token in the path -- issued deliberately, expiring, revocable --
+ * rather than a session. Adding to this set is the visible diff that makes
+ * such a decision reviewable.
+ */
+const PUBLIC_PAGES = new Set(["login/page.tsx", "s/[token]/page.tsx"]);
 
 /** Route handlers that are meant to be reachable without a session. */
 const PUBLIC_ROUTES = new Set<string>([]);
@@ -139,7 +147,11 @@ describe("proxy and the session module agree", () => {
   it("agree on which pages are public", () => {
     for (const page of PUBLIC_PAGES) {
       const route = `/${page.replace("/page.tsx", "")}`;
-      expect(proxySource).toContain(`"${route}"`);
+      // A dynamic segment is exempted by prefix rather than by literal path,
+      // because the token varies. `/s/[token]` is allowed by `/s/`.
+      const dynamic = route.indexOf("/[");
+      const expected = dynamic === -1 ? route : `${route.slice(0, dynamic)}/`;
+      expect(proxySource, `proxy.ts does not exempt ${route}`).toContain(`"${expected}"`);
     }
   });
 });

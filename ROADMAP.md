@@ -352,10 +352,11 @@ would mean building them twice.
 - **Follow-up reminders.** A due date on a record and a "due today" list. Still
   no sending; a reminder tells a human to act.
 - **CSV export.** Leads with scores and contact points, for working offline.
-- **Shareable demo links.** Only after Phase 1. A demo is the strongest thing in
-  the pitch and it is useless if it cannot be shown. Design it deliberately: an
-  explicit publish action, a token distinct from the internal id, an expiry, and
-  a revoke. Not "the id is unguessable."
+- ~~**Shareable demo links.**~~ **DONE**, pulled forward out of this phase: it
+  was the one thing blocking the tool from being used at all. `/s/[token]` is
+  the only public route; the token is 32 random bytes distinct from the demo
+  id, every share expires, any share can be revoked, and unknown, expired and
+  revoked all render the same 404.
 - **Pagination / server-side filtering.** `leads-browser.tsx` loads every lead
   and filters client-side with a presentation cap. Fine at hundreds; not at
   thousands. Move filtering into the repository when it actually hurts — not

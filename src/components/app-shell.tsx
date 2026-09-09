@@ -44,6 +44,9 @@ const NAV: NavItem[] = [
  */
 function isChromeless(pathname: string): boolean {
   if (pathname === "/login") return true;
+  // A shared demo is somebody else's proposed website seen by somebody who is
+  // not our operator. Our sidebar has no place on it at all.
+  if (pathname.startsWith("/s/")) return true;
   return /^\/demos\/[^/]+$/.test(pathname);
 }
 

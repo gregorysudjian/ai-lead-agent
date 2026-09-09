@@ -130,16 +130,27 @@ The real check is next to the data:
 or handler is missing its guard. Anything intentionally public has to be added
 to an allow-list, which is a visible diff in review.
 
-### `/demos/[id]` is not shareable
+### Sharing a demo
 
-The demo preview requires a session like everything else. Its id is a UUID, but
-an unguessable URL is not an access control, and the page carries a named
-business plus copy written about it.
+`/demos/[id]` requires a session like everything else. Its id is a UUID, but an
+unguessable URL is not an access control.
 
-This means there is currently **no way to show a demo to the business it was
-made for.** That is deliberate -- sharing needs a scoped token, an expiry and a
-record of who it was shown to, and inheriting it by accident from "the URL is
-hard to guess" is not the same feature.
+To show a demo to the business it was made for, the operator creates a **share**
+from the preview page. That issues `/s/[token]`, the only route in the app
+reachable without a session:
+
+- The token is **32 random bytes**, minted server-side, never derived from the
+  demo id. Two shares of one demo have unrelated tokens, so revoking one does
+  not silently revoke the other.
+- Every share **expires** (7, 30 or 90 days). There are no perpetual links.
+- Any share can be **revoked**, which sets a timestamp rather than deleting the
+  row — what was shared, and when, survives.
+- Unknown, expired and revoked tokens all render the **same 404**, so a probe
+  cannot confirm a token was ever real.
+- The page carries **none of the operator chrome** — no lead, no analysis, no
+  generator, no links into the dashboard — and performs **no write**.
+- The **sample-content marks stay**. The shared page is the one place the
+  business owner actually reads them, and they exist to be corrected.
 
 ---
 

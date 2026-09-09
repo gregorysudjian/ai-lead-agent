@@ -214,6 +214,22 @@ hours, and place ID -> flag the ones with no website.
   notices. Faces are self-hosted through `next/font`, so a demo page still
   fetches nothing from a third party at runtime.
 
+- **A demo is shown to a business through a share, never through a guessable
+  URL.** `/s/[token]` is the only route in the application reachable without a
+  session, and its access control is a `DemoShare`: 32 random bytes minted
+  server-side, never derived from the demo id, always carrying an expiry, and
+  revocable. Revoking sets a timestamp rather than deleting the row, because
+  "what did we show them, and when" is what a later conversation needs. Unknown,
+  expired, revoked and "the demo is gone" all render the SAME 404 -- a distinct
+  "this link expired" confirms to a stranger holding a guess that the token was
+  once real. The public page performs no write, so nothing an unauthenticated
+  visitor does can change stored state, and it carries none of the operator
+  chrome: no lead, no analysis, no generator, no links back into the dashboard.
+  The sample-content marks DO stay, because the shared page is the one place the
+  business owner actually reads them. Adding a second public route means adding
+  it to `PUBLIC_PREFIXES` in `proxy.ts` AND to the allow-list in
+  `auth-coverage.test.ts`, which is the visible diff that makes it reviewable.
+
 - **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the
   sourced profile rather than independently going and looking. Analysis and
