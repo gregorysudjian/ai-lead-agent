@@ -230,6 +230,31 @@ hours, and place ID -> flag the ones with no website.
   it to `PUBLIC_PREFIXES` in `proxy.ts` AND to the allow-list in
   `auth-coverage.test.ts`, which is the visible diff that makes it reviewable.
 
+- **Two discovery datasets, kept apart and kept honest.** OpenStreetMap is
+  queried live per search through Overpass, which is shared community
+  infrastructure and must never be region-tiled or crawled. Overture Maps is
+  ingested in BULK from its public Parquet, filtered to a region and the twelve
+  trades, and stored -- that is what makes state- and country-scale search
+  possible at all, because there is no per-query result cap on our own
+  database. A place therefore carries `source: "osm"` or `source: "overture"`
+  and never both, they are deduped against each other by the existing
+  name+address strategy (a GERS id will never equal an OSM node id), and each
+  carries its own attribution: ODbL for OSM, CDLA-Permissive 2.0 for Overture.
+  Neither may be presented as the other.
+
+  Two rules the ingest holds. Overture's `confidence` is a FILTER, not a
+  field: below 0.5 a place often does not exist, and approaching a business
+  that is not there wastes the operator's time -- but storing the number would
+  mean changing the domain type, every provider and the leads table to carry
+  something one source supplies. And an unrecognised Overture category maps to
+  `null` and is skipped rather than approximated, because a bakery filed as a
+  restaurant produces a demo about the wrong business. The exclusions are data,
+  not comments: `it_service_and_computer_repair` contains "repair" and is not a
+  garage.
+
+  The bulk reader's bounding box PRUNES; the address codes DECIDE. A box alone
+  sweeps in the neighbouring state, codes alone force a full scan of 7GB.
+
 - **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the
   sourced profile rather than independently going and looking. Analysis and

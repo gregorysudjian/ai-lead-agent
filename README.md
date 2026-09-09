@@ -193,6 +193,53 @@ earlier versions.
 
 ---
 
+## Where businesses come from
+
+Two datasets, kept apart on purpose.
+
+**OpenStreetMap**, queried live per search through Overpass. High quality, and
+the source of the opening hours a demo shows. It cannot do a state: Overpass
+explicitly forbids region-tiling, and the endpoint is volunteer-run community
+infrastructure, not our capacity.
+
+**Overture Maps**, ingested in bulk from public Parquet. 72M places under
+CDLA-Permissive 2.0 — free, storable, no rate limit and no per-query result
+cap, which is what makes state- and country-scale search possible at all.
+
+```bash
+# Assess a region before ingesting it
+node scripts/overture-probe.mjs
+
+# Extract it to a local file (never to the database)
+npx tsx scripts/overture-ingest.mts --region=CA:QC
+
+# Check how much of it you already have (read-only)
+npx tsx scripts/overture-overlap.mts
+
+# Regenerate the Region Resolver's city list
+npx tsx scripts/overture-localities.mts --regions=CA:QC,US:TX
+```
+
+Quebec yields **45,484 businesses** across the twelve trades, 9,985 with no
+website listed. Overlap with an existing 230 OSM leads was **4** — the two
+datasets are complementary, not redundant.
+
+Three rules the ingest holds:
+
+- **Confidence is a filter, not a field.** Below 0.5, a place often does not
+  exist. Storing the number would mean changing the domain type and every
+  provider to carry something one source supplies.
+- **An unrecognised category is skipped, not approximated.** A bakery filed as
+  a restaurant produces a demo about the wrong business.
+- **The bounding box prunes; the address codes decide.** A box alone sweeps in
+  the neighbouring state; codes alone force a full scan of 7GB.
+
+Regions resolve through `src/lib/region/`. Collisions are reported rather than
+guessed — "CA" is both Canada and California, and "Austin" is a real
+municipality in Quebec as well as the city in Texas.
+
+---
+
 ## Rate limits
 
 `src/server/rate-limit.ts` governs every route that reaches a third party or

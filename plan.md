@@ -178,3 +178,105 @@ Everything else will be committed, green, and reviewable with `git log`.
 ## Results
 
 *Appended as I work. Newest entry last.*
+
+### All seven items are done. Everything is green and committed.
+
+**1,632 tests, 62 files. Lint clean. Build clean.** Four commits:
+
+```
+e281e02  Ingest a region from Overture, and give the resolver its cities
+b4773b0  Teach the system to read Overture places
+091880e  Write the overnight plan
+8f96c65  Stop counting a Yellow Pages entry as a website
+```
+
+### What you have that you did not last night
+
+**Quebec, extracted and on disk** — `data/overture/CA-QC.ndjson`, 15 MB:
+
+| | |
+|---|---|
+| Businesses across the twelve trades | **45,484** |
+| With no website listed | **9,985** |
+| With a phone number | **43,532** |
+| Distinct cities | 1,768 |
+| Already in your 230 leads | **4** |
+
+That last number is the important one. The overlap is 0.01%: Overture and
+OpenStreetMap cover almost entirely different businesses here, so this is
+additive rather than a re-run of what you had. The dedupe did work — it matched
+"Decor Floral Fleuriste" to "Décor Floral fleuriste" across sources unprompted.
+
+**The Region Resolver can place cities now.** `resolveRegion("Laval")`,
+`("Houston")`, `("Dallas")` all resolve against a generated registry of 2,166
+localities. `("Austin")` correctly does not — Austin, Quebec is a real
+municipality in the Eastern Townships.
+
+### Three things that went wrong, and what they taught
+
+**The first ingest normalised zero of three hundred rows.** DuckDB's driver
+returns `DuckDBStructValue` and `DuckDBListValue` wrappers, not plain objects.
+The fix belonged in the script, not the normaliser — a pure domain function must
+never learn a database driver's shape — so the flattening now happens in the SQL
+projection.
+
+**Every city was ambiguous with itself.** Overture carries "Laval" and "LAVAL"
+as separate values and SQL `GROUP BY` treats them as different cities, so the
+resolver offered two identical choices and refused to pick. The generator now
+folds on the same `normalizeTerm` the lookup uses: 2,456 raw values → 2,166 real
+localities.
+
+**I broke booking extraction** (yesterday, but worth repeating since the fix
+shaped today's design). Adding booking hosts to the "not a real website" list
+made the research extractor file every Fresha link as a social profile. The same
+host answers two questions oppositely, so there are now two lists.
+
+### One judgement call I made without you
+
+A locality sharing its own parent's name is collapsed to the parent. There is a
+Texas in Texas and a Quebec City in Quebec, and reporting the commonest inputs
+in the system as ambiguous would be technically true and practically useless.
+
+It is safe because the subdivision **contains** the locality — a search across
+Quebec already includes every shop in Quebec City, so nothing is missed. Nevada,
+Texas is the sharp edge and stays ambiguous, because it is *not* inside the
+state of Nevada. The rule keys on the parent, never on the name. If you disagree
+it is one function, `sharesParentName`, and deleting it restores the old
+behaviour.
+
+### What I deliberately did not do
+
+**Nothing was written to your Supabase.** Not one row. The ingest wrote a file
+you can read instead, which is the whole point: if the normaliser were wrong
+you would find out from 15 MB of NDJSON rather than from 45,484 bad rows that
+nothing can delete — the lead repository has no delete grant.
+
+**No migration was applied**, and none is needed for anything committed. Loading
+will need an `ingest_runs` table, but that decision belongs to a load you are
+awake for.
+
+**The Orchestrator is untouched.** Its purpose is running long jobs unattended;
+building and first-running it overnight is how you wake up to a lot of something
+wrong.
+
+### In the morning
+
+Nothing is required of you. When you want to go further:
+
+```bash
+# Look at what was extracted
+head -3 data/overture/CA-QC.ndjson
+cat data/overture/CA-QC.report.json
+
+# Try the resolver
+npx vitest run src/lib/region
+
+# Extract another region
+npx tsx scripts/overture-ingest.mts --region=US:TX
+```
+
+The next real step is loading Quebec into Supabase, which needs an
+`ingest_runs` table, a loader that goes through the existing dedupe, and a
+decision about how many of 45,484 you actually want stored. That is a
+conversation, not a script — which is why it waited.
+
