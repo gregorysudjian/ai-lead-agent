@@ -44,6 +44,18 @@ export interface RegistrySubdivision {
   /** ISO 3166-1 alpha-2 of the country this belongs to. */
   country: string;
   aliases: string[];
+  /**
+   * An optional pruning hint, NOT a definition of the area.
+   *
+   * Membership is decided by the subdivision code on an address; this only
+   * lets a bulk reader skip row groups it cannot possibly need. A missing box
+   * costs time, never correctness -- the reader falls back to the country's.
+   *
+   * Populated as regions are actually ingested rather than all at once:
+   * sixty-nine hand-authored boxes is sixty-nine chances to fat-finger a
+   * digit, and a wrong box silently drops real businesses.
+   */
+  bbox?: BoundingBox;
 }
 
 /**
@@ -146,6 +158,12 @@ const CA_SUBDIVISIONS: readonly RegistrySubdivision[] = [
  * not a guess at one -- an over-generous alias list makes ambiguity worse, and
  * ambiguity is the failure mode this module works hardest to avoid.
  */
+const SUBDIVISION_BBOXES: Readonly<Record<string, BoundingBox>> = {
+  // Populated for regions we have actually ingested. Generous on purpose.
+  "CA:QC": [-79.9, 44.9, -56.9, 62.7],
+  "US:TX": [-106.7, 25.8, -93.4, 36.6],
+};
+
 const EXTRA_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "US:CA": ["calif"],
   "US:DC": ["washington dc", "washington d c", "d c"],
@@ -165,7 +183,12 @@ export const SUBDIVISIONS: readonly RegistrySubdivision[] = [
   // Normalised, which is what makes the deduplication real: "québec" is an
   // explicit extra and "Quebec" is the generated label alias, and only after
   // normalisation are they visibly the same entry.
-  return { ...entry, aliases: normalisedAliases([...entry.aliases, ...extra]) };
+  const bbox = SUBDIVISION_BBOXES[`${entry.country}:${entry.code}`];
+  return {
+    ...entry,
+    aliases: normalisedAliases([...entry.aliases, ...extra]),
+    ...(bbox ? { bbox } : {}),
+  };
 });
 
 /**

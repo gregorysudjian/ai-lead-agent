@@ -46,3 +46,6 @@ next-env.d.ts
 
 # supabase CLI scratch state (link metadata, version caches) -- machine-local
 /supabase/.temp/
+
+# Ingested dataset slices. Large, regenerable, and not source.
+/data/
