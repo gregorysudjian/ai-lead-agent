@@ -179,7 +179,13 @@ route is refused, and CI is green on `main`.
 
 ---
 
-### Phase 2 — Give discovery candidates an exit  ⬅ NEXT
+### Phase 2 — Give discovery candidates an exit  ⏸ SUPERSEDED
+
+**Superseded 2026-09-09.** This phase existed to rescue Google-sourced
+businesses that the multi-source orchestrator could see and never keep. Google
+is off (it is paid, and its licence forbids warehousing name/phone/website
+anyway), so the phase now rescues nothing. Region-wide discovery went a
+different way — see *Region-wide expansion* below.
 
 **Why here:** the multi-source orchestrator is finished work that currently
 produces nothing durable. This is the highest ratio of value to new code in the
@@ -202,6 +208,29 @@ roadmap — the hard part is built.
 **Done when:** a multi-source run can be turned into leads without leaving the
 page, no Google-only field lands in `provider`, and re-running the same search
 creates zero duplicates.
+
+---
+
+### Region-wide expansion (Overture) — IN PROGRESS
+
+Added 2026-09-09, replacing the "query an API per region" design. Overpass
+forbids region-tiling and Google forbids storing what it returns, so neither
+can do a state. Overture Maps publishes 72M places as open Parquet under
+CDLA-Permissive 2.0 — free, storable, no rate limit, no result cap.
+
+Done:
+- Region Resolver: free text -> country / subdivision / locality, collisions
+  reported rather than guessed.
+- Overture category mapping (860 real categories -> our 12) and normaliser.
+- `overture` as a `BusinessSource`, with its own attribution.
+- Ingest script writing a local file; Quebec = 45,484 businesses, 9,985 with
+  no website. Overlap with existing leads: 4.
+- Locality registry generated from the ingested address column: 2,166 cities.
+
+Next:
+- Load the file into Supabase (needs `ingest_runs` and a deliberate run).
+- Discovery agent querying stored leads by region + category.
+- Orchestrator with durable per-item state.
 
 ---
 
