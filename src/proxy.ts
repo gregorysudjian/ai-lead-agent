@@ -28,11 +28,22 @@ const SESSION_COOKIE = "lf_session";
 /** Pages reachable without a session. Everything else needs one. */
 const PUBLIC_PATHS = new Set(["/login"]);
 
+/**
+ * Page prefixes reachable without a session.
+ *
+ * Only `/s/`, which serves a demo to the business it was made for. Its access
+ * control is the token in the path -- 32 random bytes, with an expiry and a
+ * revoke -- checked by the page itself against the share store. Listing it
+ * here exempts it from the session redirect and from nothing else.
+ */
+const PUBLIC_PREFIXES = ["/s/"];
+
 /** API routes reachable without a session. */
 const PUBLIC_API_PREFIXES = ["/api/auth/"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
+  if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
   return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 

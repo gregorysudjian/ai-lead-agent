@@ -20,6 +20,9 @@ import { InMemoryBusinessProfileTableGateway } from "./profile-table";
 import type { BusinessProfileRepository } from "./profile-types";
 import { supabaseLeadRepository } from "./supabase";
 import type { LeadRepository } from "./types";
+import { localDemoShareGateway } from "./share-gateway";
+import { createDemoShareRepository, supabaseDemoShareRepository } from "./share-supabase";
+import type { DemoShareRepository } from "./share-types";
 
 /**
  * Resolve the lead repository.
@@ -93,6 +96,29 @@ export function getDemoSiteRepository(): DemoSiteRepository {
 
 export type { DemoSiteRepository } from "./demo-types";
 export { DemoSiteRepositoryError } from "./demo-types";
+
+/**
+ * Resolve the demo-share repository.
+ *
+ * Same selector as every other store. The JSON lead store has no share file
+ * backing, so the local path uses an in-memory gateway -- adequate for
+ * development, and explicitly not durable. That is a sharper limitation here
+ * than elsewhere: a share issued against the local store stops working when
+ * the dev server restarts.
+ */
+export function getDemoShareRepository(): DemoShareRepository {
+  const name = leadRepositoryName();
+
+  switch (name) {
+    case "json":
+      return createDemoShareRepository(localDemoShareGateway);
+    case "supabase":
+      return supabaseDemoShareRepository();
+  }
+}
+
+export type { DemoShareRepository, CreateShareInput } from "./share-types";
+export { DemoShareRepositoryError } from "./share-types";
 
 /**
  * Resolve the business-profile repository.

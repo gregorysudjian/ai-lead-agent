@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { OsmAttribution } from "@/components/attribution";
 import { DemoSiteView } from "@/components/demo/demo-site-view";
 import { DEMO_FONT_VARIABLES } from "@/components/demo/fonts";
+import { SharePanel } from "@/components/demo/share-panel";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
 import { sampleSectionLabels } from "@/lib/demo-sample-policy";
 import { formatTimestamp } from "@/lib/format";
 import { requireSession } from "@/server/auth";
+import { sharesForDemo } from "@/server/share-service";
 import { getDemoSiteRepository } from "@/server/repo";
 
 /**
@@ -76,6 +78,17 @@ export default async function DemoPreviewPage({
   // survives a screenshot that crops the inline tags.
   const sampleSections = sampleSectionLabels(content);
 
+  // Read here, on the server, like every other page in this app -- never by
+  // the panel fetching its own API. A share store failure must not take the
+  // preview down with it: the demo is still viewable, there is just no way to
+  // hand it out until the store comes back.
+  let shares: Awaited<ReturnType<typeof sharesForDemo>> = [];
+  try {
+    shares = await sharesForDemo(demo.id);
+  } catch (error) {
+    console.error(`[demo ${id}] could not read share links:`, error);
+  }
+
   return (
     // The font variables must resolve on an ancestor of the preview.
     <div className={DEMO_FONT_VARIABLES}>
@@ -103,6 +116,7 @@ export default async function DemoPreviewPage({
             <Link href="/demos" className="font-medium text-slate-300 underline underline-offset-2 hover:text-white">
               All demos
             </Link>
+            <SharePanel demoId={demo.id} shares={shares} />
           </div>
         </div>
 

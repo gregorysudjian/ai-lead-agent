@@ -107,17 +107,33 @@ describe("checkRateLimit", () => {
 });
 
 describe("RATE_LIMITS", () => {
-  it("covers every route that reaches a third party or spends money", () => {
+  it("covers every route that reaches a third party, spends money, or is public", () => {
     const expected: RateLimitName[] = [
+      // Reach a third party or spend money.
       "search",
       "discovery",
       "research",
       "researchBatch",
       "analysis",
       "demo",
+      // Unauthenticated surfaces, where the limit guards us rather than them.
       "signIn",
+      "sharedDemo",
     ];
     expect(Object.keys(RATE_LIMITS).sort()).toEqual([...expected].sort());
+  });
+
+  it("limits every unauthenticated surface", () => {
+    // The two routes reachable without a session. A public route added without
+    // a limit is the kind of omission this catches.
+    expect(RATE_LIMITS.signIn).toBeDefined();
+    expect(RATE_LIMITS.sharedDemo).toBeDefined();
+  });
+
+  it("lets a real recipient reload a shared demo without being blocked", () => {
+    // The limit is there to slow enumeration and replay, not to frustrate the
+    // business owner the link was made for.
+    expect(RATE_LIMITS.sharedDemo.limit).toBeGreaterThanOrEqual(30);
   });
 
   it("states every rule as a positive limit over a positive window", () => {

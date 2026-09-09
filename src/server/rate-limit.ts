@@ -66,6 +66,20 @@ export const RATE_LIMITS = {
   /** Billable Claude request. */
   demo: { limit: 20, windowMs: 5 * MINUTE },
   /**
+   * Views of a shared demo, keyed by client address.
+   *
+   * The second rule guarding an unauthenticated surface, and the only one
+   * protecting our own data rather than a third party's. A share token is 32
+   * random bytes, so this is not what makes guessing infeasible -- it is what
+   * stops someone trying anyway from doing it quickly, and what keeps a single
+   * shared link from being replayed thousands of times.
+   *
+   * Generous enough that a real recipient reloading and following anchors
+   * never notices it.
+   */
+  sharedDemo: { limit: 60, windowMs: 5 * MINUTE },
+
+  /**
    * Password attempts. The only rule here that guards an unauthenticated
    * surface, and the only one whose purpose is slowing a guesser rather than
    * protecting a third party.
