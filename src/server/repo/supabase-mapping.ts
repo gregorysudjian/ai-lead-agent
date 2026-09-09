@@ -127,7 +127,7 @@ function toProviderSnapshot(value: unknown): ProviderSnapshot {
   const p = value as Record<string, unknown>;
 
   const source = requireString(p.source, "provider.source");
-  if (source !== "mock" && source !== "osm" && source !== "google") {
+  if (source !== "mock" && source !== "osm" && source !== "google" && source !== "overture") {
     throw new LeadRowMappingError(`Lead row provider.source has unknown value.`);
   }
 

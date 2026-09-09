@@ -10,7 +10,16 @@
  */
 
 /** Which adapter produced a record. `externalId` is only unique within a source. */
-export type BusinessSource = "mock" | "osm" | "google";
+/**
+ * Where a business record came from.
+ *
+ * "overture" is the Overture Maps open places dataset, ingested in bulk rather
+ * than queried per search. It is a separate source from "osm" on purpose: the
+ * two datasets disagree, carry different licences, and require different
+ * attribution -- and CLAUDE.md is explicit that OSM data must never be
+ * presented as coming from another provider. The reverse is just as true.
+ */
+export type BusinessSource = "mock" | "osm" | "google" | "overture";
 
 export type Weekday =
   | "monday"

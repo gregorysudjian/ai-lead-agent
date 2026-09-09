@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { OsmAttribution } from "@/components/attribution";
+import { OsmAttribution, OvertureAttribution } from "@/components/attribution";
 import { DemoSiteView } from "@/components/demo/demo-site-view";
 import { DEMO_FONT_VARIABLES } from "@/components/demo/fonts";
 import { SharePanel } from "@/components/demo/share-panel";
@@ -142,6 +142,9 @@ export default async function DemoPreviewPage({
           ) : null}
           {business.source === "osm" ? (
             <OsmAttribution tone="inverted" className="mt-1" />
+          ) : null}
+          {business.source === "overture" ? (
+            <OvertureAttribution tone="inverted" className="mt-1" />
           ) : null}
         </div>
       </div>

@@ -5,7 +5,7 @@ import { AnalysisPanel } from "@/components/analysis-panel";
 import { DemoPanel } from "@/components/demo-panel";
 import { OutreachPanel } from "@/components/outreach-panel";
 import { ResearchPanel } from "@/components/research-panel";
-import { OsmAttribution, SOURCE_LABELS } from "@/components/attribution";
+import { OsmAttribution, OvertureAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { PriorityBadge, StatusBadge } from "@/components/lead-row";
 import { StatusToggle } from "@/components/status-toggle";
 import {
@@ -308,6 +308,7 @@ export default async function LeadDetailPage({
           )}
 
           {provider.source === "osm" ? <OsmAttribution className="mt-6" /> : null}
+          {provider.source === "overture" ? <OvertureAttribution className="mt-6" /> : null}
         </Card>
 
         <Card className="p-5">
