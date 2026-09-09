@@ -10,6 +10,7 @@ export const SOURCE_LABELS: Record<BusinessSource, string> = {
   mock: "Mock fixture data",
   osm: "OpenStreetMap",
   google: "Google Places",
+  overture: "Overture Maps",
 };
 
 /**
@@ -59,6 +60,54 @@ export function OsmAttribution({
 }
 
 /** Small provenance label for a single lead. */
+/**
+ * Overture Maps attribution.
+ *
+ * Overture's places data is published under CDLA-Permissive 2.0, which
+ * requires attribution notices to be preserved. Treated exactly like the OSM
+ * credit above rather than as an afterthought: a licence that asks for credit
+ * gets credit wherever the data is shown, and never a claim that it came from
+ * somewhere else.
+ */
+export function OvertureAttribution({
+  className = "",
+  tone = "default",
+}: {
+  className?: string;
+  /** `inverted` for placement on a dark surface, such as the demo preview bar. */
+  tone?: "default" | "inverted";
+}) {
+  const muted = tone === "inverted" ? "text-slate-400" : "text-slate-500 dark:text-slate-400";
+  const link =
+    tone === "inverted"
+      ? `underline underline-offset-2 hover:text-white ${FOCUS_RING}`
+      : `underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100 ${FOCUS_RING}`;
+
+  return (
+    <p className={`text-[11px] leading-relaxed ${muted} ${className}`}>
+      Business data from{" "}
+      <a
+        href="https://overturemaps.org"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={link}
+      >
+        Overture Maps
+      </a>
+      , available under{" "}
+      <a
+        href="https://cdla.dev/permissive-2-0/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={link}
+      >
+        CDLA-Permissive 2.0
+      </a>
+      .
+    </p>
+  );
+}
+
 export function SourceBadge({ source }: { source: BusinessSource }) {
   return (
     <Badge tone="slate">Source: {SOURCE_LABELS[source]}</Badge>
