@@ -20,6 +20,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@duckdb/node-api": "^1.5.5-r.4",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.13.3",
     "@types/react": "^19",
