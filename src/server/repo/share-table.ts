@@ -14,11 +14,29 @@ interface PostgrestErrorLike {
 }
 
 /**
- * Convert a driver error into ours. The upstream message goes to `cause` for
- * server logs only -- route handlers substitute a generic client message.
+ * Convert a driver error into ours.
+ *
+ * The Postgrest CODE is included in our own message, which only ever reaches
+ * server logs -- route handlers substitute a generic client message. Without
+ * it the log said "Supabase query failed (insert)" and nothing else, and the
+ * actual cause (PGRST205, the table does not exist) was buried in a nested
+ * `cause` that `console.error` did not print. A code is not sensitive; a
+ * message body can carry quota detail, so that still travels only as `cause`.
+ *
+ * PGRST205 in particular means a migration has not been applied, which is a
+ * deployment fault rather than a transient one -- worth naming, because
+ * "please try again" is useless advice for it.
  */
 function toRepositoryError(error: PostgrestErrorLike, context: string): Error {
-  return new DemoShareRepositoryError(`Supabase query failed (${context}).`, { cause: error });
+  const code = error.code ? ` [${error.code}]` : "";
+  const hint =
+    error.code === "PGRST205"
+      ? " The demo_shares table is missing -- apply supabase/migrations/20260908000000_create_demo_shares.sql."
+      : "";
+
+  return new DemoShareRepositoryError(`Supabase query failed (${context})${code}.${hint}`, {
+    cause: error,
+  });
 }
 
 /** The only module that speaks Supabase for demo shares. */
