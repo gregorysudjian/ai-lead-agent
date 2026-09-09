@@ -82,3 +82,16 @@ export type RegionResolution =
       /** Why, in words safe to show a user. Never leaks internals. */
       reason: string;
     };
+
+/**
+ * A locality the resolver can place.
+ *
+ * Lives here rather than beside the resolver so the generated registry in
+ * `localities.ts` can reference it without the two importing each other.
+ */
+export interface KnownLocality {
+  label: string;
+  country: string;
+  subdivision: string | null;
+  aliases?: readonly string[];
+}

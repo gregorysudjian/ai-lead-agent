@@ -1,6 +1,9 @@
 import { normalizeTerm } from "../normalize";
+import { LOCALITIES } from "./localities";
 import { COUNTRIES, SUBDIVISIONS } from "./registry";
-import type { RegionResolution, ResolvedRegion } from "./types";
+import type { KnownLocality, RegionResolution, ResolvedRegion } from "./types";
+
+export type { KnownLocality } from "./types";
 
 /**
  * Turn free-text region input into something the pipeline can query.
@@ -30,25 +33,17 @@ import type { RegionResolution, ResolvedRegion } from "./types";
  * Pure and total: no I/O, no clock, never throws.
  */
 
-/**
- * A locality the caller already knows about.
- *
- * Supplied rather than looked up, because locality data belongs to the dataset
- * ingest and not to this module -- see `LOCALITY_SOURCE_NOTE`. Passing them in
- * keeps the resolver finished and pure while its data source is still pending,
- * and keeps it testable without a database.
- */
-export interface KnownLocality {
-  label: string;
-  country: string;
-  subdivision: string | null;
-  aliases?: readonly string[];
-}
-
 export interface ResolveOptions {
   /**
-   * Localities to consider. Empty by default, which is honest: without the
-   * divisions ingest this resolver genuinely cannot place a city.
+   * Localities to consider.
+   *
+   * Defaults to the generated registry in `localities.ts`, which is derived
+   * from the same address column the ingest filters on -- so a name that
+   * resolves is guaranteed to match records we actually store.
+   *
+   * Still injectable, and passing `[]` genuinely means "place no cities". The
+   * module stays pure and testable in isolation; the default is a convenience
+   * for callers, not a hidden dependency.
    */
   localities?: readonly KnownLocality[];
 }
@@ -66,11 +61,43 @@ function countryRegion(code: string): ResolvedRegion | null {
   };
 }
 
+/**
+ * Does this locality carry the same name as the subdivision containing it?
+ *
+ * See the call site for why such a locality is skipped rather than offered.
+ */
+function sharesParentName(locality: KnownLocality): boolean {
+  if (locality.subdivision === null) return false;
+
+  const parent = SUBDIVISIONS.find(
+    (s) => s.country === locality.country && s.code === locality.subdivision,
+  );
+  if (!parent) return false;
+
+  return normalizeTerm(parent.label) === normalizeTerm(locality.label);
+}
+
 /** Every registry entry whose aliases contain `needle`, smallest area first. */
 function matches(needle: string, localities: readonly KnownLocality[]): ResolvedRegion[] {
   const found: ResolvedRegion[] = [];
 
   for (const locality of localities) {
+    // A locality sharing its own parent's name is not a real choice.
+    //
+    // Overture has a Texas in Texas, a Washington and a Nevada in Texas, and
+    // Quebec City in Quebec. Reporting "Texas" as ambiguous for those is
+    // technically true and practically useless -- nobody typing it means the
+    // hamlet, and offering the choice makes the commonest input in the system
+    // require a disambiguation step.
+    //
+    // It is also SAFE to collapse, which is the actual justification. The
+    // subdivision strictly CONTAINS the locality, so resolving to the larger
+    // area cannot miss a business: a search across Quebec already includes
+    // every shop in Quebec City. That containment is what separates this from
+    // the "Ontario" case -- a city in California and a Canadian province
+    // contain nothing of each other, so that one stays ambiguous.
+    if (sharesParentName(locality)) continue;
+
     const aliases = locality.aliases ?? [locality.label];
     if (aliases.some((alias) => normalizeTerm(alias) === needle)) {
       found.push({
@@ -94,9 +121,9 @@ function matches(needle: string, localities: readonly KnownLocality[]): Resolved
         country: subdivision.country,
         subdivision: subdivision.code,
         locality: null,
-        // A subdivision is selected by its code on an address, so a box would
-        // be decoration. See the note at the top of `types.ts`.
-        bbox: null,
+        // Present only as a pruning hint for a bulk reader, and only for
+        // regions we have ingested. Membership still comes from the code.
+        bbox: subdivision.bbox ?? null,
       });
     }
   }
@@ -124,7 +151,7 @@ export function resolveRegion(input: string, options: ResolveOptions = {}): Regi
     return { status: "unsupported", input, reason: "Enter a city, state or country." };
   }
 
-  const found = matches(needle, options.localities ?? []);
+  const found = matches(needle, options.localities ?? LOCALITIES);
 
   if (found.length === 1) {
     return { status: "resolved", region: found[0] };
@@ -141,9 +168,9 @@ export function resolveRegion(input: string, options: ResolveOptions = {}): Regi
     status: "unsupported",
     input,
     reason:
-      (options.localities?.length ?? 0) === 0
+      (options.localities ?? LOCALITIES).length === 0
         ? "Not a country or state we cover. City search needs the region data import."
-        : "Not a place we cover. Try a state, a province, or a country.",
+        : "Not a place we cover. Try a city, a state, a province, or a country.",
   };
 }
 

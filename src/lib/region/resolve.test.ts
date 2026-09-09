@@ -98,12 +98,100 @@ describe("localities", () => {
   });
 
   it("says plainly that city search needs the region import, when it has none", () => {
-    // The honest failure. A resolver with no locality data must not imply the
-    // city does not exist -- it must say it cannot look one up yet.
-    const result = resolveRegion("Austin");
+    // The honest failure, still reachable by passing an empty list. A resolver
+    // with no locality data must not imply the city does not exist -- it must
+    // say it cannot look one up yet.
+    const result = resolveRegion("Austin", { localities: [] });
     expect(result.status).toBe("unsupported");
     if (result.status !== "unsupported") throw new Error("unreachable");
     expect(result.reason).toMatch(/region data import/i);
+  });
+});
+
+describe("the generated registry, wired in by default", () => {
+  /**
+   * `resolveRegion` now defaults to `localities.ts`, generated from the same
+   * address column the ingest filters on. These assert against that real data.
+   */
+  it("places a city without being handed one", () => {
+    for (const [input, subdivision] of [
+      ["Laval", "QC"],
+      ["Sherbrooke", "QC"],
+      ["Longueuil", "QC"],
+      ["Houston", "TX"],
+      ["Dallas", "TX"],
+      ["Plano", "TX"],
+    ] as const) {
+      const result = resolveRegion(input);
+      expect(result.status, input).toBe("resolved");
+      if (result.status !== "resolved") throw new Error("unreachable");
+      expect(result.region.kind, input).toBe("locality");
+      expect(result.region.subdivision, input).toBe(subdivision);
+    }
+  });
+
+  it("reports a city name that exists in two regions", () => {
+    // Austin, Quebec is a real municipality in the Eastern Townships. Eleven
+    // names collide across just TWO loaded regions; across fifty states it
+    // would be hundreds, which is the whole argument against guessing.
+    const result = resolveRegion("Austin");
+    expect(result.status).toBe("ambiguous");
+    if (result.status !== "ambiguous") throw new Error("unreachable");
+
+    const regions = result.candidates.map((c) => `${c.country}:${c.subdivision}`).sort();
+    expect(regions).toEqual(["CA:QC", "US:TX"]);
+  });
+
+  it("collapses a city that shares its own parent's name", () => {
+    // There is a Texas in Texas and a Quebec City in Quebec. Offering the
+    // choice would make the commonest inputs in the system need a
+    // disambiguation step, and it is safe to collapse because the subdivision
+    // CONTAINS the locality -- a search across Quebec already includes every
+    // shop in Quebec City.
+    for (const input of ["Texas", "Quebec"]) {
+      const result = resolveRegion(input);
+      expect(result.status, input).toBe("resolved");
+      if (result.status !== "resolved") throw new Error("unreachable");
+      expect(result.region.kind, input).toBe("subdivision");
+    }
+  });
+
+  it("does not collapse two places that merely share a name", () => {
+    // The contrast that justifies the rule above. A city in California and a
+    // Canadian province contain nothing of each other.
+    const result = resolveRegion("Ontario", {
+      localities: [{ label: "Ontario", country: "US", subdivision: "CA" }],
+    });
+    expect(result.status).toBe("ambiguous");
+  });
+
+  it("does not collapse a city named after a DIFFERENT state", () => {
+    // The sharp edge of the containment rule, from real data. There is a
+    // Nevada in Texas, and it is not inside the state of Nevada -- so unlike
+    // Texas-in-Texas, resolving to the larger area WOULD lose the city. The
+    // rule keys on the locality's own parent, not on the name alone.
+    const result = resolveRegion("Nevada");
+    expect(result.status).toBe("ambiguous");
+    if (result.status !== "ambiguous") throw new Error("unreachable");
+
+    const kinds = result.candidates.map((c) => c.kind).sort();
+    expect(kinds).toEqual(["locality", "subdivision"]);
+    expect(result.candidates.find((c) => c.kind === "locality")?.subdivision).toBe("TX");
+    expect(result.candidates.find((c) => c.kind === "subdivision")?.subdivision).toBe("NV");
+  });
+
+  it("folds case variants of one city into a single answer", () => {
+    // Overture carries "Laval" and "LAVAL" as separate values. Emitted raw,
+    // every such place was ambiguous WITH ITSELF and the resolver offered the
+    // user two identical choices.
+    for (const input of ["Laval", "laval", "LAVAL"]) {
+      expect(resolveRegion(input).status, input).toBe("resolved");
+    }
+  });
+
+  it("still refuses a city in a region we have not imported", () => {
+    // Honest about coverage: only the regions actually ingested are placeable.
+    expect(resolveRegion("Chicago").status).toBe("unsupported");
   });
 });
 
