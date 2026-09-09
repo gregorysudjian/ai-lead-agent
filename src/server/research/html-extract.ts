@@ -1,7 +1,7 @@
 import { Parser } from "htmlparser2";
 
 import type { ObservationKind, ProfileField } from "@/lib/business-profile";
-import { SOCIAL_PAGE_HOSTS } from "@/lib/social-hosts";
+import { SOCIAL_PROFILE_HOSTS } from "@/lib/social-hosts";
 
 /**
  * Turn one fetched HTML page into conservative, attributable evidence.
@@ -77,11 +77,18 @@ export const EXTRACTION_LIMITS = {
  * record that the page links to a profile; we never fetch it, log in, or read
  * anything there.
  *
- * Shared with lead scoring, which uses the same list to decide that a business
- * whose only listed "website" is one of these hosts does not have a website.
- * One definition, so the two cannot drift apart.
+ * Deliberately the NARROW list, not the one lead scoring uses.
+ *
+ * Scoring asks "is this listed website actually their own site?", and answers
+ * no for a booking page or a directory entry -- which is what makes that
+ * business a prospect. This asks a different question while reading a
+ * business's own page: "is this link a social profile?" A Fresha link is not;
+ * it is a BOOKING link, recorded below as `web.bookingUrl`.
+ *
+ * Pointing this at the broad list files every booking link as a social profile
+ * and silently drops `web.bookingUrl` from every researched business. That is
+ * not hypothetical -- it happened, and three tests caught it.
  */
-const SOCIAL_HOSTS: readonly string[] = SOCIAL_PAGE_HOSTS;
 
 /**
  * Booking services we recognize by host.
@@ -192,7 +199,7 @@ function readJsonLd(raw: string, add: (o: ExtractedObservation) => void): void {
     for (const value of Array.isArray(record.sameAs) ? record.sameAs.slice(0, 20) : []) {
       if (typeof value !== "string") continue;
       const url = absoluteUrl(value, "https://example.invalid/");
-      if (url && hostMatches(url.hostname, SOCIAL_HOSTS)) {
+      if (url && hostMatches(url.hostname, SOCIAL_PROFILE_HOSTS)) {
         add({ field: "web.socialLink", value: url.toString(), kind: "stated" });
       }
     }
@@ -312,7 +319,7 @@ export function extractFromHtml(html: string, pageUrl: string): ExtractionResult
           const url = absoluteUrl(href, pageUrl);
           if (!url) return;
 
-          if (hostMatches(url.hostname, SOCIAL_HOSTS)) {
+          if (hostMatches(url.hostname, SOCIAL_PROFILE_HOSTS)) {
             add({ field: "web.socialLink", value: url.toString(), kind: "observed" });
             return;
           }

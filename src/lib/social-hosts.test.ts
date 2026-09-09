@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { scoreLead } from "./scoring";
-import { isSocialProfileUrl } from "./social-hosts";
+import {
+  SOCIAL_PAGE_HOSTS,
+  SOCIAL_PROFILE_HOSTS,
+  isSocialProfileUrl,
+} from "./social-hosts";
 import type { Lead } from "./types";
 
 const AT = "2026-09-07T12:00:00.000Z";
@@ -145,5 +149,131 @@ describe("the lead list and the score tell the same story", () => {
 
     expect(websiteFactor("https://ggbarbershop.com/").points).toBe(0);
     expect(websiteBadgeLabel("https://ggbarbershop.com/")).toBe("Website listed");
+  });
+});
+
+describe("directory listings are not websites", () => {
+  /**
+   * These arrived from real data. Probing Overture's Montreal coverage found
+   * Yellow Pages among the most common "websites" for salons and garages --
+   * 532 businesses across six categories listed a link that was not their own
+   * site, every one of them counted as already having a website and dropped
+   * out of the prospect list.
+   */
+  it("recognises the Yellow Pages family", () => {
+    for (const url of [
+      "https://pj.ca/some-salon",
+      "https://www.pagesjaunes.ca/bus/Quebec/Montreal/salon/1234.html",
+      "https://yp.ca/listing",
+      "https://www.yellowpages.ca/bus/x",
+      "https://yellowpages.com/x",
+    ]) {
+      expect(isSocialProfileUrl(url), url).toBe(true);
+    }
+  });
+
+  it("recognises other directories", () => {
+    for (const url of ["https://411.ca/x", "https://foursquare.com/v/x", "https://tripadvisor.ca/x"]) {
+      expect(isSocialProfileUrl(url), url).toBe(true);
+    }
+  });
+});
+
+describe("booking platforms are not websites", () => {
+  it("recognises the booking pages salons actually use", () => {
+    // A Fresha page takes appointments; it does not say who the business is.
+    for (const url of [
+      "https://www.fresha.com/a/salon-montreal",
+      "https://gorendezvous.com/salon",
+      "https://booksy.com/en-us/x",
+      "https://setmore.com/x",
+      "https://planity.com/x",
+    ]) {
+      expect(isSocialProfileUrl(url), url).toBe(true);
+    }
+  });
+
+  it("recognises Google's auto-generated placeholder site", () => {
+    // Google creates business.site pages FOR businesses that have none. It is
+    // the strongest prospect signal in the whole list.
+    expect(isSocialProfileUrl("https://my-salon.business.site")).toBe(true);
+  });
+
+  it("recognises a WhatsApp link", () => {
+    expect(isSocialProfileUrl("https://wa.me/15145550100")).toBe(true);
+  });
+});
+
+describe("a site built on a platform is still a site", () => {
+  /**
+   * The line this module must not cross. A business that built something on
+   * Squarespace HAS a website -- it may be poor, and still worth a
+   * conversation, but calling it "no website" is the same overstatement this
+   * module exists to prevent, pointed the other way.
+   */
+  it("does not treat platform site builders as pages", () => {
+    for (const url of [
+      "https://salon.squarespace.com",
+      "https://salon.wixsite.com/home",
+      "https://salon.square.site",
+      "https://sites.google.com/view/salon",
+      "https://salon.godaddysites.com",
+    ]) {
+      expect(isSocialProfileUrl(url), url).toBe(false);
+    }
+  });
+
+  it("still treats an unknown host as a real website", () => {
+    // The module's standing rule: guessing the other way would quietly promote
+    // businesses we know nothing about.
+    expect(isSocialProfileUrl("https://salonbella.ca")).toBe(false);
+  });
+});
+
+describe("the two lists answer two different questions", () => {
+  /**
+   * A regression guard for a real coupling bug.
+   *
+   * Booking hosts were added to the broad list -- correctly, because a salon
+   * whose only web presence is a Fresha page is a prospect. But the research
+   * extractor used that same list to decide which links on a business's page
+   * are social profiles, and its social check returns BEFORE its booking
+   * check. Every booking link was filed as a social profile and
+   * `web.bookingUrl` silently vanished from every researched business.
+   *
+   * The same host gives opposite answers to the two questions, so one list
+   * cannot serve both.
+   */
+  it("counts a booking page as not-their-website", () => {
+    expect(isSocialProfileUrl("https://www.fresha.com/a/salon")).toBe(true);
+  });
+
+  it("does NOT count a booking page as a social profile", () => {
+    // What the extractor asks. A Fresha link is a booking link.
+    for (const host of ["fresha.com", "booksy.com", "gorendezvous.com", "setmore.com", "planity.com"]) {
+      expect(SOCIAL_PROFILE_HOSTS, host).not.toContain(host);
+      expect(SOCIAL_PAGE_HOSTS, host).toContain(host);
+    }
+  });
+
+  it("does NOT count a directory as a social profile either", () => {
+    for (const host of ["pj.ca", "yp.ca", "pagesjaunes.ca", "yellowpages.com"]) {
+      expect(SOCIAL_PROFILE_HOSTS, host).not.toContain(host);
+      expect(SOCIAL_PAGE_HOSTS, host).toContain(host);
+    }
+  });
+
+  it("keeps genuine social hosts in both", () => {
+    for (const host of ["facebook.com", "instagram.com", "linktr.ee"]) {
+      expect(SOCIAL_PROFILE_HOSTS, host).toContain(host);
+      expect(SOCIAL_PAGE_HOSTS, host).toContain(host);
+    }
+  });
+
+  it("keeps the narrow list a strict subset of the broad one", () => {
+    for (const host of SOCIAL_PROFILE_HOSTS) {
+      expect(SOCIAL_PAGE_HOSTS, host).toContain(host);
+    }
+    expect(SOCIAL_PAGE_HOSTS.length).toBeGreaterThan(SOCIAL_PROFILE_HOSTS.length);
   });
 });
