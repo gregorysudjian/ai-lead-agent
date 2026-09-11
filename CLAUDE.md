@@ -237,10 +237,16 @@ hours, and place ID -> flag the ones with no website.
   trades, and stored -- that is what makes state- and country-scale search
   possible at all, because there is no per-query result cap on our own
   database. A place therefore carries `source: "osm"` or `source: "overture"`
-  and never both, they are deduped against each other by the existing
-  name+address strategy (a GERS id will never equal an OSM node id), and each
-  carries its own attribution: ODbL for OSM, CDLA-Permissive 2.0 for Overture.
-  Neither may be presented as the other.
+  and never both, and each carries its own attribution: ODbL for OSM,
+  CDLA-Permissive 2.0 for Overture. Neither may be presented as the other.
+
+  Exact name+address dedupe does NOT work across the two: measured against
+  230 OSM leads, 73 had a same-named Overture record and exact matching found
+  four, because the datasets write one address two ways ("743 Avenue Atwater"
+  / "743 Atwater Ave"). Cross-dataset matching uses `sameStreetAddress` --
+  civic number, street and direction, with Est and Ouest kept apart because in
+  Montreal they are kilometres apart -- and coordinates where both sides have
+  them. A false merge is still worse than a duplicate: ambiguity links nothing.
 
   Two rules the ingest holds. Overture's `confidence` is a FILTER, not a
   field: below 0.5 a place often does not exist, and approaching a business
@@ -255,7 +261,35 @@ hours, and place ID -> flag the ones with no website.
   The bulk reader's bounding box PRUNES; the address codes DECIDE. A box alone
   sweeps in the neighbouring state, codes alone force a full scan of 7GB.
 
-- **The pipeline is `Lead -> BusinessProfile -> Analysis -> DemoSite`.**
+- **The business catalog is not the lead list.** `businesses` holds every
+  hair and beauty business on the island of Montreal, refreshed in bulk from
+  Overture; `leads` holds only the businesses the operator chose. Search reads
+  the catalog and NEVER creates a lead -- a lead is made only by an explicit,
+  per-business Add, and there is no bulk add. This is the rule the old search
+  broke: it wrote every result straight into leads, so the lead list meant
+  "whatever the searches returned".
+
+  The catalog follows the lead's structure -- our fields at the top level, the
+  provider snapshot under `provider`, replaced wholesale on refresh -- and its
+  dedupe lives inside `CatalogRepository.refresh`, planned by the pure
+  `planCatalogUpsert`, so no loader can write beside the rules. Nothing in the
+  catalog is ever deleted: a business the latest release no longer lists is
+  shown as "no longer listed", never "closed". Coordinates live on catalog
+  rows only, never in `Lead.provider`, so Google's 30-day coordinate limit can
+  never reach a lead. Priority is computed at search time and never stored.
+
+  Its area is the island (`lib/catalog/area.ts`): the City of Montréal's
+  boroughs plus the fifteen demerged municipalities. The box prunes; the
+  provider's own locality decides, so a Laval shop or a row misfiled onto
+  Montreal coordinates stays out. Its trades (`lib/catalog/trades.ts`) are a
+  subset of the category registry, not a second registry.
+
+  Google Maps appears only as a link (`googleMapsSearchUrl`) -- a keyless Maps
+  URL a human opens to check reviews and photos. Nothing from Google is
+  fetched into or stored in the catalog, paid API or not: its terms forbid
+  warehousing names, phones and websites, and scraping Maps is rule 2.
+
+- **The pipeline is `Business -> Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the
   sourced profile rather than independently going and looking. Analysis and
   demo generation still read the lead snapshot directly; migrating them is a

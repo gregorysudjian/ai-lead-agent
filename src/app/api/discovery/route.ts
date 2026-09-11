@@ -13,7 +13,8 @@ import { enforceRateLimit } from "@/server/rate-limit";
  *
  * Runs one multi-source discovery pass and returns transient candidates plus a
  * per-source status. It PERSISTS NOTHING -- no lead is created, refreshed or
- * touched. Saving OpenStreetMap results remains POST /api/search.
+ * touched. Businesses enter the application through the catalog instead;
+ * this preview is no longer surfaced in the UI.
  *
  * One request is one bounded run. There is no bulk endpoint, no pagination
  * parameter and nothing scheduled: a run can reach a billable API and community

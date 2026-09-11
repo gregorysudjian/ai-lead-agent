@@ -24,6 +24,8 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/", label: "Dashboard" },
+  // The catalog: everything we might approach. Leads are what we chose.
+  { href: "/businesses", label: "Businesses" },
   { href: "/leads", label: "Leads" },
   { href: "/ai-analysis", label: "AI Analysis", comingSoon: true },
   { href: "/demos", label: "Demo Sites" },

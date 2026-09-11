@@ -34,8 +34,11 @@ import { DiscoveryFailedError, DiscoverySourceError } from "./types";
  * source that found it, and it stays a candidate until a verification and
  * promotion step -- which this phase does not build -- decides otherwise.
  *
- * The established search-and-save path for OpenStreetMap is untouched and still
- * lives in `lead-discovery.ts`. Discovery previews; that path persists.
+ * Businesses reach the application through the catalog now (`lib/catalog/`,
+ * refreshed from Overture), not through a search that saves. The old
+ * search-and-save path was removed with the catalog's arrival, and this
+ * preview is no longer surfaced in the UI; OpenStreetMap's place in the
+ * catalog is a separate, later decision.
  */
 
 export interface DiscoveryRunResult {

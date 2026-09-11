@@ -20,9 +20,8 @@ import { DiscoveryValidationError } from "./discovery";
  * lead store says. The route handler above it does HTTP and nothing else.
  *
  * WRITES NOTHING. A discovery run reads the lead store to mark what we already
- * have and then discards its candidates. The search-and-save path that persists
- * OpenStreetMap results is a separate service (`lead-discovery.ts`) and is
- * unchanged.
+ * have and then discards its candidates. Businesses enter the application
+ * through the catalog (`lib/catalog/`), never through this.
  */
 
 export interface DiscoveryServiceInput {
