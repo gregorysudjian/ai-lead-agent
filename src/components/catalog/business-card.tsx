@@ -124,16 +124,24 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
           <AddToLeadsButton businessId={business.id} businessName={provider.name} />
         )}
 
-        <a
-          href={googleMapsSearchUrl(provider)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`inline-flex items-center gap-1 text-sm ${LINK}`}
-        >
-          Google Maps
-          <span aria-hidden="true">↗</span>
-          <span className="sr-only"> for {provider.name} (opens in a new tab)</span>
-        </a>
+        <div className="flex items-center gap-4">
+          {/* The lab renders the site generation WOULD produce, in memory:
+              nothing is saved, and no paid provider can be reached from it. */}
+          <Link href={`/demos/lab?business=${business.id}`} className={`text-sm ${LINK}`}>
+            Preview site
+            <span className="sr-only"> for {provider.name}</span>
+          </Link>
+          <a
+            href={googleMapsSearchUrl(provider)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-1 text-sm ${LINK}`}
+          >
+            Google Maps
+            <span aria-hidden="true">↗</span>
+            <span className="sr-only"> for {provider.name} (opens in a new tab)</span>
+          </a>
+        </div>
       </div>
     </Card>
   );
