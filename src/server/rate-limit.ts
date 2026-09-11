@@ -5,7 +5,7 @@ import "server-only";
  *
  * WHAT THIS IS FOR. Two different risks, one mechanism:
  *
- *   1. Outbound. `/api/search` and `/api/discovery` reach the public Overpass
+ *   1. Outbound. `/api/discovery` reaches the public Overpass
  *      instance, which CLAUDE.md is explicit is shared community
  *      infrastructure and not our capacity. Research reaches a real business's
  *      own web server. A UI bug that retries in a loop should stop at our

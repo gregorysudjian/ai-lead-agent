@@ -227,10 +227,33 @@ Done:
   no website. Overlap with existing leads: 4.
 - Locality registry generated from the ingested address column: 2,166 cities.
 
-Next:
-- Load the file into Supabase (needs `ingest_runs` and a deliberate run).
-- Discovery agent querying stored leads by region + category.
-- Orchestrator with durable per-item state.
+Superseded 2026-09-11 by the **business catalog** below: rather than loading
+Overture into leads, it became a separate catalog the leads are chosen from.
+
+Correction: the "overlap with existing leads: 4" figure above was exact
+name+address dedupe failing, not the datasets being disjoint. 73 of the 230
+OSM leads have a same-named Overture record; the addresses are written
+differently. See `lib/catalog/street-address.ts`.
+
+---
+
+### Business catalog -- PHASE 1 BUILT (2026-09-11)
+
+Search reads a catalog of every hair and beauty business on the island of
+Montreal (2,843 from Overture 2026-08-19.0) and never creates a lead; a lead is
+one explicit Add. `businesses` + `ingest_runs` tables, `CatalogRepository` with
+dedupe inside `refresh`, the `/businesses` search page, Add to leads, Google
+Maps links, and cross-dataset address matching to link the old OSM leads.
+
+Next, in order:
+1. **Automatic refresh.** Detect a new Overture release, extract, load, record
+   the run -- on a schedule, without anyone asking. Bulk data from a public
+   bucket, so this does not touch the rule against crawling Overpass.
+2. **OpenStreetMap into the catalog**, from a bulk extract rather than live
+   Overpass, merged by coordinates.
+3. **A map view** of the catalog.
+4. Vacuum and appliance repair, and any other trade: one key in
+   `lib/catalog/trades.ts` plus an Overture mapping.
 
 ---
 

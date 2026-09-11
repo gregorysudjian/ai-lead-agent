@@ -12,15 +12,16 @@ there never will be one** -- see [Hard rules](#hard-rules).
 
 ## What it does
 
-The pipeline is four stages, and each one is a separate object:
+The pipeline is five stages, and each one is a separate object:
 
 ```
-Lead  ->  BusinessProfile  ->  Analysis  ->  DemoSite
+Business  ->  Lead  ->  BusinessProfile  ->  Analysis  ->  DemoSite
 ```
 
 | Stage | What it is |
 |---|---|
-| **Lead** | A business found by a discovery provider. Application-owned fields (`id`, `status`, notes) are kept structurally apart from the provider snapshot under `lead.provider`. |
+| **Business** | One entry in the **business catalog**: every hair and beauty business on the island of Montreal, refreshed from Overture Maps. Searching reads the catalog and never creates a lead. |
+| **Lead** | A business the operator chose, with **Add to leads**. Application-owned fields (`id`, `status`, notes) are kept structurally apart from the provider snapshot under `lead.provider`. |
 | **BusinessProfile** | Sourced facts gathered by fetching the business's own public homepage. Every fact carries a `sourceId`, so "where did we learn this?" always has an answer. Append-only. |
 | **Analysis** | Proposals about what the business needs. Never confused with evidence. |
 | **DemoSite** | A generated sample website, previewed internally. Every displayed *fact* comes from application code, never from the generator. Sections we cannot evidence carry realistic placeholder copy, marked as sample. |
@@ -195,44 +196,84 @@ earlier versions.
 
 ## Where businesses come from
 
-Two datasets, kept apart on purpose.
+### The business catalog
 
-**OpenStreetMap**, queried live per search through Overpass. High quality, and
-the source of the opening hours a demo shows. It cannot do a state: Overpass
-explicitly forbids region-tiling, and the endpoint is volunteer-run community
-infrastructure, not our capacity.
+Every hair and beauty business on the **island of Montreal** — the City of
+Montréal's boroughs plus the fifteen municipalities that share the island —
+from [Overture Maps](https://overturemaps.org), ingested in bulk from its public
+Parquet under CDLA-Permissive 2.0. Free, storable, no rate limit. About 93% of
+these records come from Meta's business pages, which is exactly where a
+business with no website of its own tends to have a presence.
 
-**Overture Maps**, ingested in bulk from public Parquet. 72M places under
-CDLA-Permissive 2.0 — free, storable, no rate limit and no per-query result
-cap, which is what makes state- and country-scale search possible at all.
+The first load held **2,843 businesses** (release 2026-08-19.0): 1,229 beauty
+salons, 830 hair salons, 311 barbers, 277 nail salons and 195 tattoo studios;
+925 with no website listed.
+
+**Search reads the catalog and never creates a lead.** A lead is made only by
+pressing **Add to leads** on one business. That is the whole point of the
+catalog: before it existed, every search wrote its results straight into the
+lead list.
 
 ```bash
-# Assess a region before ingesting it
-node scripts/overture-probe.mjs
+# 1. Once: apply the two catalog migrations in the Supabase SQL editor
+#    supabase/migrations/20260911000000_create_businesses.sql
+#    supabase/migrations/20260911000100_create_ingest_runs.sql
 
-# Extract it to a local file (never to the database)
-npx tsx scripts/overture-ingest.mts --region=CA:QC
+# 2. Extract the island from Overture to a local file (reads a public bucket)
+npx tsx scripts/catalog-extract.mts --area=montreal-island
 
-# Check how much of it you already have (read-only)
-npx tsx scripts/overture-overlap.mts
+# 3. See what a load would do -- reads only, writes nothing
+npx tsx --conditions=react-server --env-file=.env.local scripts/catalog-load.mts
 
-# Regenerate the Region Resolver's city list
-npx tsx scripts/overture-localities.mts --regions=CA:QC,US:TX
+# 4. Load it
+npx tsx --conditions=react-server --env-file=.env.local scripts/catalog-load.mts --commit
 ```
 
-Quebec yields **45,484 businesses** across the twelve trades, 9,985 with no
-website listed. Overlap with an existing 230 OSM leads was **4** — the two
-datasets are complementary, not redundant.
+Rules the catalog holds:
 
-Three rules the ingest holds:
+- **The box prunes; the locality decides.** The rectangle around the island
+  also contains Laval, Longueuil and Terrebonne, and rows Overture misfiled
+  onto Montreal coordinates with a Drummondville address. `src/lib/catalog/area.ts`
+  decides membership from each row's own locality, folding the 36-odd
+  spellings Overture uses ("Côte-St-Luc", "Cote Saint-Luc", "Côte Saint-Luc,").
+- **Nothing is ever deleted.** A business the latest release no longer lists
+  is shown as "no longer listed" — never "closed".
+- **Priority is computed on every search, never stored.** Search filters and
+  ranks in memory; only the requested page reaches the browser.
+- **Google Maps is a link, never a source.** Each business links to a Google
+  Maps search for it, so a human can check reviews and photos. Nothing from
+  Google is fetched or stored.
+
+### Cross-dataset matching
+
+Exact name+address dedupe works inside one dataset and fails across two: 73 of
+the 230 OpenStreetMap leads have a same-named Overture record, and exact
+matching caught **four**, because the datasets write one address two ways
+("743 Avenue Atwater" / "743 Atwater Ave"). `src/lib/catalog/street-address.ts`
+compares civic number, street and direction instead — keeping Est and Ouest
+apart, since in Montreal they are kilometres apart. A renamed street defeats it
+(rue Amherst is now rue Atateken); coordinates, which the catalog stores, are
+the fix for that.
+
+### OpenStreetMap
+
+Queried live per search through Overpass. High quality, and the source of the
+opening hours a demo shows. It cannot do a region: Overpass explicitly forbids
+region-tiling, and the endpoint is volunteer-run community infrastructure, not
+our capacity. It does not feed the catalog yet.
+
+### Overture, region-wide
+
+The same bulk reader can extract a whole province for assessment:
+
+```bash
+npx tsx scripts/overture-ingest.mts --region=CA:QC   # to a local file only
+```
 
 - **Confidence is a filter, not a field.** Below 0.5, a place often does not
-  exist. Storing the number would mean changing the domain type and every
-  provider to carry something one source supplies.
+  exist.
 - **An unrecognised category is skipped, not approximated.** A bakery filed as
   a restaurant produces a demo about the wrong business.
-- **The bounding box prunes; the address codes decide.** A box alone sweeps in
-  the neighbouring state; codes alone force a full scan of 7GB.
 
 Regions resolve through `src/lib/region/`. Collisions are reported rather than
 guessed — "CA" is both Canada and California, and "Austin" is a real
