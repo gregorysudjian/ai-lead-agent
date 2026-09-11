@@ -103,25 +103,50 @@ const EMPHASIS_CLASS: Record<Emphasis, string> = {
  * are the last one or two -- a purely typographic choice about text the page
  * already says, never a change to it.
  */
+/**
+ * The spaces a line may break at. NOT `\s`, which in JavaScript also matches
+ * the non-breaking space -- and French sets one before "?" precisely so the
+ * mark never starts a line. Splitting on `\s` threw it away, and "Envie de
+ * changement ?" put the question mark alone on the last line.
+ */
+const BREAKABLE_SPACE = /[ \t\n\r]+/;
+
+/**
+ * A font size for giant type that the longest word can actually fit.
+ *
+ * Giant type is sized by the viewport, which is right for "Dru" and wrong for
+ * "ST-LAURENT": a word wider than the page wraps wherever the browser may
+ * break it, and a hyphenated name then leaves "ST-" alone on a line. So the
+ * size is capped at what the longest word needs to fit in ~80% of the width,
+ * with a per-character width that is wider for upper case.
+ */
+export function fitGiant(text: string, upper: boolean): CSSProperties {
+  const longest = Math.max(1, ...text.split(BREAKABLE_SPACE).map((word) => word.length));
+  const perChar = upper ? 0.7 : 0.6;
+  return { fontSize: `min(clamp(3.4rem, 13.5vw, 13rem), ${(80 / (longest * perChar)).toFixed(2)}vw)` };
+}
+
 export function Heading({
   text,
   as: Tag = "h2",
   className = "",
   emphasis,
   animate = false,
+  style,
 }: {
   text: string;
   as?: "h1" | "h2" | "h3" | "p";
   className?: string;
   emphasis: Emphasis;
   animate?: boolean;
+  style?: CSSProperties;
 }) {
-  const words = text.split(/\s+/).filter(Boolean);
+  const words = text.split(BREAKABLE_SPACE).filter(Boolean);
   const tail = words.length >= 3 && (words[words.length - 1]?.length ?? 0) <= 4 ? 2 : 1;
   const emphasisFrom = words.length > 1 ? words.length - tail : words.length;
 
   return (
-    <Tag className={`dx-display ${className}`} aria-label={animate ? text : undefined}>
+    <Tag className={`dx-display ${className}`} style={style} aria-label={animate ? text : undefined}>
       {words.map((word, i) => {
         const emphasised = i >= emphasisFrom && emphasis !== "none";
         const inner = <span className={emphasised ? EMPHASIS_CLASS[emphasis] : undefined}>{word}</span>;

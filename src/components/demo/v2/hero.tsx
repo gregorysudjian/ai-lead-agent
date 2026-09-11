@@ -4,7 +4,7 @@ import type { DemoDesign } from "@/lib/demo-design/types";
 import type { DemoSection, DemoSiteBusiness } from "@/lib/demo-site";
 
 import { Badge, HeroArt } from "./art";
-import { Cta, Heading, PhotoSlot, SampleTag } from "./parts";
+import { Cta, fitGiant, Heading, PhotoSlot, SampleTag } from "./parts";
 import type { Words } from "./words";
 
 /**
@@ -68,7 +68,7 @@ function WordmarkHero(props: HeroProps) {
       <HeroArt motif={design.motif} palette={design.palette} seed={design.seed} className="opacity-70" />
       <div className="dx-shell relative">
         <Eyebrow section={section} words={words} />
-        <Heading text={brand} as="h1" emphasis={design.emphasis} animate className="dx-giant dx-hero-exit mt-6 break-words" />
+        <Heading text={brand} as="h1" emphasis={design.emphasis} animate className="dx-giant dx-hero-exit mt-6 break-words" style={fitGiant(brand, design.displayCase === "upper")} />
         <div className="dx-rule mt-12 grid gap-8 border-t pt-8 lg:grid-cols-12">
           <p className="dx-display dx-h3 dx-fade-in lg:col-span-6" style={{ "--i": 2 } as CSSProperties}>
             {section.heading}
@@ -122,7 +122,7 @@ function PosterHero(props: HeroProps) {
       <HeroArt motif={design.motif} palette={{ ...design.palette, accentSoft: design.palette.invertAccent, accentText: design.palette.invertAccent }} seed={design.seed} fieldOpacity={0.12} />
       <div className="dx-shell relative flex min-h-[86vh] flex-col justify-center py-24 text-center">
         <Eyebrow section={section} words={words} className="justify-center" />
-        <Heading text={brand} as="h1" emphasis={design.emphasis} animate className="dx-giant dx-hero-exit mx-auto mt-6 max-w-[14ch] break-words" />
+        <Heading text={brand} as="h1" emphasis={design.emphasis} animate className="dx-giant dx-hero-exit mx-auto mt-6 max-w-[14ch] break-words" style={fitGiant(brand, design.displayCase === "upper")} />
         <p className="dx-display dx-h3 dx-fade-in mx-auto mt-8 max-w-2xl" style={{ "--i": 2 } as CSSProperties}>
           {section.heading}
         </p>

@@ -8,7 +8,7 @@ import { formatPhone, phoneHref } from "@/lib/phone";
 
 import { Icon, iconForService } from "../icons";
 import { Badge, MarkDivider, TileArt } from "./art";
-import { Cta, Heading, PhotoSlot, SampleTag, SectionLabel } from "./parts";
+import { Cta, fitGiant, Heading, PhotoSlot, SampleTag, SectionLabel } from "./parts";
 import { localizeScheduleLine, type Locale, type Words } from "./words";
 
 /**
@@ -128,7 +128,7 @@ export function Services({ section, design, words, index, className = "" }: Base
             {section.items.map((item, i) => (
               <li key={item.title} className="dx-card dx-lift dx-reveal relative overflow-hidden p-7 sm:p-9" style={{ minHeight: i === 0 ? "22rem" : "14rem" }}>
                 {i === 0 ? (
-                  <div className="absolute inset-0 opacity-60">
+                  <div className="absolute inset-0 opacity-30">
                     <TileArt motif={design.motif} palette={design.palette} seed={design.seed} index={9} />
                   </div>
                 ) : null}
@@ -191,7 +191,7 @@ export function About({
             {section.sample ? <SampleTag words={words} /> : null}
           </div>
           {/* A long paragraph at headline size becomes a wall; it steps down a size. */}
-          <p className={`dx-display dx-reveal mt-8 max-w-5xl text-balance ${section.body.length > 160 ? "dx-h2-sm" : "dx-h2"}`}>{section.body}</p>
+          <p className={`dx-display dx-statement dx-reveal mt-8 max-w-5xl text-balance ${section.body.length > 160 ? "dx-h2-sm" : "dx-h2"}`}>{section.body}</p>
           <ul className="dx-rule mt-14 grid gap-6 border-t pt-8 sm:grid-cols-3">
             {section.points.map((point) => (
               <li key={point} className="dx-reveal flex items-start gap-3">
@@ -585,7 +585,7 @@ export function Closing({
     <section id={section.id} className={`dx-section relative overflow-hidden ${className}`}>
       <div className="dx-shell relative text-center">
         <div className="flex justify-center">{tag}</div>
-        <Heading text={section.heading} emphasis={design.emphasis} className="dx-giant dx-reveal mx-auto mt-6 max-w-[16ch]" />
+        <Heading text={section.heading} emphasis={design.emphasis} className="dx-giant dx-reveal mx-auto mt-6 max-w-[16ch]" style={fitGiant(section.heading, design.displayCase === "upper")} />
         <p className="dx-lede dx-muted dx-reveal mx-auto mt-8 max-w-xl">{section.body}</p>
         <div className="dx-reveal mt-10 flex justify-center">
           <Cta cta={section.cta} business={business} sections={sections} />
