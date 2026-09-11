@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { DIRECTIONS } from "@/lib/demo-design/directions";
 import { DEMO_THEME_LABELS, type DemoSite } from "@/lib/demo-site";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, LINK, SectionHeading } from "./ui/primitives";
@@ -32,7 +33,7 @@ function lookOf(demo: DemoSite): string {
   const design = demo.spec.design;
   if (!design) return `${DEMO_THEME_LABELS[demo.spec.content.theme]} (original renderer)`;
   const languages = demo.spec.alternates?.fr ? "FR + EN" : "EN";
-  return `${design.direction} design, variant ${design.variant} · ${languages}`;
+  return `${DIRECTIONS[design.direction].label} style, variant ${design.variant} · ${languages}`;
 }
 export function DemoPanel({
   leadId,

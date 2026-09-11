@@ -1,9 +1,13 @@
 import Link from "next/link";
 
+import { DesignStrip } from "@/components/demo/design-strip";
+import { UpgradeDemoButton } from "@/components/demo/upgrade-demo-button";
+import { DIRECTIONS } from "@/lib/demo-design/directions";
 import { groupDemosByLead } from "@/lib/demo-grouping";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
 import {
   Badge,
+  BUTTON_PRIMARY,
   BUTTON_SECONDARY,
   Card,
   EmptyState,
@@ -70,7 +74,7 @@ export default async function DemosPage() {
           subtitle={
             loadFailed
               ? "Stored demo sites could not be loaded."
-              : `${groups.length} ${groups.length === 1 ? "business" : "businesses"} with a demo, from ${demos.length} ${demos.length === 1 ? "generation" : "generations"}. Previews are internal only — nothing here is published.`
+              : `${groups.length} ${groups.length === 1 ? "business" : "businesses"} with a demo. Previews are internal — nothing here is published or sent.`
           }
         />
 
@@ -99,62 +103,50 @@ export default async function DemosPage() {
         <ul className="grid gap-4 sm:grid-cols-2">
           {groups.map((group) => {
             const demo = group.latest;
-            const { business, content } = demo.spec;
+            const { business, design } = demo.spec;
             const olderVersions = group.versions.length - 1;
             return (
               <Card as="li" key={demo.id} className="flex flex-col p-5">
-                <div className="flex items-start justify-between gap-3">
+                <DesignStrip name={business.name} design={design} />
+
+                <div className="mt-4 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate text-base font-semibold text-slate-900 dark:text-slate-50">
                       {business.name}
                     </h2>
-                    <p className="mt-1 truncate text-sm text-slate-600 dark:text-slate-400">
-                      {content.tagline}
+                    <p className="mt-0.5 truncate text-sm text-slate-600 dark:text-slate-400">
+                      {business.category} · {business.city}
                     </p>
                   </div>
-                  <Badge tone="indigo">{DEMO_THEME_LABELS[content.theme]}</Badge>
+                  {design ? (
+                    <Badge tone="emerald">New design</Badge>
+                  ) : (
+                    <Badge tone="amber" title="Generated before the new design generator; update it to get a new site.">
+                      Old design
+                    </Badge>
+                  )}
                 </div>
 
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <dt className="text-slate-500 dark:text-slate-400">Category</dt>
-                    <dd className="mt-0.5 truncate">{business.category}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500 dark:text-slate-400">City</dt>
-                    <dd className="mt-0.5 truncate">{business.city}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500 dark:text-slate-400">Generated</dt>
-                    <dd className="mt-0.5">
-                      <Timestamp iso={demo.createdAt} />
-                      {olderVersions > 0 ? (
-                        // The history is kept, just not given its own card.
-                        <span className="text-slate-500 dark:text-slate-400">
-                          {" "}
-                          · {olderVersions} earlier{" "}
-                          {olderVersions === 1 ? "version" : "versions"}
-                        </span>
-                      ) : null}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500 dark:text-slate-400">Generator</dt>
-                    <dd className="mt-0.5 truncate">
-                      {demo.generator.name} ({demo.generator.model})
-                    </dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-slate-500 dark:text-slate-400">From analysis</dt>
-                    <dd className="mt-0.5 font-mono text-[11px] break-all">{demo.analysisId}</dd>
-                  </div>
-                </dl>
+                {/* One readable line each: how it looks, and when it was made. */}
+                <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+                  {design
+                    ? `${DIRECTIONS[design.direction].label} style · ${demo.spec.alternates?.fr ? "French and English" : "English"}`
+                    : `${DEMO_THEME_LABELS[demo.spec.content.theme]} theme · English`}
+                </p>
+                <p className="mt-1 mb-5 text-xs text-slate-500 dark:text-slate-400">
+                  Generated <Timestamp iso={demo.createdAt} />
+                  {olderVersions > 0
+                    ? // The history is kept, just not given its own card.
+                      ` · ${olderVersions} earlier ${olderVersions === 1 ? "version" : "versions"}`
+                    : ""}
+                </p>
 
-                <div className="mt-5 flex items-center gap-4 border-t border-slate-200 pt-4 dark:border-slate-800">
-                  <Link href={`/demos/${demo.id}`} className={BUTTON_SECONDARY}>
+                <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+                  <Link href={`/demos/${demo.id}`} className={design ? BUTTON_PRIMARY : BUTTON_SECONDARY}>
                     Open preview
                   </Link>
-                  <Link href={`/leads/${demo.leadId}`} className={`text-sm ${LINK}`}>
+                  {design ? null : <UpgradeDemoButton leadId={demo.leadId} analysisId={demo.analysisId} />}
+                  <Link href={`/leads/${demo.leadId}`} className={`ml-auto text-sm ${LINK}`}>
                     View lead
                   </Link>
                 </div>
