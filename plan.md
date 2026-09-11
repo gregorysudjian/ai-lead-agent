@@ -422,3 +422,13 @@ The contact sheets are in `data/screens/qa1` (before) and `qa2`/`qa3` (after).
   renderer.
 - README: what a demo now looks like, French first, the lab, the grid and the
   screenshot script.
+
+### Item 9 — stretch · partly done
+
+- **Load curtain:** on lively and bold designs, the page opens under a
+  one-second curtain in the site's inverted colour with the business's mark,
+  which lifts away as the hero rises in. CSS only, never blocks a click,
+  covers only the site (never the "draft proposal" bar above it), absent on
+  calm designs and for visitors who ask for reduced motion.
+- Not done: section-to-section colour morphs. Everything else on the night's
+  list is in.
