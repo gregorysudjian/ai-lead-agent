@@ -89,6 +89,14 @@ export function DemoSiteV2({ business, content, design, locale, langHref }: Demo
     >
       <div className="dx-progress" aria-hidden="true" />
       <div className="dx-grain" aria-hidden="true" />
+      {/* A one-second curtain with the business's mark, lifted on load. CSS
+          only, never blocks a click, absent under reduced motion -- and
+          absent on calm designs, where a curtain is the wrong temperament. */}
+      {design.motion !== "calm" ? (
+        <div className="dx-intro" aria-hidden="true">
+          <span className="dx-display dx-intro-mark">{mark}</span>
+        </div>
+      ) : null}
 
       <Nav {...chrome} />
 

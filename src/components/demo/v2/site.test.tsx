@@ -145,6 +145,16 @@ describe("DemoSiteV2", async () => {
     expect(html).toContain(WORDS.fr.credit.overture);
   });
 
+  it("draws the load curtain only on designs with some energy, hidden from assistive tech", () => {
+    for (const { html, design } of pages) {
+      const curtain = html.match(/<div class="dx-intro"[^>]*>/);
+      if (design.motion === "calm") expect(curtain).toBeNull();
+      else expect(curtain?.[0]).toContain('aria-hidden="true"');
+    }
+    expect(pages.some((p) => p.design.motion === "calm")).toBe(true);
+    expect(pages.some((p) => p.design.motion !== "calm")).toBe(true);
+  });
+
   it("colours reach the page only as custom properties from the genome", () => {
     for (const { html, design } of pages.slice(0, 12)) {
       expect(html).toContain(`--dx-bg:${design.palette.bg}`);

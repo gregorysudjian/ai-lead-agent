@@ -449,7 +449,45 @@
 /* MOTION                                                                    */
 /* ======================================================================== */
 
+/* The load curtain exists only when motion is welcome (below). */
+.dx-intro { display: none; }
+.dx { position: relative; }
+
 @media (prefers-reduced-motion: no-preference) {
+  /* ---- On load: a curtain with the mark lifts away ------------------- */
+  /* Fixed over the page, pointer-events off so it can never block a click,
+     and its resting state is fully clipped away. */
+  .dx-intro {
+    /* Over the site's first screen only -- never over the chrome above it,
+       which on a share link is the "draft proposal" disclosure. */
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 100vh;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: var(--dx-invert);
+    color: var(--dx-invert-accent);
+    animation: dx-intro 0.95s cubic-bezier(0.76, 0, 0.24, 1) 0.45s both;
+  }
+  @keyframes dx-intro {
+    from { clip-path: inset(0 0 0 0); }
+    to { clip-path: inset(0 0 100% 0); visibility: hidden; }
+  }
+  .dx-intro-mark {
+    font-size: clamp(3rem, 9vw, 7rem);
+    line-height: 1;
+    animation: dx-intro-mark 0.9s cubic-bezier(0.2, 0.75, 0.1, 1) both;
+  }
+  @keyframes dx-intro-mark {
+    from { opacity: 0; transform: translateY(30%) scale(0.9); }
+  }
+  /* The hero's own entrance waits for the curtain. */
+  .dx:has(.dx-intro) .dx-line > span { animation-delay: calc(var(--i, 0) * 95ms + 850ms); }
+  .dx:has(.dx-intro) .dx-fade-in { animation-delay: calc(var(--i, 0) * 110ms + 1050ms); }
+
   /* ---- On load: headings rise line by line ---------------------------- */
   .dx-line { display: block; overflow: hidden; padding-bottom: 0.06em; margin-bottom: -0.06em; }
   .dx-line > span {
