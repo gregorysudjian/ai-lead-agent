@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { groupDemosByLead } from "@/lib/demo-grouping";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
-import { formatTimestamp } from "@/lib/format";
 import {
   Badge,
   BUTTON_SECONDARY,
@@ -12,6 +11,7 @@ import {
   LINK,
   PageHeader,
 } from "@/components/ui/primitives";
+import { Timestamp } from "@/components/ui/timestamp";
 import { recentDemoSites } from "@/server/demo-service";
 import { getDemoSiteProvider } from "@/server/demo";
 import { loadLeads } from "@/server/leads-page-data";
@@ -117,20 +117,20 @@ export default async function DemosPage() {
 
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <dt className="text-slate-500 dark:text-slate-500">Category</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">Category</dt>
                     <dd className="mt-0.5 truncate">{business.category}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500 dark:text-slate-500">City</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">City</dt>
                     <dd className="mt-0.5 truncate">{business.city}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500 dark:text-slate-500">Generated</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">Generated</dt>
                     <dd className="mt-0.5">
-                      {formatTimestamp(demo.createdAt)}
+                      <Timestamp iso={demo.createdAt} />
                       {olderVersions > 0 ? (
                         // The history is kept, just not given its own card.
-                        <span className="text-slate-500 dark:text-slate-500">
+                        <span className="text-slate-500 dark:text-slate-400">
                           {" "}
                           · {olderVersions} earlier{" "}
                           {olderVersions === 1 ? "version" : "versions"}
@@ -139,13 +139,13 @@ export default async function DemosPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500 dark:text-slate-500">Generator</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">Generator</dt>
                     <dd className="mt-0.5 truncate">
                       {demo.generator.name} ({demo.generator.model})
                     </dd>
                   </div>
                   <div className="col-span-2">
-                    <dt className="text-slate-500 dark:text-slate-500">From analysis</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">From analysis</dt>
                     <dd className="mt-0.5 font-mono text-[11px] break-all">{demo.analysisId}</dd>
                   </div>
                 </dl>

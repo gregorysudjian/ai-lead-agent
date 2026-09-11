@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { RECOMMENDED_SITE_TYPE_LABELS, type Analysis } from "@/lib/analysis";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, SectionHeading } from "./ui/primitives";
+import { Timestamp } from "./ui/timestamp";
 
 /**
  * Display names for analysers. Unknown names fall through to the raw value
@@ -108,7 +109,7 @@ export function AnalysisPanel({
       <div aria-live="polite" className="mt-3">
         {busy ? (
           <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full bg-indigo-500" />
+            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full motion-reduce:animate-none bg-indigo-500" />
             Analyzing this lead…
           </p>
         ) : null}
@@ -155,8 +156,8 @@ export function AnalysisPanel({
                     className={active ? `${BUTTON_SECONDARY} ring-2 ring-indigo-500` : BUTTON_SECONDARY}
                   >
                     {index === 0 ? "Latest" : `Run ${analyses.length - index}`}
-                    <span className="ml-1 font-normal text-slate-500">
-                      {analysis.createdAt.slice(0, 16).replace("T", " ")}
+                    <span className="ml-1 font-normal text-slate-500 dark:text-slate-400">
+                      <Timestamp iso={analysis.createdAt} />
                     </span>
                   </button>
                 </li>
@@ -177,7 +178,7 @@ function AnalysisView({ analysis }: { analysis: Analysis }) {
     <div className="mt-4 space-y-6">
       {/* FACTS -- copied from the provider snapshot, never inferred. */}
       <section>
-        <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-500">
+        <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
           Provider-listed facts this is based on
         </h3>
         <ul className="mt-2 flex flex-wrap gap-2">
@@ -262,10 +263,10 @@ function AnalysisView({ analysis }: { analysis: Analysis }) {
 
       {/* Provenance comes from the stored record, so it stays accurate after
           the configured analyser changes. */}
-      <p className="text-xs text-slate-500 dark:text-slate-500">
-        Generated {analysis.createdAt.slice(0, 16).replace("T", " ")} by{" "}
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        Generated <Timestamp iso={analysis.createdAt} /> by{" "}
         {analyserLabel(analysis.provider.name)} ({analysis.provider.model}) from a provider
-        snapshot fetched {facts.snapshotFetchedAt.slice(0, 16).replace("T", " ")}.
+        snapshot fetched <Timestamp iso={facts.snapshotFetchedAt} />.
       </p>
     </div>
   );

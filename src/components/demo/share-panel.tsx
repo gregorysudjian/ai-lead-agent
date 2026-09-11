@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { DEFAULT_SHARE_DAYS, shareState, type DemoShare } from "@/lib/demo-share";
-import { formatTimestamp } from "@/lib/format";
+import { FOCUS_RING } from "@/components/ui/primitives";
+import { Timestamp } from "@/components/ui/timestamp";
 
 /**
  * Issue, copy and withdraw the links that let a business see its own demo.
@@ -97,136 +98,152 @@ export function SharePanel({ demoId, shares }: { demoId: string; shares: DemoSha
     }
   }
 
-  if (!open) {
-    return (
+  /**
+   * An anchored dropdown, not an inline block.
+   *
+   * The trigger lives in the preview bar's right-hand group, which is
+   * `shrink-0` and sized for two short links. Expanding a full form in place
+   * squeezed "Back to lead" and "All demos" into the remaining pixels. A
+   * dropdown is what a toolbar disclosure actually is, so the open panel is
+   * taken out of flow and hung off the button instead.
+   */
+  return (
+    <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="rounded border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-200 hover:bg-slate-800"
+        onClick={() => setOpen((shown) => !shown)}
+        aria-expanded={open}
+        className={`rounded border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-200 hover:bg-slate-800 ${FOCUS_RING}`}
       >
         Share{live.length > 0 ? ` (${live.length})` : ""}
       </button>
-    );
-  }
 
-  return (
-    <div className="w-full rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-xs">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-slate-100">Share this demo</p>
-          <p className="mt-0.5 text-slate-400">
-            Creates a link the business can open without signing in. Every link expires,
-            and you can withdraw one at any time.
-          </p>
+      {open ? (
+        <div className="absolute top-full right-0 z-30 mt-2 w-80 rounded-lg border border-slate-700 bg-slate-950 p-3 text-xs shadow-xl sm:w-96">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold text-slate-100">Share this demo</p>
+              <p className="mt-0.5 text-slate-400">
+                Creates a link the business can open without signing in. Every link expires,
+                and you can withdraw one at any time.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className={`shrink-0 rounded px-2 py-1 text-slate-400 hover:bg-slate-800 ${FOCUS_RING}`}
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-slate-400">Expires in</span>
+              <select
+                value={days}
+                onChange={(event) => setDays(Number(event.target.value))}
+                className={`rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100 ${FOCUS_RING}`}
+              >
+                {DURATIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option} days
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex min-w-48 flex-1 flex-col gap-1">
+              <span className="text-slate-400">Note to yourself (optional)</span>
+              <input
+                type="text"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                maxLength={300}
+                placeholder="Left with the owner on Tuesday"
+                className={`rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100 placeholder:text-slate-400 ${FOCUS_RING}`}
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={create}
+              disabled={working}
+              className={`rounded bg-amber-400 px-3 py-1.5 font-semibold text-slate-900 hover:bg-amber-300 disabled:opacity-60 ${FOCUS_RING}`}
+            >
+              {busy ? "Creating..." : "Create link"}
+            </button>
+          </div>
+
+          {error ? (
+            <p role="alert" className="mt-2 rounded bg-red-950/60 px-2 py-1 text-red-300">
+              {error}
+            </p>
+          ) : null}
+
+          {shares.length > 0 ? (
+            <ul className="mt-3 divide-y divide-slate-800 border-t border-slate-800">
+              {shares.map((share) => {
+                const state = shareState(share);
+                return (
+                  <li key={share.id} className="flex flex-wrap items-center gap-2 py-2">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                        state === "active"
+                          ? "bg-emerald-400/15 text-emerald-300"
+                          : "bg-slate-700/50 text-slate-400"
+                      }`}
+                    >
+                      {state}
+                    </span>
+
+                    <code className="min-w-0 flex-1 truncate text-slate-300">
+                      {absolute(`/s/${share.token}`)}
+                    </code>
+
+                    {state === "active" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => copy(share.token)}
+                          className={`rounded border border-slate-700 px-2 py-0.5 text-slate-200 hover:bg-slate-800 ${FOCUS_RING}`}
+                        >
+                          {copied === share.token ? "Copied" : "Copy"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => revoke(share.id)}
+                          disabled={working}
+                          className={`rounded border border-slate-700 px-2 py-0.5 text-slate-300 hover:bg-slate-800 disabled:opacity-60 ${FOCUS_RING}`}
+                        >
+                          Revoke
+                        </button>
+                      </>
+                    ) : null}
+
+                    <span className="w-full text-[11px] text-slate-400">
+                      {state === "revoked" && share.revokedAt ? (
+                        <>
+                          Withdrawn <Timestamp iso={share.revokedAt} />
+                        </>
+                      ) : (
+                        <>
+                          Expires <Timestamp iso={share.expiresAt} />
+                        </>
+                      )}
+                      {share.note ? ` · ${share.note}` : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-3 border-t border-slate-800 pt-3 text-slate-400">
+              No links yet. Nothing is shared until you create one.
+            </p>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="shrink-0 rounded px-2 py-1 text-slate-400 hover:bg-slate-800"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-slate-400">Expires in</span>
-          <select
-            value={days}
-            onChange={(event) => setDays(Number(event.target.value))}
-            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100"
-          >
-            {DURATIONS.map((option) => (
-              <option key={option} value={option}>
-                {option} days
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex min-w-48 flex-1 flex-col gap-1">
-          <span className="text-slate-400">Note to yourself (optional)</span>
-          <input
-            type="text"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            maxLength={300}
-            placeholder="Left with the owner on Tuesday"
-            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100 placeholder:text-slate-600"
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={create}
-          disabled={working}
-          className="rounded bg-amber-400 px-3 py-1.5 font-semibold text-slate-900 hover:bg-amber-300 disabled:opacity-60"
-        >
-          {busy ? "Creating..." : "Create link"}
-        </button>
-      </div>
-
-      {error ? (
-        <p role="alert" className="mt-2 rounded bg-red-950/60 px-2 py-1 text-red-300">
-          {error}
-        </p>
       ) : null}
-
-      {shares.length > 0 ? (
-        <ul className="mt-3 divide-y divide-slate-800 border-t border-slate-800">
-          {shares.map((share) => {
-            const state = shareState(share);
-            return (
-              <li key={share.id} className="flex flex-wrap items-center gap-2 py-2">
-                <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                    state === "active"
-                      ? "bg-emerald-400/15 text-emerald-300"
-                      : "bg-slate-700/50 text-slate-400"
-                  }`}
-                >
-                  {state}
-                </span>
-
-                <code className="min-w-0 flex-1 truncate text-slate-300">
-                  {absolute(`/s/${share.token}`)}
-                </code>
-
-                {state === "active" ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => copy(share.token)}
-                      className="rounded border border-slate-700 px-2 py-0.5 text-slate-200 hover:bg-slate-800"
-                    >
-                      {copied === share.token ? "Copied" : "Copy"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => revoke(share.id)}
-                      disabled={working}
-                      className="rounded border border-slate-700 px-2 py-0.5 text-slate-300 hover:bg-slate-800 disabled:opacity-60"
-                    >
-                      Revoke
-                    </button>
-                  </>
-                ) : null}
-
-                <span className="w-full text-[11px] text-slate-500">
-                  {state === "revoked" && share.revokedAt
-                    ? `Withdrawn ${formatTimestamp(share.revokedAt)}`
-                    : `Expires ${formatTimestamp(share.expiresAt)}`}
-                  {share.note ? ` · ${share.note}` : ""}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="mt-3 border-t border-slate-800 pt-3 text-slate-500">
-          No links yet. Nothing is shared until you create one.
-        </p>
-      )}
     </div>
   );
 }
