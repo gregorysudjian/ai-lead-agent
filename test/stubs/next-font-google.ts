@@ -47,6 +47,32 @@ export const Playfair_Display = stub("playfair_display");
 export const Archivo = stub("archivo");
 export const Plus_Jakarta_Sans = stub("plus_jakarta_sans");
 
+// The new-generation renderer's families (`demo/v2/fonts.ts`).
+export const Abril_Fatface = stub("abril_fatface");
+export const Anton = stub("anton");
+export const Bebas_Neue = stub("bebas_neue");
+export const Bodoni_Moda = stub("bodoni_moda");
+export const Bricolage_Grotesque = stub("bricolage_grotesque");
+export const Cormorant_Garamond = stub("cormorant_garamond");
+export const DM_Sans = stub("dm_sans");
+export const DM_Serif_Display = stub("dm_serif_display");
+export const Gloock = stub("gloock");
+export const Instrument_Serif = stub("instrument_serif");
+export const Inter_Tight = stub("inter_tight");
+export const Italiana = stub("italiana");
+export const Limelight = stub("limelight");
+export const Manrope = stub("manrope");
+export const Marcellus = stub("marcellus");
+export const Newsreader = stub("newsreader");
+export const Outfit = stub("outfit");
+export const Poiret_One = stub("poiret_one");
+export const Space_Grotesk = stub("space_grotesk");
+export const Space_Mono = stub("space_mono");
+export const Syne = stub("syne");
+export const Unbounded = stub("unbounded");
+export const Work_Sans = stub("work_sans");
+export const Young_Serif = stub("young_serif");
+
 // Loaded by the dashboard's root layout rather than by a demo page, but a test
 // that renders the layout would need them for the same reason.
 export const Geist = stub("geist");

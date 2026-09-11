@@ -123,7 +123,7 @@ try {
       await context.close();
     }
     shots.push(entry);
-    console.log(`${index + 1}/${targets.length}  ${business.provider.name}`);
+    console.log(`${index + 1}/${targets.length}  ${business.id}  ${business.provider.name}`);
   }
 } finally {
   await browser.close();
@@ -148,6 +148,17 @@ ${shots
 <div class="row"><a href="${s.desktop}"><img src="${s.desktop}" loading="lazy"></a><a href="${s.mobile}"><img src="${s.mobile}" loading="lazy"></a></div>`,
   )
   .join("\n")}`,
+  "utf8",
+);
+
+// Which business each picture is, for re-running just the ones that need work.
+writeFileSync(
+  join(outDir, "manifest.json"),
+  JSON.stringify(
+    shots.map((s) => ({ id: s.business.id, name: s.business.provider.name, desktop: s.desktop, mobile: s.mobile })),
+    null,
+    2,
+  ),
   "utf8",
 );
 

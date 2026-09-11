@@ -2,6 +2,8 @@ import "server-only";
 
 import { deriveAnalysisFacts, toProviderInput } from "@/lib/analysis-facts";
 import type { CatalogBusiness } from "@/lib/catalog/types";
+import { designFor } from "@/lib/demo-design/genome";
+import type { DemoDesign } from "@/lib/demo-design/types";
 import { deriveDemoSiteBusiness, toDemoGeneratorInput } from "@/lib/demo-facts";
 import { enforceSampleFlags } from "@/lib/demo-sample-policy";
 import type { DemoSiteSpec } from "@/lib/demo-site";
@@ -39,6 +41,8 @@ import { getCatalogRepository } from "@/server/repo";
 export interface LabDemo {
   business: CatalogBusiness;
   spec: DemoSiteSpec;
+  /** The design genome this business gets at `variant`; pure, so never stored. */
+  design: DemoDesign;
 }
 
 /**
@@ -58,7 +62,7 @@ function asLead(business: CatalogBusiness): Lead {
 }
 
 /** The demo generation would produce for this business, or null if unknown. */
-export async function labDemoForBusiness(businessId: string): Promise<LabDemo | null> {
+export async function labDemoForBusiness(businessId: string, variant = 0): Promise<LabDemo | null> {
   const business = await getCatalogRepository().findById(businessId);
   if (business === null) return null;
 
@@ -71,5 +75,10 @@ export async function labDemoForBusiness(businessId: string): Promise<LabDemo | 
     toDemoGeneratorInput(facts, analysis.recommendations),
   );
 
-  return { business, spec: { business: facts, content: enforceSampleFlags(generated, facts) } };
+  const design = designFor(
+    { name: business.provider.name, category: business.provider.category, address: business.provider.address },
+    variant,
+  );
+
+  return { business, spec: { business: facts, content: enforceSampleFlags(generated, facts) }, design };
 }

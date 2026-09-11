@@ -76,15 +76,23 @@ export default async function BusinessesPage({
             : `${n(summary.current)} hair and beauty businesses on the island of Montreal. None of them is a lead until you add it.`
         }
         actions={
-          lastRefresh ? (
-            <p className="text-xs text-slate-600 sm:text-right dark:text-slate-400">
-              Updated <Timestamp iso={lastRefresh.finishedAt ?? lastRefresh.startedAt} />
-              <br />
-              <span className="text-slate-500 dark:text-slate-400">
-                Overture Maps release {lastRefresh.release}
-              </span>
-            </p>
-          ) : null
+          <div className="flex items-center gap-4">
+            {lastRefresh ? (
+              <p className="text-xs text-slate-600 sm:text-right dark:text-slate-400">
+                Updated <Timestamp iso={lastRefresh.finishedAt ?? lastRefresh.startedAt} />
+                <br />
+                <span className="text-slate-500 dark:text-slate-400">
+                  Overture Maps release {lastRefresh.release}
+                </span>
+              </p>
+            ) : null}
+            <Link
+              href="/demos/lab/grid"
+              className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Design grid
+            </Link>
+          </div>
         }
       />
 

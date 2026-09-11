@@ -307,3 +307,38 @@ still validate and render as before.
 - **Brand names:** the logo is always a prefix of the real name cut at a
   separator the business wrote ("Klyne Beauty"), never rewritten; monograms
   skip trade words ("Salon Barbier Chez Mostafa" → "M").
+
+### Items 3–5 — motion, generative art, the new renderer · done
+
+- `src/components/demo/v2/`: a new renderer that draws a site from its design
+  genome. Six hero compositions (giant wordmark, split with a rotating name
+  badge, full-bleed poster, centred monogram, magazine editorial, layered
+  stack), four service treatments, three about, three gallery (one pinned
+  horizontal), three contact, three closing CTAs, three navs, two footers.
+- **Motion is CSS**: reveals, parallax depth layers, clip-unmask, zoom, hero
+  exit, reading-progress bar, condensing nav, rotating badges, marquees,
+  pinned horizontal gallery — all behind `@supports (animation-timeline)` and
+  `prefers-reduced-motion`. The only JavaScript is a tiny island for a
+  lagging cursor and magnetic buttons (mouse only) and a fallback for browsers
+  without scroll timelines. With reduced motion the page is complete and still.
+- **Art, not stock photos**: every trade has line-art glyphs (shears, razor,
+  pole, gem, ink drop, petals…) composed per business from its seed; every
+  photo slot says what photo belongs there.
+- **29 self-hosted typefaces**, loaded only when a page uses them. A test
+  fails if the genome can name a font the renderer never loaded.
+- **FR by default, EN switch** in every nav (`?lang=en`); the renderer's own
+  words, weekday names and "9 h – 18 h 30" hours are French. (The generated
+  copy is still English — that is item 6.)
+- **The lab now shows v2** with *Try another design* and *Old renderer*
+  buttons, and **`/demos/lab/grid`** shows twelve live designs side by side
+  (a *Design grid* button sits on the Businesses page).
+- **Found by looking at screenshots, then fixed**: hero art striking through
+  the business name; a name badge covering a photo label; phone numbers
+  wrapping; a 4-tile mosaic leaving a hole; a grid card pushed off-screen by
+  CSS auto-placement; a stylesheet silently overriding layout utilities
+  (moved into a cascade layer); long names cut off with "…" in the nav;
+  "Contact" and "Get in touch" both in the menu; duplicate SVG ids.
+- **Tests**: 60 across the renderer — a sweep of 216 renders reaching every
+  variant checks one `<h1>` per page, no leaked `undefined`, unique ids, sample
+  tags wherever copy is sample, a call link only when a phone is stored,
+  hostile names rendered as text, colours only via the genome.
