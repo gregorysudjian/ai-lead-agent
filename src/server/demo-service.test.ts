@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Analysis } from "@/lib/analysis";
-import type { DemoSiteContent, DemoSiteGeneratorInput } from "@/lib/demo-site";
+import { contentStructure, type DemoSiteContent, type DemoSiteGeneratorInput } from "@/lib/demo-site";
 import type { Lead } from "@/lib/types";
 import type { DemoSiteProvider } from "@/server/demo/types";
 import type { DemoSiteRepository } from "@/server/repo/demo-types";
@@ -143,6 +143,7 @@ function stubProvider(
   return {
     name: "stub",
     model: "stub-v1",
+    locales: ["en"],
     calls,
     generate: (input) => {
       calls.push(input);
@@ -257,7 +258,8 @@ describe("fact ownership", () => {
     const demo = await generateDemoSite(LEAD_ID, ANALYSIS_ID);
     expect(demo.spec.business.name).toBe("Salon Test");
     expect(demo.spec.business.phone).toBe("+1 514 555 0100");
-    expect(Object.keys(demo.spec).sort()).toEqual(["business", "content"]);
+    // The design is the only other key, and it is ours, not the generator's.
+    expect(Object.keys(demo.spec).sort()).toEqual(["business", "content", "design"]);
     expect(demo.spec.content).not.toHaveProperty("business");
   });
 
@@ -355,5 +357,74 @@ describe("failures", () => {
 
     expect(state.leads.get(LEAD_ID)).toEqual(before);
     expect(state.mutations).toEqual([]);
+  });
+});
+
+describe("design and languages", () => {
+  beforeEach(() => {
+    state.leads.set(LEAD_ID, lead());
+    state.analyses.set(ANALYSIS_ID, analysis());
+  });
+
+  it("stores a design and a French page with the English page's structure", async () => {
+    const demo = await generateDemoSite(LEAD_ID, ANALYSIS_ID);
+    expect(demo.spec.design?.version).toBe(1);
+    expect(demo.spec.design?.variant).toBe(0);
+    const french = demo.spec.alternates?.fr;
+    expect(french).toBeDefined();
+    expect(contentStructure(french as DemoSiteContent)).toBe(contentStructure(demo.spec.content));
+    expect(french?.tagline).toContain(" à ");
+    // Read back through the real mapping: the pair survives validation.
+    expect(await (state.demoRepository as DemoSiteRepository).findById(demo.id)).toEqual(demo);
+  });
+
+  it("marks the French page sample exactly where the English one is", async () => {
+    const demo = await generateDemoSite(LEAD_ID, ANALYSIS_ID);
+    expect(demo.spec.alternates?.fr?.sections.map((s) => s.sample)).toEqual(demo.spec.content.sections.map((s) => s.sample));
+  });
+
+  it("draws another design for a new variant, with the same words", async () => {
+    const first = await generateDemoSite(LEAD_ID, ANALYSIS_ID);
+    const second = await generateDemoSite(LEAD_ID, ANALYSIS_ID, { variant: 1 });
+    expect(second.spec.design?.variant).toBe(1);
+    expect(second.spec.design?.seed).not.toBe(first.spec.design?.seed);
+    expect(second.spec.content).toEqual(first.spec.content);
+    expect(second.spec.alternates).toEqual(first.spec.alternates);
+  });
+
+  it("is stable: the same variant gives the same design", async () => {
+    const a = await generateDemoSite(LEAD_ID, ANALYSIS_ID, { variant: 3 });
+    const b = await generateDemoSite(LEAD_ID, ANALYSIS_ID, { variant: 3 });
+    expect(a.spec.design).toEqual(b.spec.design);
+  });
+
+  it("refuses a variant outside the closed range", async () => {
+    for (const variant of [-1, 100, 1.5, Number.NaN]) {
+      await expect(generateDemoSite(LEAD_ID, ANALYSIS_ID, { variant })).rejects.toBeInstanceOf(RangeError);
+    }
+  });
+
+  it("does not ask an English-only generator for French", async () => {
+    const provider = stubProvider((input) => mockDemoSiteProvider.generate(input));
+    state.provider = provider;
+    const demo = await generateDemoSite(LEAD_ID, ANALYSIS_ID);
+    expect(provider.calls).toHaveLength(1);
+    expect(provider.calls[0].locale).toBeUndefined();
+    expect(demo.spec.alternates).toBeUndefined();
+    expect(demo.spec.design).toBeDefined();
+  });
+
+  it("stores English alone when the French page comes back a different shape", async () => {
+    const provider = stubProvider(async (input) => {
+      const content = await mockDemoSiteProvider.generate(input);
+      // A French page missing its last section.
+      return input.locale === "fr" ? { ...content, sections: content.sections.slice(0, -1), navigation: content.navigation.slice(0, -1) } : content;
+    });
+    state.provider = { ...provider, locales: ["en", "fr"] };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const demo = await generateDemoSite(LEAD_ID, ANALYSIS_ID);
+    expect(demo.spec.alternates).toBeUndefined();
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
   });
 });

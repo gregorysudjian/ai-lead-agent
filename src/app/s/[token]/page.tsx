@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { DemoSiteView } from "@/components/demo/demo-site-view";
 import { DEMO_FONT_VARIABLES } from "@/components/demo/fonts";
+import { demoLocale, RenderedDemo } from "@/components/demo/rendered-demo";
+import { contentFor } from "@/lib/demo-site";
+import type { Locale } from "@/lib/locale";
 import { sampleSectionLabels } from "@/lib/demo-sample-policy";
 import { clientIdentity, enforceRateLimit } from "@/server/rate-limit";
 import { resolveSharedDemo } from "@/server/share-service";
@@ -48,18 +50,49 @@ export const dynamic = "force-dynamic";
  * broadcast that we hold a record of them to anyone glancing at the tab.
  */
 export const metadata: Metadata = {
-  title: { absolute: "Website proposal" },
+  title: { absolute: "Proposition de site web · Website proposal" },
   // Not that it should be reachable, but a draft proposal for someone else's
   // business has no business in an index.
   robots: { index: false, follow: false },
 };
 
+/**
+ * Our own bar, in the page's language.
+ *
+ * Written here rather than generated, like everything in the bar. The French
+ * is the same disclosure, not a softer one: that this is a draft, that the
+ * business did not make or approve it, that nothing is published, and which
+ * sections are placeholders for them to correct.
+ */
+const BAR: Record<
+  Locale,
+  { badge: string; what: (name: string) => string; samples: (list: string, category: string) => string }
+> = {
+  en: {
+    badge: "Draft proposal",
+    what: (name) =>
+      `This is a draft website put together for ${name}. It is a proposal, not a live website, and it was not made by or with the business. Nothing on it has been published.`,
+    samples: (list, category) =>
+      `Sections marked \u201csample content\u201d (${list}) are placeholders showing what the finished page would say. They are written from what is typical for a ${category.toLowerCase()}, not from anything we know about this business, and every line of them is yours to correct.`,
+  },
+  fr: {
+    badge: "Ébauche de proposition",
+    what: (name) =>
+      `Ceci est une ébauche de site web préparée pour ${name}. C’est une proposition, pas un site en ligne, et elle n’a été faite ni par l’entreprise ni avec elle. Rien n’y a été publié.`,
+    samples: (list) =>
+      `Les sections marquées «\u00a0contenu d’exemple\u00a0» (${list}) sont des textes provisoires qui montrent ce que dirait la page finale. Ils s’inspirent de ce qui est courant dans ce type de commerce, pas de ce qu’on sait de cette entreprise, et chaque ligne est à corriger par vous.`,
+  },
+};
+
 export default async function SharedDemoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { token } = await params;
+  const { lang } = await searchParams;
 
   // The only unauthenticated route that reads data, so it is the only one
   // where a limit is guarding against enumeration rather than protecting a
@@ -80,8 +113,11 @@ export default async function SharedDemoPage({
 
   if (!demo) notFound();
 
-  const { business, content } = demo.spec;
-  const sampleSections = sampleSectionLabels(content);
+  const { business } = demo.spec;
+  const locale = demoLocale(demo.spec, lang);
+  const bar = BAR[locale];
+  // Listed by the headings the recipient actually sees, in their language.
+  const sampleSections = sampleSectionLabels(contentFor(demo.spec, locale));
 
   return (
     <div className={DEMO_FONT_VARIABLES}>
@@ -90,7 +126,7 @@ export default async function SharedDemoPage({
         <div className="mx-auto w-full max-w-6xl px-5 py-4 sm:px-8">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide text-slate-900 uppercase">
-              Draft proposal
+              {bar.badge}
             </span>
             <span className="text-sm font-medium text-slate-100">{business.name}</span>
           </div>
@@ -98,26 +134,18 @@ export default async function SharedDemoPage({
           {/* Said plainly, because the recipient did not ask for this. An
               unsolicited mock-up that does not say what it is reads as a
               claim to represent the business. */}
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-            This is a draft website put together for {business.name}. It is a proposal, not
-            a live website, and it was not made by or with the business. Nothing on it has
-            been published.
-          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">{bar.what(business.name)}</p>
 
           {sampleSections.length > 0 ? (
             <p className="mt-1.5 text-[11px] leading-relaxed text-amber-300/90">
-              <span className="font-semibold">Sections marked &ldquo;sample content&rdquo;</span>{" "}
-              ({sampleSections.join(", ")}) are placeholders showing what the finished page
-              would say. They are written from what is typical for a{" "}
-              {business.category.toLowerCase()}, not from anything we know about this
-              business, and every line of them is yours to correct.
+              {bar.samples(sampleSections.join(", "), business.category)}
             </p>
           ) : null}
         </div>
       </div>
 
       {/* ---- The proposed website ---------------------------------------- */}
-      <DemoSiteView spec={demo.spec} />
+      <RenderedDemo spec={demo.spec} locale={locale} basePath={`/s/${token}`} />
     </div>
   );
 }

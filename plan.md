@@ -342,3 +342,45 @@ still validate and render as before.
   variant checks one `<h1>` per page, no leaked `undefined`, unique ids, sample
   tags wherever copy is sample, a call link only when a phone is stored,
   hostile names rendered as text, colours only via the genome.
+
+### Items 6–7 — bilingual, personal copy, wired in · done
+
+- **French first, English one click away.** Every sample line now exists in
+  Quebec French and English (`demo-samples-fr.ts`, `demo-samples-en.ts`), for
+  all 13 trades plus the fallback. French uses Quebec usage ("jasette",
+  déjeuner/dîner), French typography (a non-breaking space before ? and :),
+  and never puts the city after "de" (a template cannot know "de Anjou" should
+  be "d'Anjou").
+- **Words vary as much as the look.** For the five catalog trades there are
+  4 headlines, 3 subheadings, 3 about paragraphs, 5–6 services (3–4 shown),
+  5 about points (3 shown) and 3 closings each, picked by the business's name.
+  Among 19,900 pairs of invented salons, fewer than 0.3% get the same page
+  copy. A finding worth recording: the first version produced only 72%
+  distinct pages because FNV's low bits never mix; a murmur finaliser fixed it.
+- **One page in two languages.** The pools are parallel and both languages
+  pick the same index, so the French and English pages always say the same
+  thing. The stored French page must have exactly the English page's
+  structure (sections, counts, buttons, sample flags) — the database layer
+  refuses a mismatch.
+- **Personal:** copy uses the business's brand ("Klyne Beauty est un salon…"),
+  not the keyword-stuffed directory name; the category appears in the page's
+  language ("Barbier", "Salon d'esthétique"); service icons match in both
+  languages (a test checks every pair).
+- **Honest in French too.** New tests sweep every trade × layout × phone/address
+  combination × 5 names in French for prices, "depuis 1998", "10 ans", "primé",
+  "certifié", "garanti", ratings, payment methods and clock times; and check
+  that a page with no phone never says "appelez" and one with no address never
+  says "passez"/"venez". They caught three real problems, all fixed in the copy.
+  I also removed "Cash and card accepted" (a checkable claim) from the barber copy.
+- **Wired in.** Generating a demo now stores a design and a French page
+  (`spec.design`, `spec.alternates.fr`). `/demos/[id]` and the public
+  `/s/[token]` draw it with the new renderer, in French by default, `?lang=en`
+  for English; the share page's disclosure bar is French too. **Every demo
+  stored before tonight renders exactly as before** (no design → old
+  renderer; checked on St-Viateur Bagel).
+- **Try another design** on the lead's demo panel makes a new demo with the
+  next design variant: same words, new look, the old demo kept.
+- The Claude-backed generator declares itself English-only (it chooses its own
+  sections each call, so a French call would rarely match the English page —
+  two paid calls for nothing). Its demos get the new design, in English.
+- Tests: 2,062 passing (was 1,950).

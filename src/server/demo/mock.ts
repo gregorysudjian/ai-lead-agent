@@ -9,7 +9,9 @@ import type {
   DemoTheme,
 } from "@/lib/demo-site";
 import type { RecommendedSiteType } from "@/lib/analysis";
-import { fillSample, samplesForCategory, type CategorySamples } from "@/lib/demo-samples";
+import { brandName } from "@/lib/demo-design/brand";
+import { categoryLabel, fillSample, samplesFor, type CategorySamples } from "@/lib/demo-samples";
+import type { Locale } from "@/lib/locale";
 
 import { DemoSiteProviderError, type DemoSiteProvider } from "./types";
 
@@ -57,9 +59,72 @@ import { DemoSiteProviderError, type DemoSiteProvider } from "./types";
  * website or our process, and never uses our internal vocabulary --
  * "provider", "listed", "analysis", "draft". The disclosure that this is a
  * proposal lives in the preview's chrome, where a generator cannot reach it.
+ *
+ * ── LANGUAGES AND VARIETY ─────────────────────────────────────────────────
+ *
+ * It writes French or English (`input.locale`, English when absent), from
+ * the parallel pools in `demo-samples`. The business's name picks one line
+ * from each pool, so neighbours in the same trade read differently while one
+ * business always reads the same -- and in both languages the SAME line, so
+ * the French page and the English page make one pitch, not two.
+ *
+ * Copy names the business by its BRAND (`brandName`): "Klyne Beauty is a hair
+ * salon", not the whole directory listing with its keywords. The brand is
+ * always a prefix of the stored name, cut where the business itself put a
+ * separator, so nothing is renamed.
  */
 
-const MODEL = "deterministic-demo-rules-v2";
+// v3: French, pools picked by name, the brand in copy.
+const MODEL = "deterministic-demo-rules-v3";
+
+/** The generator's own lines, the ones that are not category copy. */
+const LINES: Record<
+  Locale,
+  {
+    callUs: string;
+    getInTouch: string;
+    findUs: string;
+    whatWeDo: string;
+    contactPhoneOnly: string;
+    contactAddressOnly: string;
+    contactNeither: string;
+    hoursReal: string;
+    hoursSample: string;
+    tagline: (label: string, city: string) => string;
+    nav: Record<Exclude<DemoSection["kind"], "hero">, string>;
+  }
+> = {
+  en: {
+    callUs: "Call us",
+    getInTouch: "Get in touch",
+    findUs: "Find us",
+    whatWeDo: "What we do",
+    contactPhoneOnly: "Give us a call and we will be glad to help.",
+    contactAddressOnly: "Come and see us. We are glad to have visitors.",
+    contactNeither: "Get in touch and we will come back to you.",
+    hoursReal: "Our opening hours are below.",
+    hoursSample: "Our usual opening hours.",
+    tagline: (label, city) => `${label} in ${city}`,
+    nav: { offering: "Services", gallery: "Gallery", positioning: "About", contact: "Contact", cta: "Get in touch" },
+  },
+  fr: {
+    callUs: "Appelez-nous",
+    getInTouch: "Nous joindre",
+    findUs: "Nous trouver",
+    whatWeDo: "Nos services",
+    contactPhoneOnly: "Appelez-nous, on sera heureux de vous aider.",
+    contactAddressOnly: "Passez nous voir, ça nous fera plaisir.",
+    contactNeither: "Contactez-nous et on vous répondra.",
+    hoursReal: "Nos heures d’ouverture sont ci-dessous.",
+    hoursSample: "Nos heures habituelles.",
+    tagline: (label, city) => `${label} à ${city}`,
+    nav: { offering: "Services", gallery: "Galerie", positioning: "À propos", contact: "Contact", cta: "Nous joindre" },
+  },
+};
+
+function localeOf(input: DemoSiteGeneratorInput): Locale {
+  return input.locale ?? "en";
+}
 
 /** Section ids double as page anchors, so they are fixed, known slugs. */
 const SECTION = {
@@ -209,13 +274,15 @@ export function layoutFor(input: DemoSiteGeneratorInput): DemoLayout {
  * online" would assert a booking system nobody told us about.
  */
 function primaryCtaFor(input: DemoSiteGeneratorInput): DemoCta {
-  if (input.phoneListed) return { label: "Call us", action: "call" };
-  return { label: "Get in touch", action: "scroll", targetSectionId: SECTION.contact };
+  const lines = LINES[localeOf(input)];
+  if (input.phoneListed) return { label: lines.callUs, action: "call" };
+  return { label: lines.getInTouch, action: "scroll", targetSectionId: SECTION.contact };
 }
 
 function secondaryCtaFor(input: DemoSiteGeneratorInput): DemoCta {
-  if (input.addressListed) return { label: "Find us", action: "directions" };
-  return { label: "What we do", action: "scroll", targetSectionId: SECTION.offering };
+  const lines = LINES[localeOf(input)];
+  if (input.addressListed) return { label: lines.findUs, action: "directions" };
+  return { label: lines.whatWeDo, action: "scroll", targetSectionId: SECTION.offering };
 }
 
 /** How many services a layout shows. A one-pager stays tighter. */
@@ -253,7 +320,8 @@ function offeringFor(
     sample: true,
     heading: fill(samples.servicesHeading),
     intro: fill(samples.servicesIntro),
-    items: samples.services.slice(0, serviceCount(input.recommendedSiteType)).map((service) => ({
+    // Already cut to the right count by `samplesFor`, chosen by the name.
+    items: samples.services.map((service) => ({
       title: fill(service.title),
       body: fill(service.body),
     })),
@@ -298,14 +366,15 @@ function contactFor(
   samples: CategorySamples,
   fill: (template: string) => string,
 ): DemoSection {
+  const lines = LINES[localeOf(input)];
   const body =
     input.phoneListed && input.addressListed
       ? fill(samples.contactBody)
       : input.phoneListed
-        ? "Give us a call and we will be glad to help."
+        ? lines.contactPhoneOnly
         : input.addressListed
-          ? "Come and see us. We are glad to have visitors."
-          : "Get in touch and we will come back to you.";
+          ? lines.contactAddressOnly
+          : lines.contactNeither;
 
   return {
     kind: "contact",
@@ -323,11 +392,9 @@ function contactFor(
     // parsed from OpenStreetMap still had them tagged "sample content" -- the
     // best fact we hold about a website-less business, disclaimed away.
     sample: !(input.openingHoursListed && (input.phoneListed || input.addressListed)),
-    heading: input.addressListed ? "Find us" : "Get in touch",
+    heading: input.addressListed ? lines.findUs : lines.getInTouch,
     body,
-    hoursNote: input.openingHoursListed
-      ? "Our opening hours are below."
-      : "Our usual opening hours.",
+    hoursNote: input.openingHoursListed ? lines.hoursReal : lines.hoursSample,
   };
 }
 
@@ -348,7 +415,7 @@ function ctaFor(
       ? fill(samples.ctaBody)
       : input.addressListed
         ? fill(samples.ctaBodyVisit)
-        : "Get in touch and we will come back to you.",
+        : LINES[localeOf(input)].contactNeither,
     cta: primaryCtaFor(input),
   };
 }
@@ -360,10 +427,11 @@ function ctaFor(
  * that is the minimum that reads as a real small-business site. The gallery is
  * added where a business is something people look at before they choose it.
  */
-function sectionsFor(input: DemoSiteGeneratorInput, samples: CategorySamples): DemoSection[] {
-  const fill = (template: string) =>
-    fillSample(template, { name: input.businessName, city: input.city });
-
+function sectionsFor(
+  input: DemoSiteGeneratorInput,
+  samples: CategorySamples,
+  fill: (template: string) => string,
+): DemoSection[] {
   const hero = heroFor(input, samples, fill);
   const offering = offeringFor(input, samples, fill);
   const positioning = positioningFor(samples, fill);
@@ -389,17 +457,11 @@ function sectionsFor(input: DemoSiteGeneratorInput, samples: CategorySamples): D
   return [hero, offering, positioning, contact, cta];
 }
 
-const NAV_LABELS: Record<Exclude<DemoSection["kind"], "hero">, string> = {
-  offering: "Services",
-  gallery: "Gallery",
-  positioning: "About",
-  contact: "Contact",
-  cta: "Get in touch",
-};
-
 class MockDemoSiteProvider implements DemoSiteProvider {
   readonly name = "mock";
   readonly model = MODEL;
+  // Both, with identical structure: the language only selects the pool.
+  readonly locales = ["en", "fr"] as const;
 
   async generate(input: DemoSiteGeneratorInput): Promise<DemoSiteContent> {
     // A nameless business cannot have a credible site mocked up for it.
@@ -410,19 +472,23 @@ class MockDemoSiteProvider implements DemoSiteProvider {
       throw new DemoSiteProviderError("Business has no usable category or city.");
     }
 
-    const samples = samplesForCategory(input.category);
-    const fill = (template: string) =>
-      fillSample(template, { name: input.businessName, city: input.city });
-    const sections = sectionsFor(input, samples);
+    const locale = localeOf(input);
+    const lines = LINES[locale];
+    // The full name seeds the picks (it is what tells two shops apart); the
+    // brand is what the copy calls the business.
+    const samples = samplesFor(input.category, locale, input.businessName, serviceCount(input.recommendedSiteType));
+    const brand = brandName(input.businessName);
+    const fill = (template: string) => fillSample(template, { name: brand, city: input.city });
+    const sections = sectionsFor(input, samples, fill);
 
     return {
       siteTitle: input.businessName,
-      tagline: `${input.category} in ${input.city}`,
+      tagline: lines.tagline(categoryLabel(input.category, locale), input.city),
       theme: themeFor(input),
       layout: layoutFor(input),
       navigation: sections
         .filter((section) => section.kind !== "hero")
-        .map((section) => ({ label: NAV_LABELS[section.kind], targetSectionId: section.id })),
+        .map((section) => ({ label: lines.nav[section.kind], targetSectionId: section.id })),
       sections,
       footer: { note: fill(samples.footerNote) },
     };

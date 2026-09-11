@@ -162,3 +162,17 @@ describe("DemoSiteV2", async () => {
     }
   });
 });
+
+describe("service icons in both languages", () => {
+  it("gives a French service title the icon its English twin gets", async () => {
+    const { POOLS_EN } = await import("@/lib/demo-samples-en");
+    const { POOLS_FR } = await import("@/lib/demo-samples-fr");
+    const { iconForService } = await import("../icons");
+    for (const key of Object.keys(POOLS_EN)) {
+      POOLS_EN[key].services.forEach((service, i) => {
+        const french = POOLS_FR[key].services[i];
+        expect(iconForService(french.title), `${key}: "${french.title}" vs "${service.title}"`).toBe(iconForService(service.title));
+      });
+    }
+  });
+});

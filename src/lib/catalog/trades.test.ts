@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { GENERIC_SAMPLES, samplesForCategory } from "../demo-samples";
+import { poolsFor } from "../demo-samples";
 import { mapOvertureCategory, mappedOvertureCategories } from "../overture/categories";
 import {
   CATALOG_TRADE_GROUPS,
@@ -35,7 +35,9 @@ describe("the catalog trades", () => {
   it.each(CATALOG_TRADES.map((trade) => [trade.key, trade.label]))(
     "%s has bespoke demo copy for its stored label %j",
     (_key, label) => {
-      expect(samplesForCategory(label)).not.toBe(GENERIC_SAMPLES);
+      // Identity, not equality: the generic pools are one shared object.
+      expect(poolsFor(label, "en")).not.toBe(poolsFor("", "en"));
+      expect(poolsFor(label, "fr")).not.toBe(poolsFor("", "fr"));
     },
   );
 

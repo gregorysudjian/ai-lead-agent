@@ -12,11 +12,14 @@
  *
  * ── THE CENTRAL RULE ──────────────────────────────────────────────────────
  *
- * `DemoSiteSpec` has exactly two subtrees:
+ * `DemoSiteSpec` has two required subtrees and two optional ones:
  *
  *   business   what the provider listed, copied verbatim from the lead
  *              snapshot by application code. FACTS.
- *   content    layout, wording, section order, theme. PROPOSAL.
+ *   content    layout, wording, section order, theme. PROPOSAL. English.
+ *   design     the look, computed by our code from facts (lib/demo-design).
+ *              Never a generator's choice. Absent on older demos.
+ *   alternates the same PROPOSAL in French, with content's exact structure.
  *
  * `DemoSiteContent` is precisely what a generator returns
  * (`DemoSiteGeneratorResult`). It contains no business name field, no phone,
@@ -35,6 +38,8 @@
  * a language model — cannot introduce executable markup.
  */
 import type { DesignDirection, RecommendedSiteType } from "./analysis";
+import type { DemoDesign } from "./demo-design/types";
+import type { Locale } from "./locale";
 import type { BusinessSource } from "./types";
 
 /** Only successful generations are persisted; a failure is reported, not stored. */
@@ -340,13 +345,75 @@ export interface DemoSiteGeneratorInput {
   designDirection: DesignDirection;
   draftPositioning: string;
   businessSummary: string;
+  /**
+   * The language to write in. Absent means English, which is what every
+   * generator wrote before languages existed, so old callers are unchanged.
+   */
+  locale?: Locale;
 }
 
 export interface DemoSiteSpec {
   /** Application-owned. Never produced by a generator. */
   business: DemoSiteBusiness;
-  /** Generator-owned. Proposal, not evidence. */
+  /** Generator-owned. Proposal, not evidence. English. */
   content: DemoSiteContent;
+  /**
+   * The design this demo is drawn with, from `lib/demo-design`.
+   *
+   * Application-owned like `business`: computed from facts by our code, never
+   * by a generator. ABSENT on every demo stored before designs existed, and
+   * that absence is meaningful -- those demos keep rendering exactly as they
+   * did, through the original renderer, and are never silently redesigned.
+   */
+  design?: DemoDesign;
+  /**
+   * The same page in other languages. French on every new demo.
+   *
+   * Each alternate must have exactly `content`'s structure -- the same
+   * sections in the same order, the same number of services, points and
+   * photo slots, the same button actions -- so switching language changes the
+   * words and nothing else. The mapping layer rejects a mismatch.
+   */
+  alternates?: { fr?: DemoSiteContent };
+}
+
+/**
+ * Everything about a page except its words: section order and kinds, sample
+ * flags, list lengths, navigation targets and what each button does.
+ *
+ * Two language versions of one page must have the same structure; the
+ * mapping layer refuses to store or read a pair that does not.
+ */
+export function contentStructure(content: DemoSiteContent): string {
+  return JSON.stringify({
+    theme: content.theme,
+    layout: content.layout,
+    navigation: content.navigation.map((item) => item.targetSectionId),
+    sections: content.sections.map((section) => ({
+      kind: section.kind,
+      id: section.id,
+      sample: section.sample,
+      count:
+        section.kind === "offering"
+          ? section.items.length
+          : section.kind === "positioning"
+            ? section.points.length
+            : section.kind === "gallery"
+              ? section.placeholders.length
+              : 0,
+      actions:
+        section.kind === "hero"
+          ? [section.primaryCta, section.secondaryCta].map((cta) => (cta ? [cta.action, cta.targetSectionId ?? null] : null))
+          : section.kind === "cta"
+            ? [[section.cta.action, section.cta.targetSectionId ?? null]]
+            : [],
+    })),
+  });
+}
+
+/** The copy a demo shows in one language; English when no alternate exists. */
+export function contentFor(spec: DemoSiteSpec, locale: Locale): DemoSiteContent {
+  return (locale === "fr" ? spec.alternates?.fr : undefined) ?? spec.content;
 }
 
 /** Which generator produced this, so an old demo stays interpretable. */

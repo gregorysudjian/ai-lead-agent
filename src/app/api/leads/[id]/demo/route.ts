@@ -7,6 +7,7 @@ import {
   demoSitesForLead,
   generateDemoSite,
   LeadNotFoundError,
+  MAX_DESIGN_VARIANT,
 } from "@/server/demo-service";
 import { DemoSiteRepositoryError } from "@/server/repo";
 import { requireApiSession } from "@/server/auth";
@@ -16,10 +17,12 @@ import { enforceRateLimit } from "@/server/rate-limit";
  * POST /api/leads/[id]/demo  -- generate a demo site and persist it
  * GET  /api/leads/[id]/demo  -- list demo sites for the lead, newest first
  *
- * The body carries at most ONE value: which stored analysis to build from. The
- * lead, the analysis and every business fact are loaded server-side from the
- * database, so a client cannot supply a spec, a business name or a contact
- * detail for us to store and later show to a prospect.
+ * The body carries at most two values: which stored analysis to build from,
+ * and which of the business's designs to draw it with. The lead, the analysis
+ * and every business fact are loaded server-side from the database, so a
+ * client cannot supply a spec, a business name or a contact detail for us to
+ * store and later show to a prospect. A design variant is a number from a
+ * closed range, not a design: the design itself is computed here.
  *
  * Nothing here is triggered automatically. One request generates exactly one
  * demo site, and only in response to a person clicking the button.
@@ -33,6 +36,7 @@ import { enforceRateLimit } from "@/server/rate-limit";
  */
 const bodySchema = z.strictObject({
   analysisId: z.uuid().optional(),
+  variant: z.int().min(0).max(MAX_DESIGN_VARIANT).optional(),
 });
 
 function errorResponse(message: string, status: number) {
@@ -59,7 +63,7 @@ export async function POST(
   }
 
   try {
-    const demoSite = await generateDemoSite(id, parsed.data.analysisId);
+    const demoSite = await generateDemoSite(id, parsed.data.analysisId, { variant: parsed.data.variant });
     return Response.json({ demoSite }, { status: 201 });
   } catch (error) {
     if (error instanceof LeadNotFoundError) {

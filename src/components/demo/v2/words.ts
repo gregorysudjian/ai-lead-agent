@@ -1,4 +1,7 @@
 import type { DemoSectionKind } from "@/lib/demo-site";
+import type { Locale } from "@/lib/locale";
+
+export { asLocale, DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/locale";
 
 /**
  * The renderer's own words, in both languages.
@@ -8,18 +11,8 @@ import type { DemoSectionKind } from "@/lib/demo-site";
  * requested. Kept apart because the two have different owners: these are ours
  * and never change per business; that copy is a proposal and is marked sample.
  *
- * French is the default. Quebec's Charter of the French language requires a
- * Quebec business's website to be available in French with French at least as
- * prominent, so a demo for a Montreal business opens in French.
+ * French is the default; see `lib/locale.ts` for why.
  */
-
-export const LOCALES = ["fr", "en"] as const;
-export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = "fr";
-
-export function asLocale(value: unknown): Locale {
-  return value === "en" ? "en" : DEFAULT_LOCALE;
-}
 
 export interface Words {
   sample: string;

@@ -27,6 +27,8 @@ export interface HeroProps {
   words: Words;
   brand: string;
   mark: string;
+  /** The category in the page's language ("Barbier", not "Barber shop"). */
+  trade: string;
 }
 
 function Eyebrow({ section, words, className = "" }: { section: HeroSection; words: Words; className?: string }) {
@@ -86,7 +88,7 @@ function WordmarkHero(props: HeroProps) {
 
 /** Headline and actions beside a tall framed panel, with a name badge. */
 function SplitHero(props: HeroProps) {
-  const { section, design, words, business, brand, mark } = props;
+  const { section, design, words, business, brand, mark, trade } = props;
   return (
     <section id={section.id} className="dx-section relative overflow-hidden" style={{ paddingTop: "clamp(2rem, 5vw, 4rem)" }}>
       <div className="dx-shell grid items-center gap-12 lg:grid-cols-12 lg:gap-16">
@@ -104,7 +106,7 @@ function SplitHero(props: HeroProps) {
           </div>
           {/* Top-right, clear of the photo label in the bottom-left corner. */}
           <div className="dx-par absolute -top-8 -right-3 sm:-right-8" style={{ "--depth": "70px" } as CSSProperties}>
-            <Badge text={`${brand} · ${business.category} · ${business.city}`} mark={mark} palette={design.palette} size={150} />
+            <Badge text={`${brand} · ${trade} · ${business.city}`} mark={mark} palette={design.palette} size={150} />
           </div>
         </div>
       </div>
@@ -114,7 +116,7 @@ function SplitHero(props: HeroProps) {
 
 /** A full-bleed poster: inverted ground, stacked display type, a sticker. */
 function PosterHero(props: HeroProps) {
-  const { section, design, words, brand, mark, business } = props;
+  const { section, design, words, brand, mark, business, trade } = props;
   return (
     <section id={section.id} className="dx-inverted relative overflow-hidden">
       <HeroArt motif={design.motif} palette={{ ...design.palette, accentSoft: design.palette.invertAccent, accentText: design.palette.invertAccent }} seed={design.seed} fieldOpacity={0.12} />
@@ -129,7 +131,7 @@ function PosterHero(props: HeroProps) {
         </p>
         <Actions {...props} className="mt-10 justify-center" />
         <div className="dx-par absolute right-4 top-24 hidden md:block" style={{ "--depth": "110px" } as CSSProperties}>
-          <Badge text={`${business.category} · ${business.city}`} mark={mark} palette={{ ...design.palette, accentText: design.palette.invertAccent }} size={132} />
+          <Badge text={`${trade} · ${business.city}`} mark={mark} palette={{ ...design.palette, accentText: design.palette.invertAccent }} size={132} />
         </div>
       </div>
     </section>
@@ -196,7 +198,7 @@ function EditorialHero(props: HeroProps) {
 
 /** Layered panels: a coloured card with the promise, overlapping a frame. */
 function StackHero(props: HeroProps) {
-  const { section, design, words, brand, business, sections } = props;
+  const { section, design, words, brand, business, sections, trade } = props;
   return (
     <section id={section.id} className="dx-section relative overflow-hidden" style={{ paddingTop: "clamp(2rem, 5vw, 4rem)" }}>
       <div className="dx-shell relative grid gap-6 lg:grid-cols-12">
@@ -226,7 +228,7 @@ function StackHero(props: HeroProps) {
         <div className="dx-card dx-par dx-fade-in relative z-20 max-w-xs p-5 lg:col-span-4 lg:col-start-9 lg:-mt-24" style={{ "--depth": "120px", "--i": 4 } as CSSProperties}>
           <p className="dx-display text-2xl leading-tight">{brand}</p>
           <p className="dx-small dx-muted mt-1">
-            {business.category} · {business.city}
+            {trade} · {business.city}
           </p>
         </div>
       </div>

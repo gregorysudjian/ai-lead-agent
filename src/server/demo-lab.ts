@@ -71,14 +71,23 @@ export async function labDemoForBusiness(businessId: string, variant = 0): Promi
   // No research profile: the lab shows what a demo looks like from the
   // discovery record alone, which is what a first demo is built from.
   const facts = deriveDemoSiteBusiness(lead, null);
-  const generated = await mockDemoSiteProvider.generate(
-    toDemoGeneratorInput(facts, analysis.recommendations),
-  );
+  const input = toDemoGeneratorInput(facts, analysis.recommendations);
+  const generated = await mockDemoSiteProvider.generate(input);
+  const french = await mockDemoSiteProvider.generate({ ...input, locale: "fr" });
 
   const design = designFor(
     { name: business.provider.name, category: business.provider.category, address: business.provider.address },
     variant,
   );
 
-  return { business, spec: { business: facts, content: enforceSampleFlags(generated, facts) }, design };
+  return {
+    business,
+    spec: {
+      business: facts,
+      content: enforceSampleFlags(generated, facts),
+      design,
+      alternates: { fr: enforceSampleFlags(french, facts) },
+    },
+    design,
+  };
 }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { brandName, monogram } from "@/lib/demo-design/brand";
+import { categoryLabel } from "@/lib/demo-samples";
 import type { DemoDesign } from "@/lib/demo-design/types";
 import type { DemoSiteBusiness, DemoSiteContent } from "@/lib/demo-site";
 
@@ -39,6 +40,7 @@ export function DemoSiteV2({ business, content, design, locale, langHref }: Demo
   const words = WORDS[locale];
   const brand = brandName(business.name);
   const mark = monogram(business.name);
+  const trade = categoryLabel(business.category, locale);
   const p = design.palette;
 
   const vars = {
@@ -64,7 +66,7 @@ export function DemoSiteV2({ business, content, design, locale, langHref }: Demo
   const offering = sections.find((s) => s.kind === "offering");
   const marqueeItems =
     design.marquee && offering && offering.kind === "offering"
-      ? [...offering.items.map((item) => item.title), business.category, business.city]
+      ? [...offering.items.map((item) => item.title), trade, business.city]
       : [];
 
   const chrome = { content, business, design, words, brand, langHref, otherLocale: locale === "fr" ? "en" : "fr" };
@@ -96,7 +98,7 @@ export function DemoSiteV2({ business, content, design, locale, langHref }: Demo
             case "hero":
               return (
                 <div key={section.id}>
-                  <Hero section={section} sections={sections} business={business} design={design} words={words} brand={brand} mark={mark} />
+                  <Hero section={section} sections={sections} business={business} design={design} words={words} brand={brand} mark={mark} trade={trade} />
                   {marqueeItems.length > 0 ? <Marquee items={marqueeItems} design={design} /> : null}
                 </div>
               );
