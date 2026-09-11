@@ -87,6 +87,9 @@
 .dx-h1 { font-size: clamp(2.7rem, 7vw, 6.4rem); line-height: 0.96; }
 .dx-h2 { font-size: clamp(2.1rem, 4.6vw, 4.3rem); line-height: 1.02; }
 .dx-h2-sm { font-size: clamp(1.75rem, 3.3vw, 3rem); line-height: 1.1; }
+/* A paragraph is never set in capitals, whatever the display case: a
+   brutalist about section in upper case read as shouting. */
+.dx[data-case="upper"] .dx-statement { text-transform: none; letter-spacing: -0.015em; }
 .dx-h3 { font-size: clamp(1.3rem, 2.1vw, 1.7rem); line-height: 1.15; }
 .dx-lede { font-size: clamp(1.08rem, 1.45vw, 1.3rem); line-height: 1.55; }
 .dx-small { font-size: 0.8125rem; }
@@ -290,6 +293,19 @@
   -webkit-line-clamp: 2;
 }
 .dx[data-case="upper"] .dx-brand { text-transform: uppercase; letter-spacing: 0.02em; }
+/* On a phone the menu and language buttons leave little room: any name may
+   take two lines there. "24KUTS BARBERSH…" was the ellipsis this prevents. */
+@media (max-width: 639px) {
+  .dx-brand {
+    font-size: 1.1rem;
+    line-height: 1.08;
+    max-width: 11rem;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
 .dx-lang {
   display: inline-flex;
   align-items: center;
@@ -383,9 +399,10 @@
   padding-bottom: 1rem;
   scrollbar-width: thin;
 }
-/* On a wide screen a short rail fills the row instead of stopping short. */
+/* On a wide screen up to four cards fill the row instead of stopping short
+   or pushing the fourth past the edge; five or more still scroll. */
 @media (min-width: 1024px) {
-  .dx-rail-scroll { grid-auto-columns: minmax(20rem, 1fr); }
+  .dx-rail-scroll { grid-auto-columns: minmax(15.5rem, 1fr); }
 }
 .dx-rail-scroll > * { scroll-snap-align: start; }
 
@@ -595,14 +612,21 @@
 }
 
 /* Without the pinned effect, the horizontal gallery is a swipeable rail. */
+/* Aligned to the shell like the services rail. The scroll-padding is not
+   optional: with mandatory snapping and none, the browser snaps the first
+   tile to the scrollport's edge -- scrolling the padding out of view -- and
+   the gallery started flush against the side of the page. */
 .dx-hrail-track-fallback {
+  --dx-gutter: clamp(1.25rem, 4.5vw, 3.25rem);
+  --dx-rail-pad: max(var(--dx-gutter), calc((100% - var(--dx-shell)) / 2 + var(--dx-gutter)));
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: min(78vw, 26rem);
   gap: 1.25rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  padding-inline: clamp(1.25rem, 4.5vw, 3.25rem);
+  padding-inline: var(--dx-rail-pad);
+  scroll-padding-inline: var(--dx-rail-pad);
   padding-bottom: 1rem;
 }
 .dx-hrail-track-fallback > * { scroll-snap-align: start; }

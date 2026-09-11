@@ -176,3 +176,13 @@ describe("service icons in both languages", () => {
     }
   });
 });
+
+describe("French typography survives rendering", () => {
+  it("keeps the non-breaking space before a question mark inside one word", async () => {
+    const { Heading } = await import("./parts");
+    const html = renderToStaticMarkup(<Heading text={"Envie de changement\u00a0?"} emphasis="none" />);
+    // Three words, the last carrying its question mark -- never a fourth "?" word.
+    expect(html.match(/<span>/g)?.length).toBe(6);
+    expect(html).toContain("changement\u00a0?");
+  });
+});

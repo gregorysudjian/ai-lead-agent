@@ -384,3 +384,25 @@ still validate and render as before.
   sections each call, so a French call would rarely match the English page —
   two paid calls for nothing). Its demos get the new design, in English.
 - Tests: 2,062 passing (was 1,950).
+
+### Item 8 — the QA pass · done
+
+Photographed 24 deliberately awkward catalog businesses (every trade, the
+longest and shortest names, missing phone or address, a junk record, a
+misfiled Sephora, several municipalities) at 1440px and 390px, reviewed every
+section as contact sheets, fixed, and re-photographed. What looking found:
+
+- **Giant names broke at hyphens** ("ST-" alone on a line): giant type is now
+  capped by what the longest word needs to fit.
+- **French question marks fell onto their own line**: JavaScript's `\s` also
+  matches the non-breaking space French puts before "?", so splitting words
+  on it threw the space away. Now split on breakable spaces only, with a test.
+- **Brand cut off on phones** ("24KUTS BARBERSH…"): names may take two lines
+  on small screens.
+- **Galleries started flush against the page edge**: mandatory scroll
+  snapping without `scroll-padding` scrolls the padding away.
+- **A fourth service card pushed past the edge** on desktop; **long about
+  paragraphs set in capitals** (brutalist) read as shouting; **art behind the
+  big bento card** competed with its text. All fixed.
+
+The contact sheets are in `data/screens/qa1` (before) and `qa2`/`qa3` (after).
