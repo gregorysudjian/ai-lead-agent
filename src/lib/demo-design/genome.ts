@@ -65,8 +65,13 @@ function fnv1a(text: string): number {
   return hash >>> 0;
 }
 
-/** mulberry32: a tiny seeded generator with good distribution for this use. */
-function mulberry32(seed: number): Random {
+/**
+ * mulberry32: a tiny seeded generator with good distribution for this use.
+ *
+ * Exported so generative art draws from the same seed as the rest of the
+ * design: the same business always gets the same drawing.
+ */
+export function mulberry32(seed: number): Random {
   let state = seed >>> 0;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;

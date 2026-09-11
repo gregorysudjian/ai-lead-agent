@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { DemoSiteView } from "@/components/demo/demo-site-view";
 import { DEMO_FONT_VARIABLES } from "@/components/demo/fonts";
+import { DemoSiteV2 } from "@/components/demo/v2/site";
+import { asLocale } from "@/components/demo/v2/words";
 import { sampleSectionLabels } from "@/lib/demo-sample-policy";
 import { requireSession } from "@/server/auth";
 import { labDemoForBusiness } from "@/server/demo-lab";
@@ -15,6 +17,11 @@ import { labDemoForBusiness } from "@/server/demo-lab";
  * segment>`), so the page reads as the proposed site. The dark bar at the top
  * is ours and says plainly that this is a lab rendering, not a stored demo.
  *
+ * Query parameters, all optional:
+ *   variant   another design for the same business (0-99; 0 is its own)
+ *   lang      fr (default) or en
+ *   renderer  v1 to see the previous generation's page for comparison
+ *
  * Requires a session like every page but `/s/`: it names a real business and
  * shows copy written about it.
  */
@@ -22,22 +29,39 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Demo lab" };
 
-export default async function DemoLabPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+type Params = Record<string, string | string[] | undefined>;
+
+function one(params: Params, key: string): string | null {
+  const value = params[key];
+  return typeof value === "string" ? value : null;
+}
+
+function labHref(businessId: string, variant: number, lang: string, renderer: string | null): string {
+  const query = new URLSearchParams({ business: businessId });
+  if (variant !== 0) query.set("variant", String(variant));
+  if (lang !== "fr") query.set("lang", lang);
+  if (renderer) query.set("renderer", renderer);
+  return `/demos/lab?${query.toString()}`;
+}
+
+export default async function DemoLabPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requireSession();
 
   const params = await searchParams;
-  const businessId = typeof params.business === "string" ? params.business : null;
+  const businessId = one(params, "business");
   if (businessId === null || !/^[0-9a-f-]{36}$/i.test(businessId)) notFound();
 
-  const lab = await labDemoForBusiness(businessId);
+  const rawVariant = Number.parseInt(one(params, "variant") ?? "0", 10);
+  const variant = Number.isInteger(rawVariant) && rawVariant >= 0 && rawVariant < 100 ? rawVariant : 0;
+  const locale = asLocale(one(params, "lang"));
+  const v1 = one(params, "renderer") === "v1";
+
+  const lab = await labDemoForBusiness(businessId, variant);
   if (lab === null) notFound();
 
-  const { business, spec } = lab;
+  const { business, spec, design } = lab;
   const samples = sampleSectionLabels(spec.content);
+  const otherLocale = locale === "fr" ? "en" : "fr";
 
   return (
     <div className={DEMO_FONT_VARIABLES}>
@@ -51,8 +75,27 @@ export default async function DemoLabPage({
             <span className="text-slate-400">
               {business.provider.category} · {business.provider.city}
             </span>
+            {v1 ? null : (
+              <span className="font-mono text-slate-400">
+                {design.direction} · {design.hero} · {design.fonts.display} · variant {variant}
+              </span>
+            )}
           </div>
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {v1 ? null : (
+              <Link
+                href={labHref(business.id, (variant + 1) % 100, locale, null)}
+                className="rounded border border-slate-700 px-2.5 py-1 font-medium text-slate-200 hover:bg-slate-800"
+              >
+                Try another design
+              </Link>
+            )}
+            <Link
+              href={labHref(business.id, variant, locale, v1 ? null : "v1")}
+              className="rounded border border-slate-700 px-2.5 py-1 font-medium text-slate-200 hover:bg-slate-800"
+            >
+              {v1 ? "New renderer" : "Old renderer"}
+            </Link>
             <Link
               href="/businesses"
               className="rounded border border-slate-700 px-2.5 py-1 font-medium text-slate-200 hover:bg-slate-800"
@@ -69,7 +112,17 @@ export default async function DemoLabPage({
         ) : null}
       </div>
 
-      <DemoSiteView spec={spec} />
+      {v1 ? (
+        <DemoSiteView spec={spec} />
+      ) : (
+        <DemoSiteV2
+          business={spec.business}
+          content={spec.content}
+          design={design}
+          locale={locale}
+          langHref={labHref(business.id, variant, otherLocale, null)}
+        />
+      )}
     </div>
   );
 }
