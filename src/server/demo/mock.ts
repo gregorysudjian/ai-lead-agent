@@ -79,6 +79,8 @@ const SECTION = {
  * merely different: a florist may be elegant or warm, but never lime-on-black.
  */
 const THEMES_BY_CATEGORY: readonly [string, readonly DemoTheme[]][] = [
+  // Ink work suits the two darker, higher-contrast palettes; never pastel.
+  ["tattoo", ["bold-contrast", "elegant-dark"]],
   ["barber", ["bold-contrast", "warm-classic"]],
   ["hair", ["calm-minimal", "elegant-dark"]],
   ["nail", ["elegant-dark", "fresh-modern"]],

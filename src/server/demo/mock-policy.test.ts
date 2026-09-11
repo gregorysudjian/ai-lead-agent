@@ -54,6 +54,7 @@ const CATEGORIES = [
   "Barber shop",
   "Beauty salon",
   "Nail salon",
+  "Tattoo & piercing",
   "Restaurant",
   "Cafe",
   "Dentist",

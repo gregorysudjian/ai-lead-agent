@@ -225,20 +225,33 @@ export function priorityForScore(total: number): LeadPriority {
 }
 
 /**
- * Score one lead. Does not mutate the lead or its provider snapshot.
+ * Score a provider snapshot. Does not mutate it.
+ *
+ * The score has only ever read `lead.provider` -- which is the principle, not
+ * an accident: priority is a pure function of the current snapshot, never of
+ * anything we own. Exposing it on the snapshot directly lets the business
+ * catalog rank businesses nobody has made a lead of yet with exactly the same
+ * math, rather than dressing a catalog row up as a fake Lead to get a number.
  */
-export function scoreLead(lead: Lead): LeadScore {
+export function scoreSnapshot(provider: ProviderSnapshot): LeadScore {
   const factors: ScoreFactor[] = [
-    scoreWebsite(lead.provider),
-    scorePhone(lead.provider),
-    scoreAddress(lead.provider),
-    scoreReviews(lead.provider),
-    scoreRating(lead.provider),
+    scoreWebsite(provider),
+    scorePhone(provider),
+    scoreAddress(provider),
+    scoreReviews(provider),
+    scoreRating(provider),
   ];
 
   const total = factors.reduce((sum, factor) => sum + factor.points, 0);
 
   return { total, priority: priorityForScore(total), factors };
+}
+
+/**
+ * Score one lead. Does not mutate the lead or its provider snapshot.
+ */
+export function scoreLead(lead: Lead): LeadScore {
+  return scoreSnapshot(lead.provider);
 }
 
 export const PRIORITY_LABELS: Record<LeadPriority, string> = {

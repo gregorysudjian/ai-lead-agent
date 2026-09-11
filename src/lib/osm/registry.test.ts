@@ -57,7 +57,8 @@ describe("B. category aliases", () => {
     expect(resolveSupportedCategory(input)?.key).toBe(key);
   });
 
-  it.each([["tattoo parlour"], ["laundromat"], [""], ["   "], ["hair"]])(
+  // "tattoo parlour" used to be the example here; it became a supported trade.
+  it.each([["accountant"], ["laundromat"], [""], ["   "], ["hair"]])(
     "rejects unsupported category %j",
     (input) => {
       expect(resolveSupportedCategory(input)).toBeNull();
@@ -185,5 +186,20 @@ describe("C. query safety", () => {
   it("is deterministic", () => {
     const category = resolveSupportedCategory("bakery")!;
     expect(buildOverpassQuery(city, category)).toBe(buildOverpassQuery(city, category));
+  });
+});
+
+describe("tattoo and piercing", () => {
+  it.each([["tattoo"], ["Tattoo shop"], ["tattoo studio"], ["Tatouage"], ["piercing"]])(
+    "resolves %j to one trade",
+    (input) => {
+      const category = resolveSupportedCategory(input);
+      expect(category?.key).toBe("tattoo");
+      expect(category?.label).toBe("Tattoo & piercing");
+    },
+  );
+
+  it("queries the tag studios actually use", () => {
+    expect(resolveSupportedCategory("tattoo")?.selectors).toEqual([{ shop: "tattoo" }]);
   });
 });

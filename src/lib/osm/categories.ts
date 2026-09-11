@@ -53,6 +53,19 @@ export const SUPPORTED_CATEGORIES: readonly SupportedCategory[] = [
     selectors: [{ shop: "beauty", beauty: "nails" }],
   },
   {
+    // One trade to a customer, and to the studios themselves: most tattoo
+    // shops pierce, and the few piercing-only studios are tagged `shop=tattoo`
+    // too. `shop=piercing` exists but is rare enough that a separate selector
+    // would be a second query for almost nothing.
+    key: "tattoo",
+    label: "Tattoo & piercing",
+    aliases: [
+      "tattoo", "tattoos", "tattoo shop", "tattoo shops", "tattoo studio", "tattoo studios",
+      "tattoo parlour", "tattoo parlor", "piercing", "piercings", "tatouage", "tattoo & piercing",
+    ],
+    selectors: [{ shop: "tattoo" }],
+  },
+  {
     key: "restaurant",
     label: "Restaurant",
     aliases: ["restaurant", "restaurants"],
