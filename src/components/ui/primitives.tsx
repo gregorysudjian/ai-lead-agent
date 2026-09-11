@@ -97,7 +97,7 @@ export function StatTile({
       </dt>
       <dd className={`mt-1 text-2xl font-semibold tabular-nums ${accent}`}>{value}</dd>
       {hint ? (
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">{hint}</p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p>
       ) : null}
     </Card>
   );
@@ -156,6 +156,44 @@ export function EmptyState({
   );
 }
 
+/**
+ * A placeholder block for a route's `loading.tsx`.
+ *
+ * Purely decorative, so it is hidden from assistive technology: the loading
+ * state announces itself once through the `role="status"` region that wraps
+ * it, rather than as a dozen anonymous boxes.
+ */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none dark:bg-slate-800 ${className}`}
+    />
+  );
+}
+
+/**
+ * The shell every `loading.tsx` renders into.
+ *
+ * One polite announcement for the whole skeleton, and a real message for a
+ * screen reader that would otherwise be told nothing at all while a
+ * force-dynamic page reads its store.
+ */
+export function LoadingRegion({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div role="status" aria-live="polite" className="space-y-6">
+      <span className="sr-only">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 /** Truthful failure panel. Never hides an error behind an empty state. */
 export function ErrorPanel({ title, detail }: { title: string; detail?: string }) {
   return (
@@ -179,6 +217,12 @@ export const BUTTON_PRIMARY = `inline-flex items-center justify-center gap-2 rou
 
 export const BUTTON_SECONDARY = `inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 ${FOCUS_RING}`;
 
-export const INPUT = `w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 ${FOCUS_RING}`;
+/**
+ * `placeholder:text-slate-500` rather than 400: a placeholder is text, and
+ * slate-400 on white is 2.6:1 -- below the 4.5:1 WCAG AA asks of it. Where a
+ * placeholder is the only visible description of a field that gap is not
+ * cosmetic, so the fields that relied on one now carry a real label too.
+ */
+export const INPUT = `w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 ${FOCUS_RING}`;
 
 export const LINK = `text-indigo-700 underline underline-offset-2 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 ${FOCUS_RING}`;
