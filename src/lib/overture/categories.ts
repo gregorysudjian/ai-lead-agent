@@ -38,6 +38,11 @@ const EXACT: Readonly<Record<string, string>> = {
   // Hair and grooming. Distinct trades that read as one to an outsider, and
   // are not: a barber shop and a hair salon pitch differently.
   hair_salon: "hair-salon",
+  // The same chair under narrower names. `hair_extensions` places are salons
+  // that specialise; they sell a service in a chair, not a product off a shelf.
+  hair_stylist: "hair-salon",
+  kids_hair_salon: "hair-salon",
+  hair_extensions: "hair-salon",
   barber: "barber",
   nail_salon: "nail-salon",
 
@@ -45,6 +50,17 @@ const EXACT: Readonly<Record<string, string>> = {
   beauty_salon: "beauty-salon",
   spas: "beauty-salon",
   day_spa: "beauty-salon",
+  // Esthetics services Overture files separately. Each is performed in a
+  // salon chair by the same kind of small business, and pitched the same way.
+  waxing: "beauty-salon",
+  threading_service: "beauty-salon",
+  eyelash_service: "beauty-salon",
+  eyebrow_service: "beauty-salon",
+
+  // Tattoo and piercing, one trade: most studios do both.
+  tattoo_and_piercing: "tattoo",
+  tattoo: "tattoo",
+  piercing: "tattoo",
 
   // Food. The long tail of cuisines is handled by the suffix rule below.
   restaurant: "restaurant",
@@ -98,6 +114,11 @@ const SUFFIX_RULES: readonly [string, string][] = [["_restaurant", "restaurant"]
  *   - a personal trainer is not a gym; they often work inside someone else's
  *   - `personal_care_service` and `skin_care` are too broad to place
  *     confidently, and this file's rule is that unconfident means no
+ *   - a makeup artist is usually a freelancer with no premises; a demo about
+ *     "the salon" would describe a place that does not exist
+ *   - laser hair removal and hair replacement are clinics, not salons
+ *   - beauty and hair SUPPLY stores sell products off a shelf; they share a
+ *     word with a salon and nothing else
  */
 export const EXCLUDED: readonly string[] = [
   "car_dealer",
@@ -115,6 +136,14 @@ export const EXCLUDED: readonly string[] = [
   "martial_arts_club",
   "personal_care_service",
   "skin_care",
+  "makeup_artist",
+  "laser_hair_removal",
+  "hair_removal",
+  "hair_replacement",
+  "hair_supply_stores",
+  "cosmetic_and_beauty_supplies",
+  "beauty_product_supplier",
+  "cosmetology_school",
   "retirement_home",
   "day_care_preschool",
 ];

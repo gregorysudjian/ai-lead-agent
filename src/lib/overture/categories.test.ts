@@ -4,7 +4,7 @@ import { SUPPORTED_CATEGORIES } from "../osm/categories";
 import { EXCLUDED, mapOvertureCategory, mappedOvertureCategories } from "./categories";
 
 /**
- * The mapping between Overture's 860-category taxonomy and our twelve trades.
+ * The mapping between Overture's 860-category taxonomy and our trades.
  *
  * Both failure modes here are silent, which is why this file is as long as it
  * is: a mapping for a category that never appears is dead code nobody notices,
@@ -26,6 +26,7 @@ describe("the trades we sell to", () => {
     ["gym", "gym"],
     ["florist", "florist"],
     ["automotive_repair", "car-repair"],
+    ["tattoo_and_piercing", "tattoo"],
   ];
 
   for (const [overture, expected] of CASES) {
@@ -34,7 +35,7 @@ describe("the trades we sell to", () => {
     });
   }
 
-  it("covers all twelve of our categories", () => {
+  it("covers every one of our categories", () => {
     // If a category has no Overture mapping at all, businesses in that trade
     // can never be discovered from this dataset -- silently.
     const reached = new Set(
@@ -168,5 +169,41 @@ describe("unknown means no", () => {
     const salon = mapOvertureCategory("hair_salon");
     expect(salon?.label).toBe("Hair salon");
     expect(SUPPORTED_CATEGORIES).toContain(salon);
+  });
+});
+
+describe("hair and beauty sub-trades the catalog depends on", () => {
+  // Every value here is a real category from the Montreal slice. The catalog
+  // holds hair and beauty only, so a sub-trade missed here is a whole kind of
+  // salon that can never appear in search.
+  it.each([
+    ["hair_stylist", "hair-salon"],
+    ["kids_hair_salon", "hair-salon"],
+    ["hair_extensions", "hair-salon"],
+    ["waxing", "beauty-salon"],
+    ["threading_service", "beauty-salon"],
+    ["eyelash_service", "beauty-salon"],
+    ["eyebrow_service", "beauty-salon"],
+    ["tattoo", "tattoo"],
+    ["piercing", "tattoo"],
+  ])("maps %s to %s", (overture, expected) => {
+    expect(mapOvertureCategory(overture)?.key).toBe(expected);
+  });
+
+  it.each([
+    "makeup_artist",
+    "laser_hair_removal",
+    "hair_removal",
+    "hair_replacement",
+    "hair_supply_stores",
+    "cosmetic_and_beauty_supplies",
+    "beauty_product_supplier",
+    "cosmetology_school",
+    "medical_spa",
+    "tanning_salon",
+    "massage_therapy",
+  ])("refuses %s, which shares a word with a salon and is not one", (overture) => {
+    expect(EXCLUDED).toContain(overture);
+    expect(mapOvertureCategory(overture)).toBeNull();
   });
 });

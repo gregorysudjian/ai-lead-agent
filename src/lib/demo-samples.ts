@@ -284,6 +284,59 @@ const NAIL_SALON: CategorySamples = {
   footerNote: "Nail salon in {city}.",
 };
 
+/**
+ * Tattoo studios.
+ *
+ * The trap specific to this trade is hygiene. "Sterile, single-use needles"
+ * is true of nearly every studio and still a CHECKABLE claim about this one,
+ * and so is "licensed artists" -- which the policy test refuses outright. The
+ * copy says the studio is clean and careful, which reads as a placeholder,
+ * and leaves the owner to state their own practice in their own words.
+ */
+const TATTOO: CategorySamples = {
+  eyebrow: "Tattoo studio in {city}",
+  headline: "Your idea, drawn properly",
+  subheading:
+    "Custom tattoos and piercing in {city}, designed with you before a needle comes anywhere near.",
+  servicesHeading: "What we do",
+  servicesIntro: "From a first small piece to a full sleeve.",
+  services: [
+    {
+      title: "Custom tattoos",
+      body: "Designs drawn from your idea and worked through together until they are right, before the session is booked.",
+    },
+    {
+      title: "Flash",
+      body: "Ready-drawn designs to choose from the wall, for when you know what you like the moment you see it.",
+    },
+    {
+      title: "Cover-ups and rework",
+      body: "Straight advice on an older tattoo, and a plan for reworking or covering it that you are happy with.",
+    },
+    {
+      title: "Piercing",
+      body: "Piercing done carefully, with jewellery chosen together and aftercare explained before you leave.",
+    },
+  ],
+  aboutHeading: "About the studio",
+  aboutBody:
+    "{name} is a tattoo studio in {city}. We take the time to get a design right, we keep the studio clean, and we will tell you honestly if an idea is not going to age well.",
+  aboutPoints: [
+    "Designs worked out with you",
+    "Clean, careful practice",
+    "Honest advice before anything is booked",
+  ],
+  galleryHeading: "Our work",
+  galleryBody: "A few recent pieces and a look around the studio.",
+  galleryLabels: ["Recent piece", "Fine line work", "The studio", "Flash wall"],
+  hours: ["Tuesday to Saturday   12:00 - 20:00", "Sunday and Monday   Closed"],
+  contactBody: "Get in touch with your idea, and we will talk it through before anything is booked.",
+  ctaHeading: "Got an idea in mind?",
+  ctaBody: "Give us a call and tell us about it. We will talk it through before anything is booked.",
+  ctaBodyVisit: "Come by the studio with your idea and we will talk it through.",
+  footerNote: "Tattoo studio in {city}.",
+};
+
 const RESTAURANT: CategorySamples = {
   eyebrow: "Restaurant in {city}",
   headline: "Come and eat with us",
@@ -650,6 +703,9 @@ const BY_CATEGORY_KEY: Readonly<Record<string, CategorySamples>> = {
   barber: BARBER,
   "beauty-salon": BEAUTY_SALON,
   "nail-salon": NAIL_SALON,
+  // Stored as "Tattoo & piercing", which `toKey` turns into
+  // "tattoo-&-piercing"; the prefix match below resolves that to this key.
+  tattoo: TATTOO,
   restaurant: RESTAURANT,
   cafe: CAFE,
   dentist: DENTIST,

@@ -3,6 +3,9 @@ import "server-only";
 import { leadRepositoryName } from "@/server/env";
 
 import { InMemoryAnalysisTableGateway } from "./analysis-table";
+import { InMemoryCatalogTableGateway } from "./catalog-gateway";
+import { createCatalogRepository, supabaseCatalogRepository } from "./catalog-supabase";
+import type { CatalogRepository } from "./catalog-types";
 import { createAnalysisRepository, supabaseAnalysisRepository } from "./analysis-supabase";
 import type { AnalysisRepository } from "./analysis-types";
 import { createDemoSiteRepository, supabaseDemoSiteRepository } from "./demo-supabase";
@@ -39,6 +42,7 @@ const localAnalysisGateway = new InMemoryAnalysisTableGateway();
 const localDemoSiteGateway = new InMemoryDemoSiteTableGateway();
 const localBusinessProfileGateway = new InMemoryBusinessProfileTableGateway();
 const localOutreachGateway = new InMemoryOutreachTableGateway();
+const localCatalogGateway = new InMemoryCatalogTableGateway();
 
 export function getLeadRepository(): LeadRepository {
   const name = leadRepositoryName();
@@ -161,3 +165,26 @@ export function getOutreachRepository(): OutreachRepository {
 
 export type { OutreachRepository, OutreachUpdate } from "./outreach-types";
 export { OutreachRepositoryError } from "./outreach-types";
+
+/**
+ * The business catalog. Follows the same selector as every other store, so
+ * the catalog and the leads it links to always live in the same backing.
+ */
+export function getCatalogRepository(): CatalogRepository {
+  const name = leadRepositoryName();
+
+  switch (name) {
+    case "json":
+      return createCatalogRepository(localCatalogGateway);
+    case "supabase":
+      return supabaseCatalogRepository();
+  }
+}
+
+export type {
+  CatalogRepository,
+  CatalogRefreshSummary,
+  IngestRunProgress,
+  OpenRunInput,
+} from "./catalog-types";
+export { CatalogRepositoryError } from "./catalog-types";

@@ -478,3 +478,169 @@ describe("business_profiles table schema", () => {
     }
   });
 });
+
+/**
+ * The body of one table's CREATE statement, for assertions that must not be
+ * satisfied by some OTHER migration. `sql` is every migration concatenated.
+ */
+function createTableBody(sql: string, table: string): string {
+  const start = sql.indexOf(`create table public.${table} (`);
+  expect(start, `no create table for ${table}`).toBeGreaterThan(-1);
+  return sql.slice(start, sql.indexOf("\n);", start));
+}
+
+describe("businesses table security", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("enables RLS", () => {
+    expect(sql).toContain("alter table public.businesses enable row level security");
+  });
+
+  it("starts every API role from zero, then grants service_role only what the catalog does", () => {
+    const revoke = sql.indexOf(
+      "revoke all on table public.businesses from anon, authenticated, service_role",
+    );
+    const grant = sql.indexOf("grant select, insert, update on table public.businesses to service_role");
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+  });
+
+  it("never grants DELETE: the catalog keeps every business it has recorded", () => {
+    for (const verb of ["delete", "references", "trigger"]) {
+      expect(sql).not.toContain(`grant select, insert, update, ${verb} on table public.businesses`);
+      expect(sql).not.toContain(`grant ${verb} on table public.businesses`);
+    }
+    expect(sql).not.toContain("grant all on table public.businesses");
+  });
+
+  it("never grants anything on businesses to a browser-facing role", () => {
+    const grants = sql.split("\n").filter((l) => l.startsWith("grant ") && l.includes("businesses"));
+    expect(grants.length).toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toContain("to service_role");
+      expect(grant).not.toContain("anon");
+      expect(grant).not.toContain("authenticated");
+    }
+  });
+});
+
+describe("businesses table schema", () => {
+  const sql = statementsOnly(migrationSql());
+  const body = createTableBody(sql, "businesses");
+
+  it("stores the provider snapshot the same way a lead does", () => {
+    expect(body).toContain("provider jsonb not null");
+  });
+
+  it("enforces the same two dedupe keys as leads, the secondary one partial", () => {
+    expect(sql).toContain("create unique index businesses_provider_identity_idx");
+    expect(sql).toContain("on public.businesses (provider_source, provider_external_id)");
+    expect(sql).toContain("create unique index businesses_normalized_identity_idx");
+    expect(sql).toContain("on public.businesses (normalized_name, normalized_address)");
+  });
+
+  it("links to a lead without ever deleting the business when the lead goes", () => {
+    expect(body).toContain("lead_id uuid references public.leads (id) on delete set null");
+    expect(body).not.toContain("on delete cascade");
+    expect(sql).toContain("create unique index businesses_lead_id_idx");
+  });
+
+  it("stores coordinates as a checked pair", () => {
+    expect(body).toContain("latitude double precision");
+    expect(body).toContain("longitude double precision");
+    expect(body).toContain("check ((latitude is null) = (longitude is null))");
+  });
+
+  it("records first and last seen, by time and by release", () => {
+    for (const column of [
+      "first_seen_at timestamptz not null",
+      "last_seen_at timestamptz not null",
+      "first_seen_release text not null",
+      "last_seen_release text not null",
+    ]) {
+      expect(body).toContain(column);
+    }
+  });
+
+  it("persists no score or priority -- ranking is computed on every search", () => {
+    for (const forbidden of ["score", "priority", "rank"]) {
+      expect(body).not.toContain(forbidden);
+    }
+  });
+
+  it("keeps no raw provider payload beside the normalised snapshot", () => {
+    for (const forbidden of ["raw", "payload", "confidence", "tags"]) {
+      expect(body).not.toContain(forbidden);
+    }
+  });
+});
+
+describe("ingest_runs table security", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("enables RLS", () => {
+    expect(sql).toContain("alter table public.ingest_runs enable row level security");
+  });
+
+  it("grants service_role select, insert and update -- but never delete", () => {
+    const revoke = sql.indexOf(
+      "revoke all on table public.ingest_runs from anon, authenticated, service_role",
+    );
+    const grant = sql.indexOf("grant select, insert, update on table public.ingest_runs to service_role");
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+    expect(sql).not.toContain("grant select, insert, update, delete on table public.ingest_runs");
+    expect(sql).not.toContain("grant all on table public.ingest_runs");
+  });
+
+  it("never grants anything on ingest_runs to a browser-facing role", () => {
+    const grants = sql.split("\n").filter((l) => l.startsWith("grant ") && l.includes("ingest_runs"));
+    expect(grants.length).toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toContain("to service_role");
+      expect(grant).not.toContain("anon");
+      expect(grant).not.toContain("authenticated");
+    }
+  });
+});
+
+describe("ingest_runs table schema", () => {
+  const sql = statementsOnly(migrationSql());
+  const body = createTableBody(sql, "ingest_runs");
+
+  it("records which dataset, release and area a refresh loaded", () => {
+    for (const column of ["dataset text not null", "release text not null", "area text not null"]) {
+      expect(body).toContain(column);
+    }
+  });
+
+  it("identifies the exact bytes loaded, not just the file name", () => {
+    expect(body).toContain("source_file text not null");
+    expect(body).toContain("source_sha256 text not null");
+    expect(body).toContain("^[0-9a-f]{64}$");
+  });
+
+  it("records the upsert planner's counts in the planner's own words", () => {
+    for (const column of [
+      "businesses_added integer",
+      "businesses_refreshed integer",
+      "records_collapsed integer",
+      "records_skipped integer",
+      "businesses_unseen integer",
+      "leads_linked integer",
+    ]) {
+      expect(body).toContain(column);
+    }
+  });
+
+  it("can express an interrupted run, not only success or failure", () => {
+    expect(body).toContain("state in ('running', 'complete', 'failed')");
+    expect(body).toContain("finished_at timestamptz");
+  });
+
+  it("carries no per-business data", () => {
+    for (const forbidden of ["jsonb", "payload", "lead_id", "provider"]) {
+      expect(body, `ingest_runs must not carry ${forbidden}`).not.toContain(forbidden);
+    }
+  });
+});

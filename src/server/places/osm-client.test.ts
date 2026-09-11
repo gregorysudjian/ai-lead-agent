@@ -92,7 +92,8 @@ describe("O. validation happens before any network call", () => {
   it("rejects an unsupported category without contacting the provider", async () => {
     const { impl, calls } = stubFetch(() => ok({ elements: [] }));
     await expect(
-      provider(impl).search({ ...QUERY, category: "tattoo parlour" }),
+      // "tattoo parlour" was the example here until tattoo became a trade.
+      provider(impl).search({ ...QUERY, category: "accountant" }),
     ).rejects.toBeInstanceOf(ProviderValidationError);
     expect(calls).toHaveLength(0);
   });

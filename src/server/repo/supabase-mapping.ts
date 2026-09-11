@@ -119,8 +119,12 @@ function toOpeningHours(value: unknown): OpeningHours | null {
  *
  * Checked field by field rather than cast, because `jsonb` guarantees only that
  * the value is JSON -- not that it matches our type.
+ *
+ * Exported because the business catalog stores the SAME snapshot shape, and
+ * two validators for one type is how they come to disagree. Throws
+ * `LeadRowMappingError`; the catalog mapping re-labels it for its own rows.
  */
-function toProviderSnapshot(value: unknown): ProviderSnapshot {
+export function toProviderSnapshot(value: unknown): ProviderSnapshot {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new LeadRowMappingError("Lead row provider snapshot is not an object.");
   }
