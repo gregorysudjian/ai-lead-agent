@@ -187,7 +187,10 @@ hours, and place ID -> flag the ones with no website.
   filling the rest in as closed the way the internal record view may.
 
 - **A demo's look is derived from facts, not from prose, and must vary between
-  businesses.** `content.layout` picks one of four whole-page compositions and
+  businesses.** (This paragraph describes the ORIGINAL renderer, which still
+  draws every demo stored before design genomes; new demos are drawn from a
+  stored `DemoDesign` -- see below. The lessons hold for both.)
+  `content.layout` picks one of four whole-page compositions and
   `content.theme` one of five palettes; both are NAMES from closed sets, and
   the renderer owns every grid, size and colour behind them. The layout is
   chosen page-level rather than per-section, because a page whose hero,
@@ -213,6 +216,59 @@ hours, and place ID -> flag the ones with no website.
   a font that silently fails to apply is exactly the regression nobody
   notices. Faces are self-hosted through `next/font`, so a demo page still
   fetches nothing from a third party at runtime.
+
+- **New demos are drawn from a stored design genome; old demos never change.**
+  `lib/demo-design` computes a `DemoDesign` from facts (name, category,
+  address) and a variant number: one of ten art directions, an OKLCH palette,
+  two of 29 self-hosted faces, and a treatment per section. It is
+  application-owned like `spec.business` -- a generator never chooses a colour,
+  font or layout -- and it is STORED with the demo, so a page a business has
+  seen keeps looking exactly like that when the design code changes. A spec
+  without a design is a demo from before designs existed and renders through
+  the original renderer (`demo-site-view.tsx`), untouched; `RenderedDemo` is
+  the one place that decides. Every value in a design is a closed-set name or
+  a `#rrggbb` hex checked by `validateDemoDesign`, and colours reach the page
+  only as CSS custom properties. Palettes are generated, so readability is
+  TESTED, not assumed: every direction x ground x hundreds of seeds must pass
+  WCAG ratios (ink 7:1, muted and accent text 4.5:1). The same business and
+  variant always give the same design; "try another design" is a new variant
+  stored as a new demo.
+
+- **Demos are French first, and the two languages are one page.** Quebec's
+  Charter of the French language requires a Quebec business's site in French
+  at least as prominently, so a demo opens in French with English at
+  `?lang=en`. English copy is `spec.content` (as it always was); French is
+  `spec.alternates.fr`, and the mapping layer rejects a French page whose
+  structure -- sections, counts, button actions, sample flags -- differs from
+  the English one. Sample copy lives in parallel pools
+  (`demo-samples-en.ts` / `demo-samples-fr.ts`): entry i says the same thing
+  in both, and a business's name picks the same index in both. The French
+  obeys every honesty rule in its own words ("depuis 1998", "primé", "prix",
+  "appelez" above a missing phone) and its own typography: a non-breaking
+  space before `?` and `:`, and never `de {city}` in a template (French
+  elides before a vowel). JavaScript's `\s` MATCHES the non-breaking space, so
+  never split display text on it. A generator lists the languages it can
+  write with identical structure (`DemoSiteProvider.locales`); the
+  Claude-backed one lists English only.
+
+- **Demo motion is CSS, optional and finite.** Everything that moves sits
+  inside `prefers-reduced-motion: no-preference`; scroll-driven effects sit
+  inside `@supports (animation-timeline: view())` and rest in their final,
+  visible state. A reveal must COMPLETE within the element's own entry range
+  -- a range that ends later cannot be reached by anything in the last screen
+  of a page, which left a footer permanently half-transparent. The only
+  JavaScript is a small island (cursor and magnetic buttons on fine pointers,
+  and an IntersectionObserver fallback that hides nothing until it has run).
+  The renderer's plain CSS lives in the `components` cascade layer, below
+  Tailwind's utilities; unlayered, it silently overrode them. Screenshots
+  taken with reduced motion hide motion bugs: check both.
+
+- **The demo lab writes nothing and costs nothing.** `/demos/lab` renders the
+  site generation would produce for any catalog business, in memory, with the
+  MOCK analyser and generator imported by name, so no setting can turn a
+  preview into a paid call or a stored row. `scripts/demo-screens.mts`
+  photographs lab pages (Edge via `playwright-core`) for review; look at the
+  pictures -- most renderer bugs so far were found only by looking.
 
 - **A demo is shown to a business through a share, never through a guessable
   URL.** `/s/[token]` is the only route in the application reachable without a

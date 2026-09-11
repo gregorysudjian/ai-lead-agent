@@ -412,3 +412,13 @@ The contact sheets are in `data/screens/qa1` (before) and `qa2`/`qa3` (after).
   wordmark and the closing button stayed at ~82% opacity forever. Reveals now
   finish within the element's own entry (at most 240px). The scroll hint's
   dot also left its pill on "bold" sites; it now rolls like a mouse wheel.
+
+### Item 10 — documentation · done
+
+- CLAUDE.md: four new principles (the stored design genome and why old demos
+  never change; French first and "two languages, one page"; motion rules
+  including the reveal-range and cascade-layer lessons; the lab writes
+  nothing). The older demo-look principle now says it describes the original
+  renderer.
+- README: what a demo now looks like, French first, the lab, the grid and the
+  screenshot script.

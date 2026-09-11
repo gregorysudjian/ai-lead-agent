@@ -192,6 +192,34 @@ The store is append-only, so a demo already shown to a prospect is never
 rewritten. The index groups by business and shows the newest, with a count of
 earlier versions.
 
+**Every business gets its own site.** A demo is drawn from a *design genome*
+computed from the business's facts: one of ten art directions (editorial,
+luxe noir, soft organic, Swiss, retro poster, brutalist, gallery, botanical,
+pop, deco), a generated palette tested for contrast, two of 29 self-hosted
+typefaces, and a composition for each section -- six heroes, four service
+layouts, three about, gallery and contact treatments. Imagery is line art drawn
+from the trade's own tools, never stock photos of someone else's shop, and
+every photo slot says what photo belongs there. Motion is CSS: parallax
+layers, reveals, a pinned horizontal gallery, marquees -- all switched off for
+visitors who ask for reduced motion. The words vary too: several headlines,
+about paragraphs and service lists per trade, chosen by the business's name.
+**Try another design** on a lead's demo panel keeps the words and changes the
+look.
+
+**French first.** Demos open in French (Quebec's language charter), with an EN
+switch in every page's menu; `?lang=en` on a preview or share link. Demos made
+before designs existed keep their original look, in English.
+
+**The demo lab.** On *Businesses*, **Preview site** shows the site any catalog
+business would get -- in memory, nothing saved, no paid call -- and **Design
+grid** shows twelve side by side. To photograph them for review (dev server on
+port 3002):
+
+```bash
+npx tsx --conditions=react-server --env-file=.env.local scripts/demo-screens.mts --count=24 --name=review
+# -> data/screens/review/index.html
+```
+
 ---
 
 ## Where businesses come from
