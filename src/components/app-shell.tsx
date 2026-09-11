@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { SignOutButton } from "./sign-out-button";
 import { FOCUS_RING } from "./ui/primitives";
@@ -70,7 +70,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-400 dark:text-slate-600"
               >
                 {item.label}
-                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase dark:bg-slate-800 dark:text-slate-500">
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase dark:bg-slate-800 dark:text-slate-400">
                   Soon
                 </span>
               </span>
@@ -118,13 +118,42 @@ function Wordmark() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
+
+  /**
+   * Escape closes the mobile menu and puts focus back where it came from.
+   *
+   * Without the second half the panel closes and focus is left on an element
+   * that no longer exists, which drops a keyboard user back at the top of the
+   * document. The handler sits on the wrapper rather than the panel so it also
+   * fires while focus is still on the toggle.
+   */
+  function handleMenuKeyDown(event: React.KeyboardEvent) {
+    if (event.key !== "Escape" || !menuOpen) return;
+    setMenuOpen(false);
+    menuButton.current?.focus();
+  }
 
   // Rendered full-bleed, with the page supplying its own chrome.
   if (isChromeless(pathname)) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
+      {/*
+        The first thing in the tab order, and visible only once focused.
+
+        Every page put five nav links and a sign-out button in front of its
+        own content, which a keyboard user had to tab past on every single
+        navigation.
+      */}
+      <a
+        href="#main-content"
+        className={`sr-only z-50 focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:rounded-lg focus:bg-indigo-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white ${FOCUS_RING}`}
+      >
+        Skip to main content
+      </a>
+
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col dark:border-slate-800 dark:bg-slate-900">
         <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
@@ -135,17 +164,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="border-t border-slate-200 p-3 dark:border-slate-800">
           <SignOutButton />
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-500">
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
             Internal prototype. Review leads manually; nothing is contacted automatically.
           </p>
         </div>
       </aside>
 
       {/* Mobile header */}
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95">
+      <div
+        onKeyDown={handleMenuKeyDown}
+        className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95"
+      >
         <div className="flex items-center justify-between px-4 py-3">
           <Wordmark />
           <button
+            ref={menuButton}
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
             aria-expanded={menuOpen}
@@ -169,7 +202,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </div>
 
-      <main className="min-w-0 flex-1">
+      {/* `tabIndex={-1}` is what makes the skip link actually move focus:
+          without it the browser scrolls to the target and leaves focus at the
+          top of the document, so the next Tab lands back in the nav. */}
+      <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</div>
       </main>
     </div>

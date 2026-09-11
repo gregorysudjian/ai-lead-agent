@@ -126,13 +126,16 @@ export function GenerateDemoButton({
             setOpen(false);
             setError(null);
           }}
-          className={`shrink-0 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`}
+          className={`shrink-0 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 ${FOCUS_RING}`}
         >
           Cancel
         </button>
       </div>
 
-      <label htmlFor="demo-filter" className="sr-only">
+      <label
+        htmlFor="demo-filter"
+        className="mt-4 block text-xs font-medium text-slate-700 dark:text-slate-300"
+      >
         Filter businesses
       </label>
       <input
@@ -142,7 +145,7 @@ export function GenerateDemoButton({
         onChange={(event) => setFilter(event.target.value)}
         placeholder="Filter by name, category or city"
         autoFocus
-        className={`mt-4 w-full ${INPUT}`}
+        className={`mt-1 w-full ${INPUT}`}
       />
 
       {error ? (
@@ -156,7 +159,7 @@ export function GenerateDemoButton({
 
       <ul className="mt-4 max-h-96 divide-y divide-slate-200 overflow-y-auto dark:divide-slate-800">
         {matches.length === 0 ? (
-          <li className="py-6 text-center text-sm text-slate-500">
+          <li className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
             No business matches that filter.
           </li>
         ) : (
@@ -188,7 +191,7 @@ export function GenerateDemoButton({
         )}
       </ul>
 
-      <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-500">
+      <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
         Uses {generator.name} ({generator.model}). A business with no analysis yet is
         analysed first. Nothing is published and nothing is sent to the business.
       </p>

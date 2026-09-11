@@ -8,7 +8,7 @@ import { rankLeads, type LeadPriority } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 
 import { OsmAttribution } from "./attribution";
-import { LeadRow } from "./lead-row";
+import { LeadCard, LeadRow } from "./lead-row";
 import { BUTTON_SECONDARY, Card, EmptyState, FOCUS_RING, INPUT } from "./ui/primitives";
 
 type StatusFilter = "all" | "new" | "reviewed" | "no-website";
@@ -115,8 +115,8 @@ export function LeadsBrowser({ leads }: { leads: Lead[] }) {
       <Card className="p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto]">
           <div>
-            <label htmlFor="lead-search" className="sr-only">
-              Search business names
+            <label htmlFor="lead-search" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+              Business name
             </label>
             <input
               id="lead-search"
@@ -124,19 +124,19 @@ export function LeadsBrowser({ leads }: { leads: Lead[] }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search business names..."
-              className={INPUT}
+              className={`mt-1 ${INPUT}`}
             />
           </div>
 
           <div>
-            <label htmlFor="priority-filter" className="sr-only">
-              Filter by priority
+            <label htmlFor="priority-filter" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+              Priority
             </label>
             <select
               id="priority-filter"
               value={priority}
               onChange={(e) => setPriority(e.target.value as LeadPriority | "all")}
-              className={INPUT}
+              className={`mt-1 ${INPUT}`}
             >
               {PRIORITIES.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -147,14 +147,14 @@ export function LeadsBrowser({ leads }: { leads: Lead[] }) {
           </div>
 
           <div>
-            <label htmlFor="category-filter" className="sr-only">
-              Filter by category
+            <label htmlFor="category-filter" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+              Category
             </label>
             <select
               id="category-filter"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className={INPUT}
+              className={`mt-1 ${INPUT}`}
             >
               <option value="all">Any category</option>
               {categories.map((c) => (
@@ -214,12 +214,26 @@ export function LeadsBrowser({ leads }: { leads: Lead[] }) {
       ) : (
         <Card className="overflow-hidden">
           {/*
+            Below the table's minimum width, the same leads as stacked cards.
+            The table is not merely hidden here -- a six-column scroller is the
+            wrong shape for a phone, and this is the screen the tool is for.
+          */}
+          <ul
+            aria-label="Discovered leads, ordered by deterministic lead priority"
+            className="divide-y divide-slate-200 lg:hidden dark:divide-slate-800"
+          >
+            {shown.map(({ lead, score }) => (
+              <LeadCard key={lead.id} lead={lead} score={score} />
+            ))}
+          </ul>
+
+          {/*
             Horizontal scroll is contained here so the page never overflows.
             `relative` matters: sr-only text is position:absolute, and without a
             positioned ancestor it resolves against the initial containing block,
             escaping this scroller and widening the whole document.
           */}
-          <div className="relative overflow-x-auto">
+          <div className="relative hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[56rem] text-sm">
               <caption className="sr-only">
                 Discovered leads, ordered by deterministic lead priority
@@ -256,7 +270,7 @@ export function LeadsBrowser({ leads }: { leads: Lead[] }) {
 
       {showsOsmData ? <OsmAttribution /> : null}
 
-      <p className="text-xs text-slate-500 dark:text-slate-500">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Lead priority is a deterministic review-order score derived from provider-listed
         signals. It is not a prediction of purchase intent, and not proof that a business
         lacks a website.
