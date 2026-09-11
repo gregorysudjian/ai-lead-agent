@@ -1,5 +1,5 @@
 import { hasNoListedWebsite } from "@/lib/format";
-import { isUsableText, rankLeads } from "@/lib/scoring";
+import { rankLeads } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 
 import { StatTile } from "./ui/primitives";
@@ -19,7 +19,6 @@ export function LeadSummary({ leads }: { leads: Lead[] }) {
     reviewed: leads.filter((l) => l.status === "reviewed").length,
     high: scored.filter((s) => s.score.priority === "high").length,
     noWebsite: leads.filter(hasNoListedWebsite).length,
-    withPhone: leads.filter((l) => isUsableText(l.provider.phone)).length,
   };
 
   return (

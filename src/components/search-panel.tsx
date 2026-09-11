@@ -208,9 +208,12 @@ export function SearchPanel() {
 
   return (
     <Card as="section" className="p-5">
+      {/* "and saves them" is doing real work in that sentence: the panel below
+          this one takes the same two fields and saves nothing, so which of the
+          two writes to the lead store has to be legible from the heading. */}
       <SectionHeading
         title="Find businesses"
-        hint="Searches OpenStreetMap for businesses in a supported city and category."
+        hint="Searches OpenStreetMap for businesses in a supported city and category, and saves what it finds to your leads."
       />
 
       <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
@@ -256,7 +259,7 @@ export function SearchPanel() {
           <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
             <span
               aria-hidden="true"
-              className="h-3 w-3 animate-pulse rounded-full bg-indigo-500"
+              className="h-3 w-3 animate-pulse rounded-full motion-reduce:animate-none bg-indigo-500"
             />
             Searching the provider…
           </p>

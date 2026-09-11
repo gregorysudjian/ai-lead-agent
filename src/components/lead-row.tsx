@@ -56,7 +56,7 @@ export function StatusBadge({ status }: { status: Lead["status"] }) {
  * A non-null but unsafe value is shown as escaped plain text and never linked;
  * classifyWebsite remains the only authority on that.
  */
-function WebPresence({ website }: { website: string | null }) {
+export function WebPresence({ website }: { website: string | null }) {
   const rendering = classifyWebsite(website);
 
   if (rendering.kind === "none") {
@@ -106,6 +106,69 @@ function WebPresence({ website }: { website: string | null }) {
   );
 }
 
+/**
+ * One lead as a card, for viewports too narrow for the table.
+ *
+ * Six columns need about 56rem before they stop being legible, so below that
+ * the table was a sideways scroller -- on the screen this application mostly
+ * exists to show. Same data and the same components, stacked rather than
+ * columnar, so nothing is hidden from a phone that a desktop would show.
+ */
+export function LeadCard({ lead, score }: { lead: Lead; score: LeadScore }) {
+  const { provider } = lead;
+
+  return (
+    <li className="p-4">
+      <Link
+        href={`/leads/${lead.id}`}
+        className={`block font-medium text-slate-900 dark:text-slate-100 ${LINK} decoration-transparent hover:decoration-current`}
+      >
+        {provider.name}
+      </Link>
+      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+        {provider.category} · {provider.city}
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+        {displayOrNotListed(provider.address)}
+      </p>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <PriorityBadge score={score} />
+        <StatusBadge status={lead.status} />
+        <Badge tone="slate">{SOURCE_LABELS[provider.source]}</Badge>
+      </div>
+
+      <dl className="mt-3 space-y-1.5 text-xs">
+        <div className="flex gap-3">
+          <dt className="w-24 shrink-0 text-slate-600 dark:text-slate-400">Phone</dt>
+          <dd className="min-w-0 text-slate-700 dark:text-slate-300">
+            {displayOrNotListed(provider.phone)}
+          </dd>
+        </div>
+        <div className="flex gap-3">
+          <dt className="w-24 shrink-0 text-slate-600 dark:text-slate-400">Web presence</dt>
+          <dd className="min-w-0">
+            <WebPresence website={provider.website} />
+          </dd>
+        </div>
+        {/* Omitted when the provider supplied none, exactly as in the table. */}
+        {hasProviderReputation(provider) ? (
+          <div className="flex gap-3">
+            <dt className="w-24 shrink-0 text-slate-600 dark:text-slate-400">Reputation</dt>
+            <dd className="min-w-0 text-slate-700 dark:text-slate-300">
+              {formatRating(provider.rating)} · {formatReviewCount(provider.reviewCount)}
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+
+      <div className="mt-3">
+        <StatusToggle leadId={lead.id} status={lead.status} />
+      </div>
+    </li>
+  );
+}
+
 export function LeadRow({ lead, score }: { lead: Lead; score: LeadScore }) {
   const { provider } = lead;
 
@@ -123,7 +186,7 @@ export function LeadRow({ lead, score }: { lead: Lead; score: LeadScore }) {
           {provider.category} · {provider.city}
         </p>
         <p
-          className="mt-0.5 max-w-[18rem] truncate text-xs text-slate-500 dark:text-slate-500"
+          className="mt-0.5 max-w-[18rem] truncate text-xs text-slate-500 dark:text-slate-400"
           title={provider.address ?? undefined}
         >
           {displayOrNotListed(provider.address)}
@@ -138,7 +201,7 @@ export function LeadRow({ lead, score }: { lead: Lead; score: LeadScore }) {
             otherwise every OSM row repeats the same empty statement. The detail
             page still says explicitly that none was listed. */}
         {hasProviderReputation(provider) ? (
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {formatRating(provider.rating)} · {formatReviewCount(provider.reviewCount)}
           </p>
         ) : null}

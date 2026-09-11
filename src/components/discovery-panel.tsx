@@ -10,7 +10,15 @@ import {
 } from "@/lib/discovery/candidates";
 import { classifyWebsite } from "@/lib/format";
 
-import { Badge, BUTTON_PRIMARY, Card, INPUT, SectionHeading, type BadgeTone } from "./ui/primitives";
+import {
+  Badge,
+  BUTTON_SECONDARY,
+  Card,
+  FOCUS_RING,
+  INPUT,
+  LINK,
+  type BadgeTone,
+} from "./ui/primitives";
 
 /**
  * Multi-source discovery.
@@ -120,117 +128,148 @@ export function DiscoveryPanel({
   }
 
   return (
-    <Card as="section" className="p-5">
-      <SectionHeading
-        title="Multi-source discovery"
-        hint="Asks every selected source and groups the answers. Preview only — nothing is saved."
-      />
+    <Card as="section">
+      {/*
+        Collapsed by default, and that is the point.
 
-      <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
-        <div>
-          <label htmlFor="discovery-category" className="block text-sm font-medium">
-            Category
-          </label>
-          <input
-            id="discovery-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-            autoComplete="off"
-            className={`mt-1 ${INPUT}`}
-          />
-        </div>
+        This panel and "Find businesses" above it had the same two fields, the
+        same layout and the same prefilled city, sitting one card apart -- but
+        that one SAVES what it finds and this one saves nothing. Two identical
+        forms with opposite consequences is not a difference a one-line hint
+        can carry, so the destructive one is the only search on the page by
+        default, and this one is a comparison tool you deliberately open.
 
-        <div>
-          <label htmlFor="discovery-city" className="block text-sm font-medium">
-            City
-          </label>
-          <input
-            id="discovery-city"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            required
-            autoComplete="off"
-            className={`mt-1 ${INPUT}`}
-          />
-        </div>
+        A `<details>` rather than another `useState`: the browser already does
+        disclosure, and it works before hydration.
+      */}
+      <details className="group">
+        <summary
+          className={`flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-5 hover:bg-slate-50 [&::-webkit-details-marker]:hidden dark:hover:bg-slate-800/50 ${FOCUS_RING}`}
+        >
+          <div className="min-w-0">
+            <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              Compare sources
+              <Badge tone="slate">Preview · saves nothing</Badge>
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+              Asks every enabled source the same question and groups the answers, so you
+              can see what each one knows. Nothing here is written to your leads.
+            </p>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-slate-600 dark:text-slate-400">
+            <span className="group-open:hidden">Open</span>
+            <span className="hidden group-open:inline">Close</span>
+          </span>
+        </summary>
 
-        <div className="flex items-end">
-          <button type="submit" disabled={busy} className={`${BUTTON_PRIMARY} w-full sm:w-auto`}>
-            {busy ? "Searching…" : "Discover"}
-          </button>
-        </div>
-      </form>
-
-      <fieldset className="mt-4">
-        <legend className="text-sm font-medium">Sources</legend>
-        <div className="mt-2 flex flex-wrap gap-4">
-          {availableSources.map((source) => (
-            <label key={source} className="flex items-center gap-2 text-sm">
+        <div className="border-t border-slate-200 p-5 dark:border-slate-800">
+          <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
+            <div>
+              <label htmlFor="discovery-category" className="block text-sm font-medium">
+                Category
+              </label>
               <input
-                type="checkbox"
-                checked={selected.includes(source)}
-                onChange={() => toggleSource(source)}
-                className="h-4 w-4"
+                id="discovery-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                required
+                autoComplete="off"
+                className={`mt-1 ${INPUT}`}
               />
-              {DISCOVERY_SOURCE_LABELS[source]}
-            </label>
-          ))}
-        </div>
-        {availableSources.length === 1 ? (
-          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            Only one source is enabled on this server. Set DISCOVERY_SOURCES to enable more.
-          </p>
-        ) : null}
-      </fieldset>
+            </div>
 
-      <div aria-live="polite" className="mt-4 space-y-3 text-sm">
-        {busy ? (
-          <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full bg-indigo-500" />
-            Asking {selected.length} {selected.length === 1 ? "source" : "sources"}…
-          </p>
-        ) : null}
+            <div>
+              <label htmlFor="discovery-city" className="block text-sm font-medium">
+                City
+              </label>
+              <input
+                id="discovery-city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                required
+                autoComplete="off"
+                className={`mt-1 ${INPUT}`}
+              />
+            </div>
 
-        {error ? (
-          <div
-            role="alert"
-            className="rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/50"
-          >
-            <p className="text-red-900 dark:text-red-200">{error}</p>
-            {supported ? (
-              <p className="mt-1 text-xs text-red-800 dark:text-red-300">
-                Currently supported: {supported.join(", ")}.
+            <div className="flex items-end">
+              <button type="submit" disabled={busy} className={`${BUTTON_SECONDARY} w-full sm:w-auto`}>
+                {busy ? "Comparing…" : "Compare sources"}
+              </button>
+            </div>
+          </form>
+
+          <fieldset className="mt-4">
+            <legend className="text-sm font-medium">Sources</legend>
+            <div className="mt-2 flex flex-wrap gap-4">
+              {availableSources.map((source) => (
+                <label key={source} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(source)}
+                    onChange={() => toggleSource(source)}
+                    className="h-4 w-4"
+                  />
+                  {DISCOVERY_SOURCE_LABELS[source]}
+                </label>
+              ))}
+            </div>
+            {availableSources.length === 1 ? (
+              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                Only one source is enabled on this server. Set DISCOVERY_SOURCES to enable more.
               </p>
+            ) : null}
+          </fieldset>
+
+          <div aria-live="polite" className="mt-4 space-y-3 text-sm">
+            {busy ? (
+              <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full motion-reduce:animate-none bg-indigo-500" />
+                Asking {selected.length} {selected.length === 1 ? "source" : "sources"}…
+              </p>
+            ) : null}
+
+            {error ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/50"
+              >
+                <p className="text-red-900 dark:text-red-200">{error}</p>
+                {supported ? (
+                  <p className="mt-1 text-xs text-red-800 dark:text-red-300">
+                    Currently supported: {supported.join(", ")}.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {outcome ? (
+              <>
+                <SourceStatusList statuses={outcome.sources} />
+
+                {outcome.truncated ? (
+                  <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    At least one source reached its result limit. More matching businesses may
+                    exist — nothing is fetched automatically.
+                  </p>
+                ) : null}
+
+                {outcome.candidates.length === 0 && !error ? (
+                  <p className="text-slate-600 dark:text-slate-400">
+                    No candidates from the sources that answered.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {outcome.candidates.map((candidate) => (
+                      <CandidateRow key={candidate.candidateId} candidate={candidate} />
+                    ))}
+                  </ul>
+                )}
+              </>
             ) : null}
           </div>
-        ) : null}
-
-        {outcome ? (
-          <>
-            <SourceStatusList statuses={outcome.sources} />
-
-            {outcome.truncated ? (
-              <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                At least one source reached its result limit. More matching businesses may
-                exist — nothing is fetched automatically.
-              </p>
-            ) : null}
-
-            {outcome.candidates.length === 0 && !error ? (
-              <p className="text-slate-600 dark:text-slate-400">
-                No candidates from the sources that answered.
-              </p>
-            ) : (
-              <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                {outcome.candidates.map((candidate) => (
-                  <CandidateRow key={candidate.candidateId} candidate={candidate} />
-                ))}
-              </ul>
-            )}
-          </>
-        ) : null}
-      </div>
+        </div>
+      </details>
     </Card>
   );
 }
@@ -312,7 +351,7 @@ function CandidateRow({ candidate }: { candidate: DiscoveryCandidate }) {
             href={website.href}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            className="text-indigo-700 underline dark:text-indigo-300"
+            className={LINK}
           >
             {website.href}
           </a>
