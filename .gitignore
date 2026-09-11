@@ -1,7 +1,26 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# ---- Secrets: passwords, API keys, credentials -----------------------------
+# Real values live only in .env.local on this machine. The example template,
+# with empty placeholders, IS committed so others know what to set.
+.env
+.env.*
+.env*.local
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+credentials*.json
+service-account*.json
+/secrets.*
+.npmrc
+.netrc
+
+# ---- Dependencies ----------------------------------------------------------
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,42 +29,39 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# Python virtual environments and caches (scripts may use one locally)
+venv/
+.venv/
+/env/
+__pycache__/
+*.py[cod]
 
-# next.js
+# ---- Build output ----------------------------------------------------------
 /.next/
 /out/
-
-# production
 /build
+/coverage
+*.tsbuildinfo
+next-env.d.ts
 
-# misc
+# ---- Local data -------------------------------------------------------------
+# The dev JSON lead store, ingested dataset slices, screenshots and backups.
+# Large, regenerable, and full of real business records -- never committed.
+/data/
+
+# Supabase CLI scratch state (link metadata, version caches) -- machine-local
+/supabase/.temp/
+
+# ---- Tooling and OS ---------------------------------------------------------
+.vercel
 .DS_Store
-*.pem
+Thumbs.db
+.idea/
+.claude/settings.local.json
 
-# debug
+# ---- Logs -------------------------------------------------------------------
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files -- never commit real secrets; the example template IS committed
-.env*
-!.env.example
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# local development data (JSON lead store -- dev only, never committed)
-/data/
-
-# supabase CLI scratch state (link metadata, version caches) -- machine-local
-/supabase/.temp/
-
-# Ingested dataset slices. Large, regenerable, and not source.
-/data/
