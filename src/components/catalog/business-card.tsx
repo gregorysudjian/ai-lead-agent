@@ -83,8 +83,15 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
           </div>
         </div>
 
+        {/* The name opens the full record, where the Add decision is made
+            with everything in view. */}
         <h3 className="mt-1 text-base leading-snug font-semibold tracking-tight break-words text-slate-900 dark:text-slate-50">
-          {provider.name}
+          <Link
+            href={`/businesses/${business.id}`}
+            className={`rounded hover:text-indigo-700 hover:underline dark:hover:text-indigo-300 ${FOCUS_RING}`}
+          >
+            {provider.name}
+          </Link>
         </h3>
         <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">
           {provider.address ?? <span className="italic">Address not listed</span>}
@@ -125,6 +132,10 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
         )}
 
         <div className="flex items-center gap-4">
+          <Link href={`/businesses/${business.id}`} className={`text-sm font-medium ${LINK}`}>
+            Details
+            <span className="sr-only"> for {provider.name}</span>
+          </Link>
           {/* The lab renders the site generation WOULD produce, in memory:
               nothing is saved, and no paid provider can be reached from it. */}
           <Link href={`/demos/lab?business=${business.id}`} className={`text-sm ${LINK}`}>
