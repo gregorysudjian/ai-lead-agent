@@ -19,7 +19,8 @@
  * attribution -- and CLAUDE.md is explicit that OSM data must never be
  * presented as coming from another provider. The reverse is just as true.
  */
-export type BusinessSource = "mock" | "osm" | "google" | "overture";
+export const BUSINESS_SOURCES = ["mock", "osm", "google", "overture"] as const;
+export type BusinessSource = (typeof BUSINESS_SOURCES)[number];
 
 export type Weekday =
   | "monday"

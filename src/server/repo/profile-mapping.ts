@@ -43,6 +43,7 @@ import {
   SOURCE_TYPE_LABELS,
   emptyProfileFacts,
 } from "@/lib/business-profile";
+import { BUSINESS_SOURCES } from "@/lib/types";
 
 /** The `business_profiles` table shape. Database implementation detail. */
 export interface BusinessProfileRow {
@@ -145,6 +146,9 @@ function assertUrl(value: string, field: string): string {
   return value;
 }
 
+/** `osm:node/123`, `overture:08f…` -- any discovery source, then its own id. */
+const LEAD_SNAPSHOT_REFERENCE = new RegExp(`^(${BUSINESS_SOURCES.join("|")}):[^\\s]+$`);
+
 /**
  * A source's reference has to match the kind of source it claims to be.
  *
@@ -157,7 +161,10 @@ function sourceReference(value: unknown, field: string, type: SourceType): strin
   const reference = str(value, field, PROFILE_LIMITS.sourceReference);
 
   if (type === "lead-snapshot") {
-    if (!/^(mock|osm|google):[^\s]+$/.test(reference)) {
+    // Built from the one list of sources. It was once a hand-written
+    // "mock|osm|google", and when Overture became a source every lead added
+    // from the catalog failed research at the moment its profile was saved.
+    if (!LEAD_SNAPSHOT_REFERENCE.test(reference)) {
       fail(field, "must be a provider reference such as osm:node/123");
     }
     return reference;

@@ -19,13 +19,16 @@ import type {
 } from "./business-profile";
 import { LEAD_SNAPSHOT_SOURCE_ID, leadSnapshotReference } from "./business-profile";
 import { isUsableRating, isUsableReviewCount, isUsableText } from "./scoring";
-import type { Lead } from "./types";
+import type { BusinessSource, Lead } from "./types";
 
 /** Human-readable source labels. Internal enum values never reach a researcher. */
-const SOURCE_LABELS: Record<string, string> = {
+// Keyed by every source, so adding one to BusinessSource fails to compile
+// here until it has a label.
+const SOURCE_LABELS: Record<BusinessSource, string> = {
   mock: "Mock fixture data",
   osm: "OpenStreetMap",
   google: "Google Places",
+  overture: "Overture Maps",
 };
 
 /**

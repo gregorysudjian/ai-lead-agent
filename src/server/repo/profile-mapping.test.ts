@@ -466,6 +466,9 @@ describe("source records are validated strictly, now that real sources exist", (
 
     expect(() => toProfileDocument(leadSource("osm:node/1"))).not.toThrow();
     expect(() => toProfileDocument(leadSource("google:places/abc"))).not.toThrow();
+    // A lead added from the business catalog. This once failed research at
+    // the moment the profile was saved, because the list predated Overture.
+    expect(() => toProfileDocument(leadSource("overture:08f2baa4c2a7ab530310b4cbd6b4e3c4"))).not.toThrow();
     for (const bad of ["https://example.test/", "node/1", "osm:", "osm: node 1"]) {
       expect(() => toProfileDocument(leadSource(bad)), bad).toThrow(BusinessProfileRowMappingError);
     }
