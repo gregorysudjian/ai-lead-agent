@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { DemoSite } from "@/lib/demo-site";
+import { designFor } from "@/lib/demo-design/genome";
+import { contentStructure, type DemoSite, type DemoSiteSpec } from "@/lib/demo-site";
 import { deriveDemoSiteBusiness, toDemoGeneratorInput } from "@/lib/demo-facts";
 import { enforceSampleFlags } from "@/lib/demo-sample-policy";
 import { analyseLead } from "@/server/analysis-service";
@@ -49,10 +50,28 @@ export class AnalysisLeadMismatchError extends Error {
 
 export { LeadNotFoundError } from "./service-errors";
 
+/** How many designs a business can be offered: variant 0 is its own, 1-99 "another". */
+export const MAX_DESIGN_VARIANT = 99;
+
+export interface GenerateDemoOptions {
+  /**
+   * Which of the business's designs to draw it with. 0, the default, is the
+   * design its facts choose; each other number is a different, equally
+   * suitable one ("try another design"). The words do not change with it.
+   */
+  variant?: number;
+}
+
 export async function generateDemoSite(
   leadId: string,
   analysisId?: string,
+  options: GenerateDemoOptions = {},
 ): Promise<DemoSite> {
+  const variant = options.variant ?? 0;
+  if (!Number.isInteger(variant) || variant < 0 || variant > MAX_DESIGN_VARIANT) {
+    throw new RangeError(`Design variant must be an integer from 0 to ${MAX_DESIGN_VARIANT}.`);
+  }
+
   const lead = await getLeadRepository().findById(leadId);
   if (!lead) throw new LeadNotFoundError(leadId);
 
@@ -99,21 +118,43 @@ export async function generateDemoSite(
 
   // Generator errors and invalid output both surface as exceptions; nothing
   // partial is persisted. The repository validates the spec before writing.
-  const generated = await generator.generate(
-    toDemoGeneratorInput(business, analysis.recommendations),
-  );
+  const input = toDemoGeneratorInput(business, analysis.recommendations);
+  const generated = await generator.generate(input);
 
   // SAMPLE MARKING IS NOT THE GENERATOR'S CALL. Whatever it declared, the
   // flags are recomputed here from the facts we actually hold and OR-ed in, so
   // a generator can only ever mark more content as sample -- never present
-  // invented copy as confirmed. See `demo-sample-policy.ts`.
+  // invented copy as confirmed. See `demo-sample-policy.ts`. The French page
+  // goes through exactly the same enforcement.
   const content = enforceSampleFlags(generated, business);
+
+  // THE FRENCH PAGE, when the generator can write one with the same
+  // structure. A pair that does not match is a generator bug; the English page
+  // is stored alone rather than two different proposals behind one link (the
+  // repository would refuse the pair anyway).
+  let alternates: DemoSiteSpec["alternates"];
+  if (generator.locales.includes("fr")) {
+    const french = enforceSampleFlags(await generator.generate({ ...input, locale: "fr" }), business);
+    if (contentStructure(french) === contentStructure(content)) {
+      alternates = { fr: french };
+    } else {
+      console.error(`[demo ${lead.id}] the French page does not match the English one; storing English only.`);
+    }
+  }
+
+  // THE DESIGN is ours, like the facts: computed from the business, never
+  // chosen by the generator. Stored with the demo, so the page an owner was
+  // shown keeps looking exactly like that even if the design code changes.
+  const design = designFor(
+    { name: business.name, category: business.category, address: business.address },
+    variant,
+  );
 
   return getDemoSiteRepository().create(lead.id, analysis.id, {
     // Identity of the generator is read from the generator itself, not from its
     // output -- it cannot claim to be a different one.
     generator: { name: generator.name, model: generator.model },
-    spec: { business, content },
+    spec: { business, content, design, ...(alternates ? { alternates } : {}) },
   });
 }
 
@@ -135,14 +176,17 @@ export async function generateDemoSite(
  * An existing analysis is reused rather than re-run. Regenerating a demo is
  * cheap and common; re-analysing to get the same recommendations is not.
  */
-export async function generateDemoSiteForLead(leadId: string): Promise<DemoSite> {
+export async function generateDemoSiteForLead(
+  leadId: string,
+  options: GenerateDemoOptions = {},
+): Promise<DemoSite> {
   const lead = await getLeadRepository().findById(leadId);
   if (!lead) throw new LeadNotFoundError(leadId);
 
   const existing = await getAnalysisRepository().latestForLead(leadId);
   const analysis = existing ?? (await analyseLead(leadId));
 
-  return generateDemoSite(leadId, analysis.id);
+  return generateDemoSite(leadId, analysis.id, options);
 }
 
 /** Demo sites for a lead, newest first. */

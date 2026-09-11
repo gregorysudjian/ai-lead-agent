@@ -55,7 +55,7 @@ describe("the generator is deterministic and offline", () => {
 
   it("identifies itself by a ruleset version, not a model", () => {
     expect(mockDemoSiteProvider.name).toBe("mock");
-    expect(mockDemoSiteProvider.model).toBe("deterministic-demo-rules-v2");
+    expect(mockDemoSiteProvider.model).toBe("deterministic-demo-rules-v3");
   });
 
   it("rejects a business with no usable name", async () => {

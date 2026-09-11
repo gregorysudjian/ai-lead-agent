@@ -18,7 +18,22 @@ import { Timestamp } from "./ui/timestamp";
  *
  * Generation is always one deliberate click. There is no effect, no retry loop
  * and no automatic generation on mount.
+ *
+ * "Try another design" generates a NEW demo with the next design variant --
+ * same facts, same words, a different look. The previous demo is kept, like
+ * every demo, because it may already have been shown to someone.
  */
+
+/** The highest design variant the server accepts (`MAX_DESIGN_VARIANT`). */
+const MAX_VARIANT = 99;
+
+/** A short description of how a demo looks, for the lists below. */
+function lookOf(demo: DemoSite): string {
+  const design = demo.spec.design;
+  if (!design) return `${DEMO_THEME_LABELS[demo.spec.content.theme]} (original renderer)`;
+  const languages = demo.spec.alternates?.fr ? "FR + EN" : "EN";
+  return `${design.direction} design, variant ${design.variant} · ${languages}`;
+}
 export function DemoPanel({
   leadId,
   demos,
@@ -39,8 +54,13 @@ export function DemoPanel({
 
   const busy = isGenerating || isRefreshing;
   const latestDemo = demos[0] ?? null;
+  // Regenerating keeps the look the latest demo has; "another design" moves to
+  // a variant this lead has not had yet (wrapping round, never back to 0).
+  const currentVariant = latestDemo?.spec.design?.variant ?? 0;
+  const usedVariants = demos.map((demo) => demo.spec.design?.variant ?? 0);
+  const nextVariant = Math.max(...usedVariants, 0) >= MAX_VARIANT ? 1 : Math.max(...usedVariants, 0) + 1;
 
-  async function handleGenerate() {
+  async function handleGenerate(variant: number) {
     if (busy || !latestAnalysis) return;
     setIsGenerating(true);
     setError(null);
@@ -51,7 +71,7 @@ export function DemoPanel({
         headers: { "Content-Type": "application/json" },
         // The analysis is named explicitly rather than left as "the latest", so
         // the demo is built from exactly the analysis this panel displayed.
-        body: JSON.stringify({ analysisId: latestAnalysis.id }),
+        body: JSON.stringify({ analysisId: latestAnalysis.id, variant }),
       });
       const body = await response.json().catch(() => null);
 
@@ -90,9 +110,20 @@ export function DemoPanel({
           >
             {generator.name === "mock" ? "Mock generator" : generator.name}
           </Badge>
+          {latestDemo ? (
+            <button
+              type="button"
+              onClick={() => handleGenerate(nextVariant)}
+              disabled={busy || latestAnalysis === null}
+              title="A new demo with the same words and a different design. The current one is kept."
+              className={BUTTON_SECONDARY}
+            >
+              Try another design
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={handleGenerate}
+            onClick={() => handleGenerate(currentVariant)}
             disabled={busy || latestAnalysis === null}
             title={
               latestAnalysis === null
@@ -143,7 +174,7 @@ export function DemoPanel({
             <div className="min-w-0">
               <p className="text-sm font-medium">Latest demo</p>
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                {DEMO_THEME_LABELS[latestDemo.spec.content.theme]} · generated{" "}
+                {lookOf(latestDemo)} · generated{" "}
                 <Timestamp iso={latestDemo.createdAt} /> by {latestDemo.generator.name} (
                 {latestDemo.generator.model})
               </p>
@@ -165,7 +196,7 @@ export function DemoPanel({
                 className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400"
               >
                 <span>
-                  <Timestamp iso={demo.createdAt} /> · {DEMO_THEME_LABELS[demo.spec.content.theme]} ·{" "}
+                  <Timestamp iso={demo.createdAt} /> · {lookOf(demo)} ·{" "}
                   {demo.generator.name} ({demo.generator.model})
                 </span>
                 <Link

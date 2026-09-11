@@ -6,6 +6,7 @@ import { DEMO_FONT_VARIABLES } from "@/components/demo/fonts";
 import { DemoSiteV2 } from "@/components/demo/v2/site";
 import { asLocale } from "@/components/demo/v2/words";
 import { sampleSectionLabels } from "@/lib/demo-sample-policy";
+import { contentFor } from "@/lib/demo-site";
 import { requireSession } from "@/server/auth";
 import { labDemoForBusiness } from "@/server/demo-lab";
 
@@ -117,7 +118,7 @@ export default async function DemoLabPage({ searchParams }: { searchParams: Prom
       ) : (
         <DemoSiteV2
           business={spec.business}
-          content={spec.content}
+          content={contentFor(spec, locale)}
           design={design}
           locale={locale}
           langHref={labHref(business.id, variant, otherLocale, null)}

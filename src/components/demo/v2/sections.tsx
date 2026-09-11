@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 import type { DemoDesign } from "@/lib/demo-design/types";
-import { samplesForCategory } from "@/lib/demo-samples";
+import { sampleHoursFor } from "@/lib/demo-samples";
 import type { DemoSection, DemoSiteBusiness } from "@/lib/demo-site";
 import { classifyWebsite } from "@/lib/format";
 import { formatPhone, phoneHref } from "@/lib/phone";
@@ -371,7 +371,7 @@ function Schedule({ business, locale, words }: { business: DemoSiteBusiness; loc
   return (
     <>
       <ul className="space-y-1 tabular-nums">
-        {samplesForCategory(business.category).hours.map((line) => (
+        {sampleHoursFor(business.category).map((line) => (
           <li key={line}>{localizeScheduleLine(line, locale)}</li>
         ))}
       </ul>

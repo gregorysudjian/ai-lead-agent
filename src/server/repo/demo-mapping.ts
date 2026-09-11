@@ -32,7 +32,9 @@ import type {
   DemoLayout,
   DemoTheme,
 } from "@/lib/demo-site";
-import { DEMO_LAYOUT_LABELS, DEMO_THEME_LABELS } from "@/lib/demo-site";
+import { validateDemoDesign } from "@/lib/demo-design/genome";
+import type { DemoDesign } from "@/lib/demo-design/types";
+import { contentStructure, DEMO_LAYOUT_LABELS, DEMO_THEME_LABELS } from "@/lib/demo-site";
 import type { BusinessSource } from "@/lib/types";
 
 /** The `demo_sites` table shape. Database implementation detail. */
@@ -340,12 +342,58 @@ export function toDemoSiteContent(value: unknown): DemoSiteContent {
   };
 }
 
+/**
+ * The design, when the spec has one.
+ *
+ * Absent is legitimate and common -- every demo stored before designs existed
+ * -- and means "render with the original renderer". Present but invalid is
+ * corruption and fails like any other malformed field: a design is closed
+ * sets and hex colours, and nothing else may reach a style attribute.
+ */
+function toDesign(value: unknown): DemoDesign | undefined {
+  if (value === undefined || value === null) return undefined;
+  try {
+    return validateDemoDesign(value);
+  } catch (error) {
+    return fail("spec.design", error instanceof Error ? `is invalid (${error.message})` : "is invalid");
+  }
+}
+
+/**
+ * The other-language versions, when the spec has them.
+ *
+ * Each must be the SAME page as `content` in other words. A French version
+ * with an extra section, a different service count, a button that calls where
+ * the English one scrolls, or a section marked sample in one language and
+ * confirmed in the other would be two different proposals behind one link.
+ */
+function toAlternates(value: unknown, content: DemoSiteContent): DemoSiteSpec["alternates"] {
+  if (value === undefined || value === null) return undefined;
+  const alternates = obj(value, "spec.alternates");
+  for (const key of Object.keys(alternates)) {
+    if (key !== "fr") fail(`spec.alternates.${key}`, "is not a supported language");
+  }
+  if (alternates.fr === undefined) return {};
+  const fr = toDemoSiteContent(alternates.fr);
+  if (contentStructure(fr) !== contentStructure(content)) {
+    fail("spec.alternates.fr", "does not have the same structure as spec.content");
+  }
+  return { fr };
+}
+
 /** Validate a whole spec: application-owned facts plus generated content. */
 export function toDemoSiteSpec(value: unknown): DemoSiteSpec {
   const spec = obj(value, "spec");
+  const content = toDemoSiteContent(spec.content);
+  const design = toDesign(spec.design);
+  const alternates = toAlternates(spec.alternates, content);
+  // Optional keys are omitted rather than set to undefined, so a spec stored
+  // before they existed reads back exactly as it was written.
   return {
     business: toBusiness(spec.business),
-    content: toDemoSiteContent(spec.content),
+    content,
+    ...(design ? { design } : {}),
+    ...(alternates ? { alternates } : {}),
   };
 }
 
@@ -392,6 +440,11 @@ export function demoSiteToRow(demo: DemoSite): DemoSiteRow {
     generator_model: demo.generator.model,
     // Identity and timestamps live in real columns, never duplicated inside the
     // JSON document.
-    spec: { business: demo.spec.business, content: demo.spec.content },
+    spec: {
+      business: demo.spec.business,
+      content: demo.spec.content,
+      ...(demo.spec.design ? { design: demo.spec.design } : {}),
+      ...(demo.spec.alternates ? { alternates: demo.spec.alternates } : {}),
+    },
   };
 }

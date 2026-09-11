@@ -409,3 +409,146 @@ describe("layouts differ between businesses", () => {
     }
   });
 });
+
+describe("French copy holds the same line", () => {
+  /**
+   * Every rule above, again, for the French page -- which is the page a
+   * Montreal owner reads first. French needs its own patterns: "depuis 1998"
+   * is the founding year, "primé" the award, "prix" the price, and \b is no
+   * use next to an accented letter, so words are bounded with \p{L}.
+   */
+  const word = (alternatives: string) => new RegExp(`(?<!\\p{L})(?:${alternatives})(?!\\p{L})`, "iu");
+  const FORBIDDEN_FR: { label: string; pattern: RegExp }[] = [
+    { label: "a currency amount", pattern: /\d\s?\$|\$\s?\d/ },
+    { label: "a founding year", pattern: /(?:depuis|fondée?\s+en|en\s+affaires\s+depuis)\s+(?:1[89]|20)\d{2}/iu },
+    { label: "a count of years", pattern: /\d+\+?\s+ans(?!\p{L})/iu },
+    { label: "a star rating or review count", pattern: word("étoiles?|avis|évaluations?") },
+    { label: "a price", pattern: word("prix|tarifs?|rabais|gratuite?s?|offerte?s?") },
+    {
+      label: "an award, a certification or a guarantee",
+      pattern: word("primée?s?|certifiée?s?|diplômée?s?|agréée?s?|accréditée?s?|licenciée?s?|garantie?s?|meilleure?s?\s+(?:de|à|en)"),
+    },
+    { label: "a payment method", pattern: word("comptant|carte\s+de\s+crédit|interac") },
+    { label: "a clock time", pattern: /\d{1,2}\s?h(?:\s?\d{2})?(?!\p{L})|\d{1,2}[:.]\d{2}/u },
+    { label: "a URL or email", pattern: /https?:\/\/|www\.|@[a-z0-9-]+\./i },
+  ];
+
+  const fr = (over: Partial<DemoSiteGeneratorInput> = {}) => input({ ...over, locale: "fr" });
+
+  it("writes no forbidden specific in French, for any category or layout", async () => {
+    for (const category of CATEGORIES) {
+      for (const siteType of HANDLED_SITE_TYPES) {
+        for (const phoneListed of [true, false]) {
+          for (const name of ["Salon Test", "Chez Nadia", "Barbier 88", "Studio Noir", "Maison Verte"]) {
+            const content = await mockDemoSiteProvider.generate(
+              fr({ businessName: name, category, recommendedSiteType: siteType, phoneListed, addressListed: !phoneListed }),
+            );
+            const text = JSON.stringify(content);
+            for (const { label, pattern } of FORBIDDEN_FR) {
+              expect(text, `${category} / ${siteType} / ${name} must not contain ${label}`).not.toMatch(pattern);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("the English pages still clear the English patterns with every pick", async () => {
+    // The pools added lines; the original sweep used one name. Every name
+    // here lands on different picks.
+    for (const category of CATEGORIES) {
+      for (const name of ["Chez Nadia", "Barbier 88", "Studio Noir", "Maison Verte", "Salon 7"]) {
+        const text = JSON.stringify(await mockDemoSiteProvider.generate(input({ businessName: name, category })));
+        expect(text, `${category} / ${name}`).not.toMatch(/[$£€¥]\s?\d|\d\s?%|\b\d+\+?\s+years\b|\b(?:award|certified|licensed|accredited|cash|card accepted)\b/i);
+      }
+    }
+  });
+
+  it("says nothing about calling in French when no phone number is listed", async () => {
+    for (const category of CATEGORIES) {
+      for (const name of ["Salon Test", "Chez Nadia", "Barbier 88", "Studio Noir", "Maison Verte"]) {
+        const content = await mockDemoSiteProvider.generate(
+          fr({ businessName: name, category, phoneListed: false, addressListed: true }),
+        );
+        const text = JSON.stringify(content).toLowerCase();
+        for (const phrase of ["appel", "téléphon", "coup de fil"]) {
+          expect(text, `${category} / ${name} must not mention calling without a phone`).not.toContain(phrase);
+        }
+      }
+    }
+  });
+
+  it("says nothing about visiting in French when no address is listed", async () => {
+    for (const category of CATEGORIES) {
+      for (const name of ["Salon Test", "Chez Nadia", "Barbier 88", "Studio Noir", "Maison Verte"]) {
+        const content = await mockDemoSiteProvider.generate(
+          fr({ businessName: name, category, phoneListed: true, addressListed: false }),
+        );
+        // Whole words: "prévenez-nous" (let us know) contains "venez" (come).
+        expect(JSON.stringify(content), `${category} / ${name} must not invite a visit with no address`).not.toMatch(
+          word("passez|venez|amenez|entrez|nous\s+trouver|nous\s+voir"),
+        );
+      }
+    }
+  });
+
+  it("leaves no unfilled placeholder in French", async () => {
+    for (const category of CATEGORIES) {
+      const content = await mockDemoSiteProvider.generate(fr({ category }));
+      expect(JSON.stringify(content), category).not.toMatch(/\{[a-z]+\}/i);
+    }
+  });
+
+  it("builds the French page with exactly the English page's structure", async () => {
+    // Switching language must change the words and nothing else.
+    for (const category of CATEGORIES) {
+      for (const siteType of HANDLED_SITE_TYPES) {
+        for (const [phoneListed, addressListed] of [[true, true], [true, false], [false, true], [false, false]]) {
+          const over = { category, recommendedSiteType: siteType, phoneListed, addressListed, businessName: "Chez Nadia" };
+          const en = await mockDemoSiteProvider.generate(input(over));
+          const french = await mockDemoSiteProvider.generate(fr(over));
+          const shape = (c: typeof en) =>
+            JSON.stringify({
+              theme: c.theme,
+              layout: c.layout,
+              nav: c.navigation.map((n) => n.targetSectionId),
+              sections: c.sections.map((s) => ({
+                kind: s.kind,
+                id: s.id,
+                sample: s.sample,
+                n: "items" in s ? s.items.length : "points" in s ? s.points.length : "placeholders" in s ? s.placeholders.length : 0,
+                ctas:
+                  s.kind === "hero"
+                    ? [s.primaryCta.action, s.primaryCta.targetSectionId, s.secondaryCta?.action, s.secondaryCta?.targetSectionId]
+                    : s.kind === "cta"
+                      ? [s.cta.action, s.cta.targetSectionId]
+                      : [],
+              })),
+            });
+          expect(shape(french), `${category} / ${siteType}`).toBe(shape(en));
+        }
+      }
+    }
+  });
+
+  it("calls the business by its brand, not its whole directory listing", async () => {
+    const content = await mockDemoSiteProvider.generate(
+      fr({ businessName: "Klyne Beauty - Salon de coiffure Africaine, Dreadlocks, Tresses", category: "Hair salon" }),
+    );
+    const about = content.sections.find((s) => s.kind === "positioning");
+    const text = JSON.stringify(content.sections);
+    expect(text).not.toContain("Dreadlocks");
+    if (about?.kind === "positioning" && about.body.includes("Klyne")) expect(about.body).toContain("Klyne Beauty");
+    // The page title keeps the full stored name: it is the business's own.
+    expect(content.siteTitle).toContain("Dreadlocks");
+  });
+
+  it("is written in French", async () => {
+    const content = await mockDemoSiteProvider.generate(fr({ category: "Barber shop", addressListed: true, phoneListed: true }));
+    expect(content.tagline).toBe("Barbier à Montreal");
+    expect(content.navigation.map((n) => n.label)).toContain("À propos");
+    const hero = content.sections[0];
+    if (hero.kind !== "hero") throw new Error("unreachable");
+    expect(hero.primaryCta.label).toBe("Appelez-nous");
+  });
+});

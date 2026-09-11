@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { designFor } from "@/lib/demo-design/genome";
 import type { DemoSite, DemoSiteSpec } from "@/lib/demo-site";
 
 import {
@@ -371,5 +372,63 @@ describe("demos stored before the sample flag existed", () => {
       }) as DemoSiteRow["spec"],
     });
     expect(() => rowToDemoSite(corrupted)).toThrow(DemoSiteRowMappingError);
+  });
+});
+
+describe("design and languages", () => {
+  /** The spec above, in "French": same structure, different words. */
+  const french = (): DemoSiteSpec["content"] => {
+    const content = structuredClone(spec().content);
+    content.tagline = "Salon de coiffure à Montréal";
+    content.sections = content.sections.map((section) => ({ ...section, heading: `FR ${section.kind}` }));
+    return content;
+  };
+  const withExtras = (): DemoSite => ({
+    ...demo(),
+    spec: { ...spec(), design: designFor({ name: "Salon Test", category: "Hair salon", address: null }), alternates: { fr: french() } },
+  });
+
+  it("round-trips a design and a French page", () => {
+    const original = withExtras();
+    const row = demoSiteToRow(original);
+    expect(Object.keys(row.spec as object).sort()).toEqual(["alternates", "business", "content", "design"]);
+    expect(rowToDemoSite(row)).toEqual(original);
+  });
+
+  it("reads an older spec back with neither key, exactly as stored", () => {
+    const mapped = rowToDemoSite(demoSiteToRow(demo()));
+    expect(mapped.spec).not.toHaveProperty("design");
+    expect(mapped.spec).not.toHaveProperty("alternates");
+  });
+
+  it("rejects a design that is not one of ours", () => {
+    const row = demoSiteToRow(withExtras());
+    const stored = row.spec as Record<string, Record<string, unknown>>;
+    for (const bad of [
+      { ...stored.design, hero: "marquee-of-doom" },
+      { ...stored.design, palette: { ...(stored.design.palette as object), accent: "red; background: url(x)" } },
+      { ...stored.design, version: 2 },
+    ]) {
+      expect(() => rowToDemoSite({ ...row, spec: { ...stored, design: bad } })).toThrow(DemoSiteRowMappingError);
+    }
+  });
+
+  it("rejects a language it does not support", () => {
+    const row = demoSiteToRow(withExtras());
+    const stored = row.spec as Record<string, unknown>;
+    expect(() => rowToDemoSite({ ...row, spec: { ...stored, alternates: { de: french() } } })).toThrow(/not a supported language/);
+  });
+
+  it("rejects a French page that is not the same page", () => {
+    const row = demoSiteToRow(withExtras());
+    const stored = row.spec as Record<string, unknown>;
+    const fewer = french();
+    fewer.sections = fewer.sections.slice(0, -1);
+    fewer.navigation = fewer.navigation.filter((item) => fewer.sections.some((s) => s.id === item.targetSectionId));
+    const confirmed = french();
+    confirmed.sections = confirmed.sections.map((s) => ({ ...s, sample: !s.sample }));
+    for (const bad of [fewer, confirmed]) {
+      expect(() => rowToDemoSite({ ...row, spec: { ...stored, alternates: { fr: bad } } })).toThrow(/same structure/);
+    }
   });
 });

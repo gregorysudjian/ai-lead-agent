@@ -91,6 +91,8 @@ export function createAnthropicDemoSiteProvider(
   return {
     name: "anthropic",
     model: ANTHROPIC_DEMO_MODEL,
+    // English only: see `DemoSiteProvider.locales`.
+    locales: ["en"],
 
     async generate(input: DemoSiteGeneratorInput): Promise<DemoSiteGeneratorResult> {
       // Configuration failures surface as DemoSiteProviderError too, so a
