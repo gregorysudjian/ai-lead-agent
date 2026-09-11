@@ -12,9 +12,17 @@ import {
   type OutreachRecord,
   type OutreachStatus,
 } from "@/lib/outreach";
-import { formatTimestamp } from "@/lib/format";
 
-import { Badge, BUTTON_PRIMARY, Card, SectionHeading, type BadgeTone } from "./ui/primitives";
+import {
+  Badge,
+  BUTTON_PRIMARY,
+  BUTTON_SECONDARY,
+  Card,
+  LINK,
+  SectionHeading,
+  type BadgeTone,
+} from "./ui/primitives";
+import { Timestamp } from "./ui/timestamp";
 
 /**
  * Contact sheet and outreach drafts.
@@ -209,7 +217,7 @@ function ContactPointRow({ point }: { point: ContactPoint }) {
           href={point.value}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="text-indigo-700 underline dark:text-indigo-300"
+          className={LINK}
         >
           {point.value}
         </a>
@@ -247,8 +255,8 @@ function RecordView({
             to {record.contact}
           </span>
         ) : null}
-        <span className="ml-auto text-xs text-slate-500">
-          {formatTimestamp(record.createdAt)}
+        <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">
+          <Timestamp iso={record.createdAt} />
         </span>
       </div>
 
@@ -262,7 +270,7 @@ function RecordView({
 
       {record.sentAt ? (
         <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-          You recorded sending this on {formatTimestamp(record.sentAt)}.
+          You recorded sending this on <Timestamp iso={record.sentAt} />.
         </p>
       ) : null}
 
@@ -284,7 +292,7 @@ function RecordView({
               type="button"
               onClick={() => onStatus(status)}
               disabled={busy}
-              className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              className={BUTTON_SECONDARY}
             >
               {status === "sent" ? "I sent this" : `Mark ${status}`}
             </button>

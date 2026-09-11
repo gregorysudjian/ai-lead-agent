@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { DEMO_THEME_LABELS, type DemoSite } from "@/lib/demo-site";
-import { formatTimestamp } from "@/lib/format";
 
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, SectionHeading } from "./ui/primitives";
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, LINK, SectionHeading } from "./ui/primitives";
+import { Timestamp } from "./ui/timestamp";
 
 /**
  * The demo-site workspace for one lead.
@@ -109,7 +109,7 @@ export function DemoPanel({
       <div aria-live="polite" className="mt-3 space-y-3">
         {busy ? (
           <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full bg-indigo-500" />
+            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full motion-reduce:animate-none bg-indigo-500" />
             Building the demo site…
           </p>
         ) : null}
@@ -132,7 +132,7 @@ export function DemoPanel({
       ) : (
         <p className="mt-4 text-xs text-slate-600 dark:text-slate-400">
           A new demo would be built from the analysis of{" "}
-          {formatTimestamp(latestAnalysis.createdAt)}, using {generator.name} (
+          <Timestamp iso={latestAnalysis.createdAt} />, using {generator.name} (
           {generator.model}).
         </p>
       )}
@@ -144,7 +144,7 @@ export function DemoPanel({
               <p className="text-sm font-medium">Latest demo</p>
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 {DEMO_THEME_LABELS[latestDemo.spec.content.theme]} · generated{" "}
-                {formatTimestamp(latestDemo.createdAt)} by {latestDemo.generator.name} (
+                <Timestamp iso={latestDemo.createdAt} /> by {latestDemo.generator.name} (
                 {latestDemo.generator.model})
               </p>
             </div>
@@ -165,12 +165,12 @@ export function DemoPanel({
                 className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400"
               >
                 <span>
-                  {formatTimestamp(demo.createdAt)} · {DEMO_THEME_LABELS[demo.spec.content.theme]} ·{" "}
+                  <Timestamp iso={demo.createdAt} /> · {DEMO_THEME_LABELS[demo.spec.content.theme]} ·{" "}
                   {demo.generator.name} ({demo.generator.model})
                 </span>
                 <Link
                   href={`/demos/${demo.id}`}
-                  className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-400"
+                  className={`font-medium ${LINK}`}
                 >
                   Open
                 </Link>

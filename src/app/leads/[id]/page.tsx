@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { AnalysisPanel } from "@/components/analysis-panel";
 import { DemoPanel } from "@/components/demo-panel";
@@ -14,13 +15,13 @@ import {
   LINK,
   SectionHeading,
 } from "@/components/ui/primitives";
+import { Timestamp } from "@/components/ui/timestamp";
 import {
   classifyWebsite,
   displayOrNotListed,
   formatOpeningHours,
   formatRating,
   formatReviewCount,
-  formatTimestamp,
   UNLINKABLE_WEBSITE_LABEL,
   websiteLabel,
 } from "@/lib/format";
@@ -65,38 +66,37 @@ export default async function LeadDetailPage({
 
   if (!lead) notFound();
 
-  // Analyses are read here rather than fetched by the client, keeping the page
-  // a Server Component. A read failure must not break the lead page itself.
-  let analyses: Awaited<ReturnType<typeof analysesForLead>> = [];
-  try {
-    analyses = await analysesForLead(id);
-  } catch (error) {
-    console.error(`[lead ${id}] could not read analyses:`, error);
-  }
-  // Demo sites likewise. A read failure here must not break the lead page.
-  let demos: Awaited<ReturnType<typeof demoSitesForLead>> = [];
-  try {
-    demos = await demoSitesForLead(id);
-  } catch (error) {
-    console.error(`[lead ${id}] could not read demo sites:`, error);
-  }
-
-  // Business profiles likewise. A read failure must not break the lead page.
-  let profiles: Awaited<ReturnType<typeof profilesForLead>> = [];
-  try {
-    profiles = await profilesForLead(id);
-  } catch (error) {
-    console.error(`[lead ${id}] could not read business profiles:`, error);
-  }
-
-  // The contact sheet and outreach log. A read failure must not break the
-  // page: an outreach store being down says nothing about the lead.
-  let outreach: Awaited<ReturnType<typeof outreachForLead>> | null = null;
-  try {
-    outreach = await outreachForLead(id);
-  } catch (error) {
-    console.error(`[lead ${id}] could not read outreach:`, error);
-  }
+  /**
+   * The four secondary reads, issued together.
+   *
+   * These are read here rather than fetched by the client, which keeps the page
+   * a Server Component. They were also awaited one after another, which made
+   * this page as slow as the sum of four stores rather than the slowest of
+   * them -- for reads that have no dependency on each other at all.
+   *
+   * Each still fails alone. The `catch` sits on the individual promise, not
+   * around the `Promise.all`, because `all` rejects on the first failure and
+   * would take the other three down with it: an outreach store being unwell
+   * says nothing about whether we can show the analyses.
+   */
+  const [analyses, demos, profiles, outreach] = await Promise.all([
+    analysesForLead(id).catch((error: unknown) => {
+      console.error(`[lead ${id}] could not read analyses:`, error);
+      return [] as Awaited<ReturnType<typeof analysesForLead>>;
+    }),
+    demoSitesForLead(id).catch((error: unknown) => {
+      console.error(`[lead ${id}] could not read demo sites:`, error);
+      return [] as Awaited<ReturnType<typeof demoSitesForLead>>;
+    }),
+    profilesForLead(id).catch((error: unknown) => {
+      console.error(`[lead ${id}] could not read business profiles:`, error);
+      return [] as Awaited<ReturnType<typeof profilesForLead>>;
+    }),
+    outreachForLead(id).catch((error: unknown) => {
+      console.error(`[lead ${id}] could not read outreach:`, error);
+      return null;
+    }),
+  ]);
 
   const analysisProvider = getAnalysisProvider();
   const researcher = getResearchProvider();
@@ -280,7 +280,7 @@ export default async function LeadDetailPage({
           <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Source" value={SOURCE_LABELS[provider.source]} />
             <Field label="External ID" value={provider.externalId} mono />
-            <Field label="Fetched" value={formatTimestamp(provider.fetchedAt)} />
+            <Field label="Fetched" value={<Timestamp iso={provider.fetchedAt} />} />
           </dl>
 
           {osmUrl ? (
@@ -319,8 +319,8 @@ export default async function LeadDetailPage({
           <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Internal lead ID" value={lead.id} mono />
             <Field label="Status" value={lead.status} />
-            <Field label="Created" value={formatTimestamp(lead.createdAt)} />
-            <Field label="Last updated" value={formatTimestamp(lead.updatedAt)} />
+            <Field label="Created" value={<Timestamp iso={lead.createdAt} />} />
+            <Field label="Last updated" value={<Timestamp iso={lead.updatedAt} />} />
           </dl>
 
           <p className="mt-4 border-t border-slate-200 pt-4 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
@@ -333,7 +333,15 @@ export default async function LeadDetailPage({
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Field({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: ReactNode;
+  mono?: boolean;
+}) {
   return (
     <div className="min-w-0">
       <dt className="text-xs text-slate-600 dark:text-slate-400">{label}</dt>

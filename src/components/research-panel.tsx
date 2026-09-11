@@ -18,10 +18,11 @@ import {
   allValues,
   resolveField,
 } from "@/lib/business-profile";
-import { classifyWebsite, formatTimestamp } from "@/lib/format";
+import { classifyWebsite } from "@/lib/format";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, LINK, SectionHeading } from "./ui/primitives";
 import type { BadgeTone } from "./ui/primitives";
+import { Timestamp } from "./ui/timestamp";
 
 /**
  * The research workspace for one lead.
@@ -148,7 +149,7 @@ export function ResearchPanel({
       <div aria-live="polite" className="mt-3">
         {busy ? (
           <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full bg-emerald-500" />
+            <span aria-hidden="true" className="h-3 w-3 animate-pulse rounded-full motion-reduce:animate-none bg-emerald-500" />
             {researcher.name === "website"
               ? "Reading the listed website…"
               : "Gathering what we can source…"}
@@ -194,8 +195,8 @@ export function ResearchPanel({
                     className={active ? `${BUTTON_SECONDARY} ring-2 ring-emerald-500` : BUTTON_SECONDARY}
                   >
                     {index === 0 ? "Latest" : `Run ${profiles.length - index}`}
-                    <span className="ml-1 font-normal text-slate-500">
-                      {profile.createdAt.slice(0, 16).replace("T", " ")}
+                    <span className="ml-1 font-normal text-slate-500 dark:text-slate-400">
+                      <Timestamp iso={profile.createdAt} />
                     </span>
                   </button>
                 </li>
@@ -216,7 +217,7 @@ function ProfileView({ profile }: { profile: BusinessProfile }) {
     <div className="mt-4 space-y-6">
       {/* COVERAGE -- what was looked at, before anything about what was found. */}
       <section>
-        <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-500">
+        <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
           What this run looked at
         </h3>
         <ul className="mt-2 flex flex-wrap gap-2">
@@ -271,7 +272,7 @@ function ProfileView({ profile }: { profile: BusinessProfile }) {
               </span>
               {source.title ? ` · ${source.title}` : null} ·{" "}
               <code className="font-mono break-all">{source.reference}</code> · read{" "}
-              {formatTimestamp(source.fetchedAt)}
+              <Timestamp iso={source.fetchedAt} />
             </li>
           ))}
         </ul>
@@ -287,8 +288,8 @@ function ProfileView({ profile }: { profile: BusinessProfile }) {
         </ul>
       </section>
 
-      <p className="text-xs text-slate-500 dark:text-slate-500">
-        Researched {formatTimestamp(profile.createdAt)} by {profile.researcher.name} (
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        Researched <Timestamp iso={profile.createdAt} /> by {profile.researcher.name} (
         {profile.researcher.version}). {sourceById.size}{" "}
         {sourceById.size === 1 ? "source" : "sources"} consulted.
       </p>
