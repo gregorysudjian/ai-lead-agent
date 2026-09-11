@@ -406,3 +406,9 @@ section as contact sheets, fixed, and re-photographed. What looking found:
   big bento card** competed with its text. All fixed.
 
 The contact sheets are in `data/screens/qa1` (before) and `qa2`/`qa3` (after).
+- **Motion checked with motion ON** (every screenshot above used reduced
+  motion, which hides motion bugs). Scrolling real pages found the reveal
+  range could never complete in the last screen of a page — the footer's
+  wordmark and the closing button stayed at ~82% opacity forever. Reveals now
+  finish within the element's own entry (at most 240px). The scroll hint's
+  dot also left its pill on "bold" sites; it now rolls like a mouse wheel.
