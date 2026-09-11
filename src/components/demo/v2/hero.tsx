@@ -53,7 +53,7 @@ function ScrollHint({ words }: { words: Words }) {
   return (
     <div aria-hidden="true" className="dx-fade-in dx-small dx-muted mt-14 hidden items-center gap-3 sm:flex" style={{ "--i": 5 } as CSSProperties}>
       <span className="relative block h-9 w-5 rounded-full border border-current">
-        <span className="dx-float absolute left-1/2 top-2 block h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-current" />
+        <span className="dx-wheel absolute left-1/2 top-2 block h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-current" />
       </span>
       {words.scroll}
     </div>

@@ -474,6 +474,16 @@
     to { transform: translate3d(0, calc(-18px * var(--dx-amp)), 0) rotate(calc(4deg * var(--dx-amp))); }
   }
 
+  /* The scroll hint's dot rolls down inside its pill, like a mouse wheel --
+     never by --dx-amp, which on a bold site threw it out of the pill. */
+  .dx-wheel { animation: dx-wheel 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+  @keyframes dx-wheel {
+    /* Y only: the x centring is the separate `translate` property. */
+    0% { transform: translateY(0); opacity: 1; }
+    70% { transform: translateY(12px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 0; }
+  }
+
   .dx-spin { animation: dx-spin calc(60s / var(--dx-amp)) linear infinite; }
   @keyframes dx-spin { to { transform: rotate(360deg); } }
 
@@ -487,10 +497,14 @@
 
   /* ---- Scroll-driven ------------------------------------------------- */
   @supports (animation-timeline: view()) {
+    /* The reveal finishes within the element's own ENTRY -- by the time it is
+       fully on screen, or 240px in if it is taller than that. A range ending
+       at "cover 26%" could never be reached by anything in the last screen of
+       the page: the footer's wordmark was stuck at 82% opacity forever. */
     .dx-reveal {
       animation: dx-reveal linear both;
       animation-timeline: view();
-      animation-range: entry 4% cover 26%;
+      animation-range: entry 0% entry min(100%, 240px);
     }
     @keyframes dx-reveal {
       from { opacity: 0; transform: translate3d(0, calc(46px * var(--dx-amp)), 0); }
