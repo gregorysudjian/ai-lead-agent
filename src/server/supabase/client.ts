@@ -4,6 +4,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { supabaseConfig } from "@/server/env";
 
+import { withClockSkewRetry } from "./clock-skew";
+
 /**
  * Server-side Supabase client.
  *
@@ -26,6 +28,9 @@ export function getSupabaseClient(): SupabaseClient {
   const { url, secretKey } = supabaseConfig();
 
   cached = createClient(url, secretKey, {
+    // Every request goes through this door, so the one retry that is about
+    // clocks rather than requests lives here, once. See `clock-skew.ts`.
+    global: { fetch: withClockSkewRetry(fetch) },
     auth: {
       // A server process has no user session to persist or refresh, and no
       // browser storage to put one in.

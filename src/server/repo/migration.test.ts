@@ -644,3 +644,36 @@ describe("ingest_runs table schema", () => {
     }
   });
 });
+
+describe("auth_attempts table security", () => {
+  const sql = statementsOnly(migrationSql());
+
+  it("enables RLS and creates no policy", () => {
+    expect(sql).toContain("alter table public.auth_attempts enable row level security");
+    expect(sql).not.toMatch(/create policy[^;]*auth_attempts/);
+  });
+
+  it("grants service_role select, insert and delete -- never update", () => {
+    const revoke = sql.indexOf("revoke all on table public.auth_attempts from anon, authenticated, service_role");
+    const grant = sql.indexOf("grant select, insert, delete on table public.auth_attempts to service_role");
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+    expect(sql).not.toMatch(/grant [^;]*update[^;]*auth_attempts/);
+    expect(sql).not.toContain("grant all on table public.auth_attempts");
+  });
+
+  it("never grants anything on auth_attempts to a browser-facing role", () => {
+    const grants = sql.split("\n").filter((l) => l.startsWith("grant ") && l.includes("auth_attempts"));
+    expect(grants.length).toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toContain("to service_role");
+      expect(grant).not.toContain("anon");
+      expect(grant).not.toContain("authenticated");
+    }
+  });
+
+  it("stores a hashed identity, never an address or a password", () => {
+    expect(sql).toContain("auth_attempts_identity_shape check (identity ~ '^[0-9a-f]{64}$')");
+    expect(sql).not.toMatch(/auth_attempts[\s\S]*\b(ip|address|password)\s+(text|inet)/);
+  });
+});
