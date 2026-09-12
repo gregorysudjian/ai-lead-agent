@@ -18,18 +18,19 @@ import { FOCUS_RING } from "./ui/primitives";
 interface NavItem {
   href: string;
   label: string;
-  /** Present when the feature is not built yet. Rendered disabled, never linked. */
-  comingSoon?: boolean;
 }
 
+/**
+ * Only pages that exist. Analysis and outreach live on each lead's page; the
+ * cross-lead views they would have (once "coming soon" entries here) are left
+ * out until they are built, rather than shown greyed out.
+ */
 const NAV: NavItem[] = [
   { href: "/", label: "Dashboard" },
   // The catalog: everything we might approach. Leads are what we chose.
   { href: "/businesses", label: "Businesses" },
   { href: "/leads", label: "Leads" },
-  { href: "/ai-analysis", label: "AI Analysis", comingSoon: true },
   { href: "/demos", label: "Demo Sites" },
-  { href: "/outreach", label: "Outreach", comingSoon: true },
 ];
 
 /**
@@ -63,23 +64,6 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <ul className="flex flex-col gap-1">
       {NAV.map((item) => {
-        if (item.comingSoon) {
-          return (
-            <li key={item.href}>
-              <span
-                aria-disabled="true"
-                title="Not implemented yet"
-                className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-400 dark:text-slate-600"
-              >
-                {item.label}
-                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase dark:bg-slate-800 dark:text-slate-400">
-                  Soon
-                </span>
-              </span>
-            </li>
-          );
-        }
-
         const active = isActive(pathname, item.href);
         return (
           <li key={item.href}>

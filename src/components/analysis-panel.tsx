@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { RECOMMENDED_SITE_TYPE_LABELS, type Analysis } from "@/lib/analysis";
 
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, SectionHeading } from "./ui/primitives";
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, Disclosure, SectionHeading } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
 
 /**
@@ -87,7 +87,7 @@ export function AnalysisPanel({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <SectionHeading
           title="Website strategy"
-          hint="AI-generated recommendations. Provider-listed facts are shown separately and are not invented."
+          hint="A draft plan for their website: a proposal to review, not facts about the business."
         />
         <div className="flex shrink-0 items-center gap-2">
           <Badge
@@ -125,15 +125,15 @@ export function AnalysisPanel({
       </div>
 
       {selectedIsMock ? (
-        <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          This analysis was produced by a deterministic rule-based analyser, not a language
-          model. It is structurally realistic but not a substitute for judgement.
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          Written by the rule-based analyser, not a language model: a starting point, not a
+          substitute for judgement.
         </p>
       ) : null}
 
       {selected === null ? (
         !busy ? (
-          <p className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
             No analysis yet. Run one to draft a website strategy for this business.
           </p>
         ) : null
@@ -170,36 +170,18 @@ export function AnalysisPanel({
   );
 }
 
-/** Renders one analysis, keeping provider facts visually distinct from advice. */
+/**
+ * Renders one analysis, keeping provider facts visually distinct from advice.
+ *
+ * What you read first -- the summary, the opportunity, the positioning -- is
+ * shown; the full plan and the facts and assumptions behind it are one click
+ * away under "Show the full strategy". Nothing is dropped, only folded.
+ */
 function AnalysisView({ analysis }: { analysis: Analysis }) {
   const { facts, recommendations: rec } = analysis;
 
   return (
-    <div className="mt-4 space-y-6">
-      {/* FACTS -- copied from the provider snapshot, never inferred. */}
-      <section>
-        <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-          Provider-listed facts this is based on
-        </h3>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          <Badge tone="slate">{facts.category}</Badge>
-          <Badge tone="slate">{facts.city}</Badge>
-          <Badge tone={facts.websiteListed ? "slate" : "amber"}>
-            {facts.websiteListed ? "Website listed" : "No website listed"}
-          </Badge>
-          <Badge tone={facts.phoneListed ? "slate" : "amber"}>
-            {facts.phoneListed ? "Phone listed" : "No phone listed"}
-          </Badge>
-          <Badge tone={facts.addressListed ? "slate" : "amber"}>
-            {facts.addressListed ? "Address listed" : "No address listed"}
-          </Badge>
-          <Badge tone="slate">
-            {facts.ratingListed === null ? "No rating listed" : `Rating ${facts.ratingListed}`}
-          </Badge>
-        </ul>
-      </section>
-
-      {/* RECOMMENDATIONS -- proposals, labelled as such. */}
+    <div className="mt-4 space-y-5">
       <section>
         <h3 className="text-sm font-semibold">Business summary</h3>
         <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{rec.businessSummary}</p>
@@ -210,41 +192,6 @@ function AnalysisView({ analysis }: { analysis: Analysis }) {
         <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{rec.websiteOpportunity}</p>
       </section>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <section>
-          <h3 className="text-sm font-semibold">Recommended site structure</h3>
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-            {RECOMMENDED_SITE_TYPE_LABELS[rec.recommendedSiteType]}
-          </p>
-          <List items={rec.recommendedPages} />
-        </section>
-
-        <section>
-          <h3 className="text-sm font-semibold">Homepage sections</h3>
-          <List items={rec.homepageSections} />
-        </section>
-
-        <section>
-          <h3 className="text-sm font-semibold">Key selling points</h3>
-          <List items={rec.keySellingPoints} />
-        </section>
-
-        <section>
-          <h3 className="text-sm font-semibold">Calls to action</h3>
-          <List items={rec.callsToAction} />
-        </section>
-      </div>
-
-      <section>
-        <h3 className="text-sm font-semibold">Design direction</h3>
-        <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Detail label="Tone" value={rec.designDirection.tone} />
-          <Detail label="Palette" value={rec.designDirection.palette} />
-          <Detail label="Imagery" value={rec.designDirection.imagery} />
-          <Detail label="Typography" value={rec.designDirection.typography} />
-        </dl>
-      </section>
-
       <section>
         <h3 className="text-sm font-semibold">Draft positioning</h3>
         <p className="mt-1 text-sm italic text-slate-700 dark:text-slate-300">
@@ -252,22 +199,82 @@ function AnalysisView({ analysis }: { analysis: Analysis }) {
         </p>
       </section>
 
-      <section className="rounded-lg bg-slate-50 p-4 dark:bg-slate-950">
-        <h3 className="text-sm font-semibold">Assumptions and limitations</h3>
-        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-          What this analysis had to assume, and what it cannot tell you.
-        </p>
-        <List items={analysis.assumptions} />
-        <List items={analysis.limitations} />
-      </section>
+      <Disclosure summary="Show the full strategy">
+        <div className="space-y-6 border-l-2 border-slate-200 pl-4 dark:border-slate-800">
+          <div className="grid gap-6 sm:grid-cols-2">
+            <section>
+              <h3 className="text-sm font-semibold">Recommended site structure</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                {RECOMMENDED_SITE_TYPE_LABELS[rec.recommendedSiteType]}
+              </p>
+              <List items={rec.recommendedPages} />
+            </section>
 
-      {/* Provenance comes from the stored record, so it stays accurate after
-          the configured analyser changes. */}
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Generated <Timestamp iso={analysis.createdAt} /> by{" "}
-        {analyserLabel(analysis.provider.name)} ({analysis.provider.model}) from a provider
-        snapshot fetched <Timestamp iso={facts.snapshotFetchedAt} />.
-      </p>
+            <section>
+              <h3 className="text-sm font-semibold">Homepage sections</h3>
+              <List items={rec.homepageSections} />
+            </section>
+
+            <section>
+              <h3 className="text-sm font-semibold">Key selling points</h3>
+              <List items={rec.keySellingPoints} />
+            </section>
+
+            <section>
+              <h3 className="text-sm font-semibold">Calls to action</h3>
+              <List items={rec.callsToAction} />
+            </section>
+          </div>
+
+          <section>
+            <h3 className="text-sm font-semibold">Design direction</h3>
+            <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Detail label="Tone" value={rec.designDirection.tone} />
+              <Detail label="Palette" value={rec.designDirection.palette} />
+              <Detail label="Imagery" value={rec.designDirection.imagery} />
+              <Detail label="Typography" value={rec.designDirection.typography} />
+            </dl>
+          </section>
+
+          {/* FACTS -- copied from the provider snapshot, never inferred. */}
+          <section>
+            <h3 className="text-sm font-semibold">Listing facts this is based on</h3>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              <Badge tone="slate">{facts.category}</Badge>
+              <Badge tone="slate">{facts.city}</Badge>
+              <Badge tone={facts.websiteListed ? "slate" : "amber"}>
+                {facts.websiteListed ? "Website listed" : "No website listed"}
+              </Badge>
+              <Badge tone={facts.phoneListed ? "slate" : "amber"}>
+                {facts.phoneListed ? "Phone listed" : "No phone listed"}
+              </Badge>
+              <Badge tone={facts.addressListed ? "slate" : "amber"}>
+                {facts.addressListed ? "Address listed" : "No address listed"}
+              </Badge>
+              <Badge tone="slate">
+                {facts.ratingListed === null ? "No rating listed" : `Rating ${facts.ratingListed}`}
+              </Badge>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold">Assumptions and limitations</h3>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              What this analysis had to assume, and what it cannot tell you.
+            </p>
+            <List items={analysis.assumptions} />
+            <List items={analysis.limitations} />
+          </section>
+
+          {/* Provenance comes from the stored record, so it stays accurate after
+              the configured analyser changes. */}
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Generated <Timestamp iso={analysis.createdAt} /> by{" "}
+            {analyserLabel(analysis.provider.name)} ({analysis.provider.model}) from a provider
+            snapshot fetched <Timestamp iso={facts.snapshotFetchedAt} />.
+          </p>
+        </div>
+      </Disclosure>
     </div>
   );
 }

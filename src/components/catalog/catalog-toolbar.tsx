@@ -30,13 +30,16 @@ const SORTS: { id: SortOrder; label: string }[] = [
 ];
 
 const LEADS: { id: LeadsFilter; label: string }[] = [
-  { id: "any", label: "All" },
+  { id: "any", label: "In my leads or not" },
   { id: "hide", label: "Not in my leads" },
-  { id: "only", label: "In my leads" },
+  { id: "only", label: "Only my leads" },
 ];
 
 const PILL =
-  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors";
+  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors";
+
+/** A compact select: sized by its content, the height of a pill row. */
+const SELECT = `rounded-lg border border-slate-300 bg-white py-1.5 pr-8 pl-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 ${FOCUS_RING}`;
 const PILL_ON = "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900";
 const PILL_OFF =
   "border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
@@ -134,7 +137,7 @@ export function CatalogToolbar({
     query.includeGone;
 
   return (
-    <Card className="p-4 sm:p-5">
+    <Card className="space-y-3 p-4">
       <form
         role="search"
         onSubmit={(event) => {
@@ -142,10 +145,10 @@ export function CatalogToolbar({
           go({});
         }}
       >
-        <label htmlFor="catalog-q" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-          Search
+        <label htmlFor="catalog-q" className="sr-only">
+          Search businesses
         </label>
-        <div className="relative mt-1">
+        <div className="relative">
           <svg
             aria-hidden="true"
             viewBox="0 0 20 20"
@@ -162,7 +165,7 @@ export function CatalogToolbar({
             type="search"
             value={text}
             onChange={(event) => onType(event.target.value)}
-            placeholder="Business name, street or neighbourhood"
+            placeholder="Search by business name, street or neighbourhood"
             autoComplete="off"
             maxLength={100}
             className={`${INPUT} pl-9`}
@@ -172,7 +175,7 @@ export function CatalogToolbar({
 
       {/* Trades. The count beside each is what you would get by switching to
           it, with every other filter kept -- never the total for the trade. */}
-      <div role="group" aria-label="Trade" className="mt-4 flex flex-wrap items-center gap-2">
+      <div role="group" aria-label="Trade" className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           onClick={() => go({ trade: null })}
@@ -197,82 +200,64 @@ export function CatalogToolbar({
         })}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-        <div>
-          <label htmlFor="catalog-area" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-            Area
-          </label>
-          <select
-            id="catalog-area"
-            value={query.area ?? ""}
-            onChange={(event) => go({ area: event.target.value || null })}
-            className={`mt-1 ${INPUT}`}
-          >
-            <option value="">Anywhere on the island</option>
-            {municipalities.map((label) => (
-              <option key={label} value={label}>
-                {label} ({(countFor.get(label) ?? 0).toLocaleString("en-CA")})
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Everything else on one wrapping line. The selects label themselves
+          through their current option, so their labels are for screen readers. */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <label htmlFor="catalog-area" className="sr-only">
+          Area
+        </label>
+        <select
+          id="catalog-area"
+          value={query.area ?? ""}
+          onChange={(event) => go({ area: event.target.value || null })}
+          className={SELECT}
+        >
+          <option value="">Anywhere on the island</option>
+          {municipalities.map((label) => (
+            <option key={label} value={label}>
+              {label} ({(countFor.get(label) ?? 0).toLocaleString("en-CA")})
+            </option>
+          ))}
+        </select>
 
-        <div>
-          <label htmlFor="catalog-sort" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-            Order
-          </label>
-          <select
-            id="catalog-sort"
-            value={query.sort}
-            onChange={(event) => go({ sort: event.target.value as SortOrder })}
-            className={`mt-1 ${INPUT}`}
-          >
-            {SORTS.map((sort) => (
-              <option key={sort.id} value={sort.id}>
-                {sort.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <label htmlFor="catalog-sort" className="sr-only">
+          Order
+        </label>
+        <select
+          id="catalog-sort"
+          value={query.sort}
+          onChange={(event) => go({ sort: event.target.value as SortOrder })}
+          className={SELECT}
+        >
+          {SORTS.map((sort) => (
+            <option key={sort.id} value={sort.id}>
+              {sort.label}
+            </option>
+          ))}
+        </select>
 
-        <div className="sm:col-span-2 lg:col-span-1">
-          <span className="block text-xs font-medium text-slate-700 dark:text-slate-300" id="catalog-leads-label">
-            Your leads
-          </span>
-          <div
-            role="group"
-            aria-labelledby="catalog-leads-label"
-            className="mt-1 inline-flex rounded-lg border border-slate-300 p-0.5 dark:border-slate-700"
-          >
-            {LEADS.map((option) => {
-              const on = query.leads === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => go({ leads: option.id })}
-                  aria-pressed={on}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${FOCUS_RING} ${
-                    on
-                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+        <label htmlFor="catalog-leads" className="sr-only">
+          Your leads
+        </label>
+        <select
+          id="catalog-leads"
+          value={query.leads}
+          onChange={(event) => go({ leads: event.target.value as LeadsFilter })}
+          className={SELECT}
+        >
+          {LEADS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
         <div role="group" aria-label="Show only" className="flex flex-wrap gap-2">
           <Toggle on={query.noWebsite} onClick={() => go({ noWebsite: !query.noWebsite })}>
             No website listed
           </Toggle>
           <Toggle on={query.hasPhone} onClick={() => go({ hasPhone: !query.hasPhone })}>
-            Has a phone number
+            Has a phone
           </Toggle>
           {hasHistory ? (
             <Toggle on={query.fresh} onClick={() => go({ fresh: !query.fresh })}>
@@ -286,25 +271,26 @@ export function CatalogToolbar({
           ) : null}
         </div>
 
-        {filtersActive ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (timer.current) clearTimeout(timer.current);
-              setText("");
-              setSentQ("");
-              startTransition(() => router.replace("/businesses", { scroll: false }));
-            }}
-            className={`${BUTTON_SECONDARY} ml-auto`}
-          >
-            Clear all
-          </button>
-        ) : null}
+        <span className="ml-auto flex items-center gap-3">
+          <span aria-live="polite" className="text-xs text-slate-500 dark:text-slate-400">
+            {pending ? "Updating…" : ""}
+          </span>
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (timer.current) clearTimeout(timer.current);
+                setText("");
+                setSentQ("");
+                startTransition(() => router.replace("/businesses", { scroll: false }));
+              }}
+              className={BUTTON_SECONDARY}
+            >
+              Clear all
+            </button>
+          ) : null}
+        </span>
       </div>
-
-      <p aria-live="polite" className="mt-3 h-4 text-xs text-slate-500 dark:text-slate-400">
-        {pending ? "Updating…" : ""}
-      </p>
     </Card>
   );
 }

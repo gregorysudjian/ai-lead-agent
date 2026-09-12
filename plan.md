@@ -286,3 +286,60 @@ page is unreachable.
   page including the login.
 - The live Businesses page now shows **2,821** businesses: the 18 junk entries
   are hidden.
+
+### Part 3 — a calmer interface · done
+
+Same colours and components; less on screen at once. Nothing was removed
+that isn't still one click away. Page heights at desktop width, before → after:
+
+| Page | Before | After |
+|---|---|---|
+| Lead page, fully worked (St-Viateur Bagel) | 4,233 px | **1,760 px** (−58%) |
+| Lead page, new lead | 3,107 px | **1,371 px** (−56%) |
+| Businesses | 3,751 px | **3,292 px** (24 cards) |
+| Dashboard | 984 px | **900 px** |
+
+- **Lead page.**
+  - One header card: name, trade · area, status, priority, then phone
+    (formatted, tap to call), address (with a Google Maps link), website and
+    reputation, each shown once.
+  - The "Not listed means the listing doesn't say" caution is said once, under
+    those facts.
+  - A **"Next:" button** points at the next useful step (research → strategy
+    → demo → first message → record the conversation), chosen only from what
+    exists.
+  - Sections now follow the work: **Research → Website strategy → Demo
+    website → Outreach**.
+  - Research shows what research *added*. The facts that only repeat the
+    listing, and the full source list, are folded under "Sources".
+  - The strategy shows its summary, the opportunity and the positioning. The
+    rest is under "Show the full strategy".
+  - Priority breakdown, opening hours, IDs and fetch times are under "Record
+    details" at the bottom. The OpenStreetMap/Overture credit stays visible.
+  - Big dashed "nothing yet" boxes became one line, and duplicate warnings
+    were removed.
+- **Dashboard.**
+  - Opens on **Next up**: your new leads, highest priority first, with one
+    click each.
+  - Beside it, **Your leads** gives the counts and the priority spread.
+  - Then the search box with trades, where the four tiles are now one line
+    ("2,821 businesses · 1,165 with no website listed · updated …").
+  - The system settings row is now a footer.
+- **Businesses page.**
+  - The four tiles are gone; each number is one filter away.
+  - The filter bar is two rows instead of five: search, trades, then area,
+    order, leads and toggles on one line.
+  - **The whole card opens the business.** Its only button is **Add to
+    leads**, with a small Google Maps link. The site preview is on the
+    business's page.
+- **Everywhere.**
+  - The greyed-out "SOON" menu items are hidden.
+  - Phone numbers are formatted in the leads list and outreach contacts too.
+    Research keeps each value exactly as its source stated it, because that
+    is evidence.
+- **Checked:**
+  - Light and dark mode, 1440px and 400px wide, with no sideways scrolling.
+  - No console errors on any page.
+  - A click anywhere on a business card opens it, while Add and Maps still get
+    their own clicks.
+  - All 2,103 tests pass.

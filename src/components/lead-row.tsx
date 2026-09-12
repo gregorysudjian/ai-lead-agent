@@ -6,9 +6,11 @@ import {
   formatRating,
   formatReviewCount,
   hasProviderReputation,
+  NOT_LISTED,
   UNLINKABLE_WEBSITE_LABEL,
   websiteBadgeLabel,
 } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { isSocialProfileUrl } from "@/lib/social-hosts";
 import { MAX_SCORE, PRIORITY_LABELS, type LeadScore } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
@@ -142,7 +144,7 @@ export function LeadCard({ lead, score }: { lead: Lead; score: LeadScore }) {
         <div className="flex gap-3">
           <dt className="w-24 shrink-0 text-slate-600 dark:text-slate-400">Phone</dt>
           <dd className="min-w-0 text-slate-700 dark:text-slate-300">
-            {displayOrNotListed(provider.phone)}
+            {provider.phone ? formatPhone(provider.phone) : NOT_LISTED}
           </dd>
         </div>
         <div className="flex gap-3">
@@ -195,7 +197,7 @@ export function LeadRow({ lead, score }: { lead: Lead; score: LeadScore }) {
 
       <td className="px-4 py-3">
         <p className="whitespace-nowrap text-slate-700 dark:text-slate-300">
-          {displayOrNotListed(provider.phone)}
+          {provider.phone ? formatPhone(provider.phone) : NOT_LISTED}
         </p>
         {/* Omitted entirely when the provider supplied no reputation data --
             otherwise every OSM row repeats the same empty statement. The detail

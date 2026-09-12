@@ -10,6 +10,7 @@ import type {
   ResearchArea,
 } from "@/lib/business-profile";
 import {
+  LEAD_SNAPSHOT_SOURCE_ID,
   PROFILE_FIELDS,
   PROFILE_FIELD_LIST,
   RESEARCH_AREA_LABELS,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/business-profile";
 import { classifyWebsite } from "@/lib/format";
 
-import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, LINK, SectionHeading } from "./ui/primitives";
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, Disclosure, LINK, SectionHeading } from "./ui/primitives";
 import type { BadgeTone } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
 
@@ -116,8 +117,8 @@ export function ResearchPanel({
     <Card className="p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <SectionHeading
-          title="Business profile"
-          hint="Sourced facts, not opinions. Every value below names where it came from, and nothing here is inferred or AI-generated."
+          title="Research"
+          hint="What we could confirm about this business. Every value names its source; nothing is inferred."
         />
         <div className="flex shrink-0 items-center gap-2">
           <Badge
@@ -168,7 +169,7 @@ export function ResearchPanel({
 
       {selected === null ? (
         !busy ? (
-          <p className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
             Not researched yet. A run records what we can source about this business, with a
             reference for every value.
             {researcher.name === "website"
@@ -209,90 +210,111 @@ export function ResearchPanel({
   );
 }
 
+/**
+ * One profile, calmest first.
+ *
+ * The page's header already shows what the listing says, so this view leads
+ * with what research ADDED, each value with its source. Facts that only repeat
+ * the stored listing, and the full list of sources, are folded under one line
+ * -- still in the page, still attributed. The coverage chips stay on top:
+ * they are how "nobody looked" is told apart from "looked and found nothing".
+ */
 function ProfileView({ profile }: { profile: BusinessProfile }) {
   const coverageByArea = new Map(profile.coverage.map((c) => [c.area, c]));
   const sourceById = new Map(profile.sources.map((s) => [s.id, s]));
 
+  const present = PROFILE_FIELD_LIST.filter((f) => profile.facts[f].length > 0);
+  const fromListingOnly = (f: ProfileField) =>
+    profile.facts[f].every((observation) => observation.sourceId === LEAD_SNAPSHOT_SOURCE_ID);
+  const learned = present.filter((f) => !fromListingOnly(f));
+  const listingOnly = present.filter(fromListingOnly);
+
   return (
-    <div className="mt-4 space-y-6">
+    <div className="mt-4 space-y-5">
       {/* COVERAGE -- what was looked at, before anything about what was found. */}
-      <section>
-        <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-          What this run looked at
-        </h3>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {AREAS.map((area) => {
-            const coverage = coverageByArea.get(area);
-            if (!coverage) return null;
-            return (
-              <li key={area}>
-                <Badge tone={STATUS_TONES[coverage.status] ?? "slate"} title={coverage.note}>
-                  {RESEARCH_AREA_LABELS[area]}: {RESEARCH_AREA_STATUS_LABELS[coverage.status]}
-                </Badge>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <ul className="flex flex-wrap gap-2" aria-label="What this run looked at">
+        {AREAS.map((area) => {
+          const coverage = coverageByArea.get(area);
+          if (!coverage) return null;
+          return (
+            <li key={area}>
+              <Badge tone={STATUS_TONES[coverage.status] ?? "slate"} title={coverage.note}>
+                {RESEARCH_AREA_LABELS[area]}: {RESEARCH_AREA_STATUS_LABELS[coverage.status]}
+              </Badge>
+            </li>
+          );
+        })}
+      </ul>
 
-      {/* FACTS -- grouped by area, each value naming its source. */}
-      {AREAS.map((area) => {
-        const fields = PROFILE_FIELD_LIST.filter(
-          (f) => PROFILE_FIELDS[f].area === area && profile.facts[f].length > 0,
-        );
-        const coverage = coverageByArea.get(area);
-
-        return (
-          <section key={area}>
-            <h3 className="text-sm font-semibold">{RESEARCH_AREA_LABELS[area]}</h3>
-
-            {fields.length === 0 ? (
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                {coverage?.note ?? "Nothing recorded."}
-              </p>
-            ) : (
+      {/* WHAT RESEARCH ADDED -- grouped by area, each value naming its source. */}
+      {learned.length === 0 ? (
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Nothing beyond what the listing already says.
+        </p>
+      ) : (
+        AREAS.map((area) => {
+          const fields = learned.filter((f) => PROFILE_FIELDS[f].area === area);
+          if (fields.length === 0) return null;
+          return (
+            <section key={area}>
+              <h3 className="text-sm font-semibold">{RESEARCH_AREA_LABELS[area]}</h3>
               <dl className="mt-2 space-y-3">
                 {fields.map((field) => (
                   <FactRow key={field} field={field} profile={profile} />
                 ))}
               </dl>
-            )}
-          </section>
-        );
-      })}
+            </section>
+          );
+        })
+      )}
 
-      {/* SOURCES -- the answer to "where did we learn this?", in full. */}
-      <section className="rounded-lg bg-slate-50 p-4 dark:bg-slate-950">
-        <h3 className="text-sm font-semibold">Sources</h3>
-        <ul className="mt-2 space-y-2">
-          {profile.sources.map((source) => (
-            <li key={source.id} className="text-xs text-slate-600 dark:text-slate-400">
-              <span className="font-medium text-slate-800 dark:text-slate-200">
-                {SOURCE_TYPE_LABELS[source.type]}
-              </span>
-              {source.title ? ` · ${source.title}` : null} ·{" "}
-              <code className="font-mono break-all">{source.reference}</code> · read{" "}
-              <Timestamp iso={source.fetchedAt} />
-            </li>
-          ))}
-        </ul>
+      {profile.limitations.length > 0 ? (
+        <section>
+          <h3 className="text-sm font-semibold">Keep in mind</h3>
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+            {profile.limitations.map((limitation) => (
+              <li key={limitation} className="flex gap-2">
+                <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+                <span>{limitation}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-        <h3 className="mt-4 text-sm font-semibold">What this profile cannot tell you</h3>
-        <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
-          {profile.limitations.map((limitation) => (
-            <li key={limitation} className="flex gap-2">
-              <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
-              <span>{limitation}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Disclosure
+        summary={`Sources${listingOnly.length > 0 ? " and what the listing says" : ""} (${sourceById.size})`}
+      >
+        <div className="space-y-5 border-l-2 border-slate-200 pl-4 dark:border-slate-800">
+          {listingOnly.length > 0 ? (
+            <dl className="space-y-3">
+              {listingOnly.map((field) => (
+                <FactRow key={field} field={field} profile={profile} />
+              ))}
+            </dl>
+          ) : null}
 
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Researched <Timestamp iso={profile.createdAt} /> by {profile.researcher.name} (
-        {profile.researcher.version}). {sourceById.size}{" "}
-        {sourceById.size === 1 ? "source" : "sources"} consulted.
-      </p>
+          {/* SOURCES -- the answer to "where did we learn this?", in full. */}
+          <ul className="space-y-2">
+            {profile.sources.map((source) => (
+              <li key={source.id} className="text-xs text-slate-600 dark:text-slate-400">
+                <span className="font-medium text-slate-800 dark:text-slate-200">
+                  {SOURCE_TYPE_LABELS[source.type]}
+                </span>
+                {source.title ? ` · ${source.title}` : null} ·{" "}
+                <code className="font-mono break-all">{source.reference}</code> · read{" "}
+                <Timestamp iso={source.fetchedAt} />
+              </li>
+            ))}
+          </ul>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Researched <Timestamp iso={profile.createdAt} /> by {profile.researcher.name} (
+            {profile.researcher.version}). {sourceById.size}{" "}
+            {sourceById.size === 1 ? "source" : "sources"} consulted.
+          </p>
+        </div>
+      </Disclosure>
     </div>
   );
 }
