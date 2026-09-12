@@ -46,6 +46,8 @@ const repo = {
   findById: vi.fn(),
   upsertDiscovered: vi.fn(),
   updateStatus: vi.fn(),
+  markRemoved: vi.fn(),
+  restore: vi.fn(),
 };
 
 const sources = vi.fn();

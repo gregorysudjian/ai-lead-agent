@@ -49,7 +49,7 @@ export default async function DemosPage() {
 
   // Businesses to offer in the picker. Read straight from the repository,
   // like every other Server Component here -- never by fetching our own API.
-  const { leads } = await loadLeads("demos");
+  const { leads, loadFailed: leadsFailed } = await loadLeads("demos");
   const leadsWithDemos = new Set(demos.map((demo) => demo.leadId));
   const candidates: DemoCandidate[] = leads.map((lead) => ({
     id: lead.id,
@@ -64,7 +64,13 @@ export default async function DemosPage() {
   // One card per BUSINESS, not per generation. The store stays append-only --
   // a demo already shown to a prospect must never be rewritten -- but listing
   // every version flat made one salon look like two prospects.
-  const groups = groupDemosByLead(demos);
+  // A removed lead's demos stay stored (and reachable from its page) but
+  // leave this list with it -- unless the lead list itself failed to load,
+  // when hiding everything would be worse than showing it all.
+  const onList = new Set(leads.map((lead) => lead.id));
+  const groups = groupDemosByLead(demos).filter(
+    (group) => leadsFailed || onList.has(group.latest.leadId),
+  );
 
   return (
     <div className="space-y-6">
@@ -89,7 +95,7 @@ export default async function DemosPage() {
           title="Could not load demo sites."
           detail="The demo store did not respond. Check the server logs for details."
         />
-      ) : demos.length === 0 ? (
+      ) : groups.length === 0 ? (
         <EmptyState
           title="No demo sites yet"
           description="Open a lead, run an analysis, then generate a demo site from it. Each generation is one deliberate click."

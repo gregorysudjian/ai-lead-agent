@@ -5,9 +5,11 @@ import type { ReactNode } from "react";
 import { OsmAttribution, OvertureAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { AddToLeadsButton } from "@/components/catalog/add-to-leads-button";
 import { PriorityBadge } from "@/components/lead-row";
-import { Badge, BUTTON_SECONDARY, Card, LINK, SectionHeading } from "@/components/ui/primitives";
+import { Badge, BUTTON_SECONDARY, Card, LINK, SectionHeading, type BadgeTone } from "@/components/ui/primitives";
 import { Timestamp } from "@/components/ui/timestamp";
+import { hiddenByGoogleCheck } from "@/lib/catalog/exclusion";
 import { googleMapsSearchUrl } from "@/lib/catalog/maps-link";
+import type { GoogleCheckVerdict } from "@/lib/catalog/types";
 import { catalogReleases } from "@/lib/catalog/search";
 import {
   classifyWebsite,
@@ -32,6 +34,29 @@ import { getCatalogRepository } from "@/server/repo";
  * provider LISTED; a missing one reads "not listed", never "none".
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * The Google Maps check, in words. "Not found" is said as narrowly as it is
+ * known: one lookup found no matching place -- not "this business is fake".
+ */
+const GOOGLE_CHECK_TEXT: Record<GoogleCheckVerdict, { label: string; tone: BadgeTone; detail: string }> = {
+  verified: { label: "On Google Maps", tone: "emerald", detail: "Google has a matching place at this address." },
+  uncertain: {
+    label: "Google Maps: unsure",
+    tone: "amber",
+    detail: "Google has something similar, but not clearly this business at this address. Kept in search.",
+  },
+  not_found: {
+    label: "Not found on Google Maps",
+    tone: "rose",
+    detail: "Google returned no matching place, so it is hidden from search. It stays in the database.",
+  },
+  closed: {
+    label: "Closed on Google Maps",
+    tone: "rose",
+    detail: "Google marks its matching place permanently closed, so it is hidden from search.",
+  },
+};
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -87,6 +112,14 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             {isGone ? (
               <Badge tone="slate" title="The latest data release no longer lists this business">
                 No longer listed
+              </Badge>
+            ) : null}
+            {business.googleCheck ? (
+              <Badge
+                tone={GOOGLE_CHECK_TEXT[business.googleCheck.verdict].tone}
+                title={GOOGLE_CHECK_TEXT[business.googleCheck.verdict].detail}
+              >
+                {GOOGLE_CHECK_TEXT[business.googleCheck.verdict].label}
               </Badge>
             ) : null}
           </div>
@@ -150,13 +183,36 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
         <Card className="p-5">
           <SectionHeading title="Look them up" hint="Opens in a new tab. Nothing is fetched or stored." />
           <div className="mt-4 flex flex-col items-start gap-3 text-sm">
-            <a href={googleMapsSearchUrl(provider)} target="_blank" rel="noopener noreferrer" className={LINK}>
+            <a
+              href={googleMapsSearchUrl(provider, business.googleCheck?.placeId ?? null)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={LINK}
+            >
               Google Maps: reviews and photos ↗
             </a>
             <Link href={`/demos/lab?business=${business.id}`} className={LINK}>
               Full preview of their possible website →
             </Link>
           </div>
+          <h3 className="mt-6 text-sm font-semibold">Google Maps check</h3>
+          <p
+            className={`mt-1 text-sm ${
+              hiddenByGoogleCheck(business.googleCheck)
+                ? "text-rose-800 dark:text-rose-300"
+                : "text-slate-600 dark:text-slate-400"
+            }`}
+          >
+            {business.googleCheck ? (
+              <>
+                {GOOGLE_CHECK_TEXT[business.googleCheck.verdict].detail} Checked{" "}
+                <Timestamp iso={business.googleCheck.checkedAt} />.
+              </>
+            ) : (
+              "Not checked yet."
+            )}
+          </p>
+
           <h3 className="mt-6 text-sm font-semibold">Opening hours</h3>
           {provider.openingHours === null ? (
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Not listed</p>

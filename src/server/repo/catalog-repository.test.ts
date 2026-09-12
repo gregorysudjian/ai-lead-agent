@@ -163,6 +163,7 @@ describe("row mapping", () => {
     firstSeenRelease: "2026-08-19.0",
     lastSeenRelease: "2026-08-19.0",
     leadId: null,
+    googleCheck: null,
     provider: business(),
   };
 
@@ -185,5 +186,60 @@ describe("row mapping", () => {
   ])("refuses %s", (_label, patch) => {
     const row = { ...catalogBusinessToRow(stored), ...patch };
     expect(() => rowToCatalogBusiness(row)).toThrow(CatalogRowMappingError);
+  });
+});
+
+describe("the Google Maps check", () => {
+  const check = { verdict: "verified" as const, placeId: "ChIJtestplaceid0001", checkedAt: "2026-09-12T12:00:00.000Z" };
+
+  it("records a verdict and keeps it through a refresh", async () => {
+    const { repo } = setup();
+    await repo.refresh([record()], "2026-08-19.0");
+    const [stored] = await repo.listAll();
+    await repo.recordGoogleCheck(stored.id, check);
+    expect((await repo.findById(stored.id))?.googleCheck).toEqual(check);
+
+    await repo.refresh([record({ phone: "+1 514 555 0100" })], "2026-09-16.0");
+    expect((await repo.findById(stored.id))?.googleCheck).toEqual(check);
+  });
+
+  it("refuses a place id beside not_found", async () => {
+    const { repo } = setup();
+    await repo.refresh([record()], "2026-08-19.0");
+    const [stored] = await repo.listAll();
+    await expect(
+      repo.recordGoogleCheck(stored.id, { ...check, verdict: "not_found" }),
+    ).rejects.toThrow(CatalogRepositoryError);
+  });
+
+  it("unlinks a removed lead, and only that one", async () => {
+    const { repo } = setup();
+    await repo.refresh([record(), record({ externalId: "gers-2", name: "Barbier Nord", address: "1 Rue Nord" })], "2026-08-19.0");
+    const [a, b] = await repo.listAll();
+    await repo.linkLead(a.id, "lead-a");
+    await repo.linkLead(b.id, "lead-b");
+    await repo.unlinkLead("lead-a");
+    expect((await repo.findById(a.id))?.leadId).toBeNull();
+    expect((await repo.findById(b.id))?.leadId).toBe("lead-b");
+  });
+
+  it("round-trips a checked business through its row, and refuses a verdict without a time", () => {
+    const stored = {
+      id: "id-1",
+      municipality: "Montréal",
+      location: null,
+      firstSeenAt: "2026-08-20T00:00:00.000Z",
+      lastSeenAt: "2026-08-20T00:00:00.000Z",
+      firstSeenRelease: "2026-08-19.0",
+      lastSeenRelease: "2026-08-19.0",
+      leadId: null,
+      googleCheck: check,
+      provider: business(),
+    };
+    expect(rowToCatalogBusiness(catalogBusinessToRow(stored))).toEqual(stored);
+    const broken = { ...catalogBusinessToRow(stored), google_checked_at: null };
+    expect(() => rowToCatalogBusiness(broken)).toThrow(CatalogRowMappingError);
+    const unknown = { ...catalogBusinessToRow(stored), google_check: "fake" };
+    expect(() => rowToCatalogBusiness(unknown)).toThrow(CatalogRowMappingError);
   });
 });

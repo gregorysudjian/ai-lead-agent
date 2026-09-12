@@ -78,3 +78,28 @@ describe("isOfferedInCatalog", () => {
     expect(isOfferedInCatalog({ leadId: null, provider: named("Salon H4H") })).toBe(true);
   });
 });
+
+describe("the Google Maps check in search", () => {
+  const at = "2026-09-12T12:00:00.000Z";
+  const offered = (verdict: "verified" | "not_found" | "closed" | "uncertain" | null, leadId: string | null = null) =>
+    isOfferedInCatalog({
+      leadId,
+      googleCheck: verdict === null ? null : { verdict, placeId: null, checkedAt: at },
+      provider: named("Salon Lumière"),
+    });
+
+  it("hides what Google did not find or lists as closed", () => {
+    expect(offered("not_found")).toBe(false);
+    expect(offered("closed")).toBe(false);
+  });
+
+  it("keeps verified, uncertain and unchecked businesses", () => {
+    expect(offered("verified")).toBe(true);
+    expect(offered("uncertain")).toBe(true);
+    expect(offered(null)).toBe(true);
+  });
+
+  it("never hides one of the operator's own leads", () => {
+    expect(offered("not_found", "lead-1")).toBe(true);
+  });
+});

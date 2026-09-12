@@ -5,7 +5,7 @@ import { isUsableText, scoreSnapshot, type LeadScore } from "../scoring";
 import { isSocialProfileUrl } from "../social-hosts";
 import type { ProviderSnapshot } from "../types";
 import type { CatalogArea } from "./area";
-import { isOfferedInCatalog } from "./exclusion";
+import { hiddenByGoogleCheck, isOfferedInCatalog } from "./exclusion";
 import { CATALOG_TRADE_KEYS, catalogTradeForLabel } from "./trades";
 import type { CatalogBusiness } from "./types";
 
@@ -299,6 +299,12 @@ export interface CatalogSummary {
   inLeads: number;
   /** No longer listed in the latest release. */
   gone: number;
+  /**
+   * Listed in the latest release but hidden because the Google Maps check
+   * found no matching place, or found it permanently closed. Counted so the
+   * page can say what it is not showing.
+   */
+  hiddenByGoogle: number;
 }
 
 export interface CatalogSearchResult {
@@ -359,6 +365,12 @@ export function searchCatalog(
     newInLatest: current.filter((item) => item.isNew).length,
     inLeads: scored.filter((item) => item.business.leadId !== null).length,
     gone: scored.length - current.length,
+    hiddenByGoogle: businesses.filter(
+      (business) =>
+        business.lastSeenRelease === releases.latest &&
+        business.leadId === null &&
+        hiddenByGoogleCheck(business.googleCheck),
+    ).length,
   };
 
   return {

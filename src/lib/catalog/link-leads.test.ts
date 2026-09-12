@@ -34,6 +34,7 @@ function business(id: string, patch: Partial<DiscoveredBusiness>, leadId: string
     firstSeenRelease: "r",
     lastSeenRelease: "r",
     leadId,
+    googleCheck: null,
     provider: snapshot(patch),
   };
 }

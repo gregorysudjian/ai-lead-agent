@@ -6,6 +6,7 @@ import { AnalysisPanel } from "@/components/analysis-panel";
 import { DemoPanel } from "@/components/demo-panel";
 import { OutreachPanel } from "@/components/outreach-panel";
 import { ResearchPanel } from "@/components/research-panel";
+import { RestoreLeadButton } from "@/components/restore-lead-button";
 import { OsmAttribution, OvertureAttribution, SOURCE_LABELS } from "@/components/attribution";
 import { PriorityBadge, StatusBadge } from "@/components/lead-row";
 import { StatusToggle } from "@/components/status-toggle";
@@ -139,6 +140,20 @@ export default async function LeadDetailPage({
         &larr; Back to leads
       </Link>
 
+      {lead.removal ? (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900 dark:bg-amber-950/40"
+        >
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            <span className="font-medium">Removed from your leads</span> on{" "}
+            <Timestamp iso={lead.removal.removedAt} />. {lead.removal.reason} Its research and demos
+            are kept.
+          </p>
+          <RestoreLeadButton leadId={lead.id} />
+        </div>
+      ) : null}
+
       {/* WHO, AND WHAT NEXT ------------------------------------------------ */}
       <Card as="section" className="p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -209,13 +224,16 @@ export default async function LeadDetailPage({
             From the {SOURCE_LABELS[provider.source]} listing. &ldquo;Not listed&rdquo; means the
             listing does not say, not that the business has none.
           </p>
-          <a
-            href={next.href}
-            className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-800 hover:bg-indigo-100 sm:self-auto dark:bg-indigo-950/60 dark:text-indigo-200 dark:hover:bg-indigo-900/60"
-          >
-            Next: {next.label}
-            <span aria-hidden="true">&darr;</span>
-          </a>
+          {/* A removed lead has no next step until it is put back. */}
+          {lead.removal ? null : (
+            <a
+              href={next.href}
+              className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-800 hover:bg-indigo-100 sm:self-auto dark:bg-indigo-950/60 dark:text-indigo-200 dark:hover:bg-indigo-900/60"
+            >
+              Next: {next.label}
+              <span aria-hidden="true">&darr;</span>
+            </a>
+          )}
         </div>
       </Card>
 

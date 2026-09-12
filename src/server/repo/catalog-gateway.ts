@@ -1,5 +1,7 @@
 import type { BusinessRow, IngestRunRow } from "./catalog-mapping";
 
+export type GoogleCheckColumns = Pick<BusinessRow, "google_place_id" | "google_check" | "google_checked_at">;
+
 /**
  * The narrow data-access seam for the catalog.
  *
@@ -21,6 +23,10 @@ export interface CatalogTableGateway {
    * the query, not of a read-then-write the database cannot see.
    */
   setLeadIfUnlinked(id: string, leadId: string): Promise<void>;
+  /** Set `lead_id` to null on whichever row links to this lead. */
+  clearLead(leadId: string): Promise<void>;
+  /** Write the three Google check columns of one row, and nothing else. */
+  setGoogleCheck(id: string, patch: GoogleCheckColumns): Promise<void>;
 
   insertRun(row: IngestRunRow): Promise<void>;
   updateRun(id: string, patch: Partial<IngestRunRow>): Promise<void>;
@@ -80,6 +86,17 @@ export class InMemoryCatalogTableGateway implements CatalogTableGateway {
       if (other.lead_id === leadId) throw new Error("businesses_lead_id_idx");
     }
     row.lead_id = leadId;
+  }
+
+  async clearLead(leadId: string): Promise<void> {
+    for (const row of this.rows.values()) {
+      if (row.lead_id === leadId) row.lead_id = null;
+    }
+  }
+
+  async setGoogleCheck(id: string, patch: GoogleCheckColumns): Promise<void> {
+    const row = this.rows.get(id);
+    if (row) Object.assign(row, patch);
   }
 
   async insertRun(row: IngestRunRow): Promise<void> {

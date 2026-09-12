@@ -51,6 +51,10 @@ function leadsRepo(leads: Lead[]): LeadRepository {
       throw new Error("a refresh must never create a lead");
     },
     updateStatus: async () => null,
+    markRemoved: async () => {
+      throw new Error("a refresh must never remove a lead");
+    },
+    restore: async () => null,
   };
 }
 

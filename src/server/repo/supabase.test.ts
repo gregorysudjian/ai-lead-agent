@@ -314,3 +314,44 @@ describe("read and status operations", () => {
     expect(g.rows[0].id).not.toBe("node/123");
   });
 });
+
+describe("removing a lead from the list", () => {
+  it("leaves it out of list(), keeps it findable, and changes nothing else", async () => {
+    const g = new FakeGateway();
+    const [lead] = (await repo(g).upsertDiscovered([business()])).leads;
+
+    const removed = await repo(g, "2026-09-12T12:00:00.000Z").markRemoved(lead.id, "  Not found on Google Maps.  ");
+    expect(removed?.removal).toEqual({ removedAt: "2026-09-12T12:00:00.000Z", reason: "Not found on Google Maps." });
+    expect(removed).toMatchObject({ id: lead.id, status: lead.status, createdAt: lead.createdAt, provider: lead.provider });
+
+    expect(await repo(g).list()).toEqual([]);
+    expect((await repo(g).findById(lead.id))?.removal?.reason).toBe("Not found on Google Maps.");
+  });
+
+  it("stays removed through a rediscovery, and comes back on restore", async () => {
+    const g = new FakeGateway();
+    const [lead] = (await repo(g).upsertDiscovered([business()])).leads;
+    await repo(g).markRemoved(lead.id, "Not found on Google Maps.");
+
+    await repo(g).upsertDiscovered([business({ phone: "+1 514 555 0100" })]);
+    expect(await repo(g).list()).toEqual([]);
+
+    const restored = await repo(g).restore(lead.id);
+    expect(restored?.removal).toBeUndefined();
+    expect((await repo(g).list()).map((l) => l.id)).toEqual([lead.id]);
+  });
+
+  it("refuses a blank reason, and returns null for an unknown id", async () => {
+    const g = new FakeGateway();
+    const [lead] = (await repo(g).upsertDiscovered([business()])).leads;
+    await expect(repo(g).markRemoved(lead.id, "   ")).rejects.toThrow(/reason/);
+    expect(await repo(g).markRemoved("00000000-0000-4000-8000-000000000000", "gone")).toBeNull();
+  });
+
+  it("refuses a row carrying only half a removal", async () => {
+    const g = new FakeGateway();
+    const [lead] = (await repo(g).upsertDiscovered([business()])).leads;
+    g.rows[0] = { ...g.rows[0], removed_at: "2026-09-12T12:00:00.000Z", removed_reason: null };
+    await expect(repo(g).findById(lead.id)).rejects.toThrow();
+  });
+});

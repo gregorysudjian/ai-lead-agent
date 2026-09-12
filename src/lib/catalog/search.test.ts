@@ -33,6 +33,7 @@ function biz(
     firstSeenRelease: AUG,
     lastSeenRelease: AUG,
     leadId: null,
+    googleCheck: null,
     provider: {
       externalId: `g${counter}`,
       source: "overture",
@@ -263,6 +264,11 @@ describe("the Google Maps link", () => {
   it("skips a missing address rather than writing an empty part", () => {
     const url = googleMapsSearchUrl({ name: "Encre Noire", address: null, city: "Westmount" });
     expect(decodeURIComponent(url.split("query=")[1])).toBe("Encre Noire, Westmount, QC");
+  });
+
+  it("opens the exact listing once the Google check knows its place id", () => {
+    const url = googleMapsSearchUrl({ name: "Encre Noire", address: null, city: "Westmount" }, "ChIJabc123-_xyz");
+    expect(url.endsWith("&query_place_id=ChIJabc123-_xyz")).toBe(true);
   });
 });
 
