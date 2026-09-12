@@ -404,19 +404,16 @@ Google really has nothing at that address. These are chains that left
 (Concept Elite, Spa Eastman) or salons that closed, and the website is just
 old data.
 
-### One step left for you (1 minute)
+### Place IDs · done
 
 My first migration had a mistake: a pattern Postgres refuses (`{10,300}`; its
 limit is 255). It only failed once a real Google place ID was saved, so the
-verdicts were stored **without** place IDs. The place IDs are kept in the
-run's report file on this computer.
-1. Run [`supabase/migrations/20260914000100_fix_google_place_id_check.sql`](supabase/migrations/20260914000100_fix_google_place_id_check.sql)
-   in the Supabase SQL editor.
-2. Tell me, and I'll copy the place IDs in (no Google lookups needed). The
-   "Google Maps" links will then open each business's exact listing instead
-   of a search.
-
-A new test now rejects any such pattern in a migration.
+verdicts were first stored without place IDs. You ran the fix migration
+([`20260914000100_fix_google_place_id_check.sql`](supabase/migrations/20260914000100_fix_google_place_id_check.sql)),
+and I copied the IDs in from the run files with no new Google lookups:
+**2,018 place IDs**, one for every verified or closed business. The "Google
+Maps" links now open each business's exact listing (checked on the live
+site). A new test rejects that kind of pattern in any migration.
 
 ### Doing it again
 
