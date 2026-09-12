@@ -1,0 +1,10 @@
+# Never upload local secrets or data when deploying from this machine.
+# Production settings live in the Vercel project's environment variables.
+.env
+.env.*
+!.env.example
+/data/
+/node_modules/
+/.next/
+/coverage/
+*.log
