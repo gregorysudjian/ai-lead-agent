@@ -24,6 +24,7 @@ import {
 import { osmObjectUrl } from "@/lib/osm/normalize";
 import { formatPhone, phoneHref } from "@/lib/phone";
 import { MAX_SCORE, PRIORITY_LABELS, scoreLead } from "@/lib/scoring";
+import { isSocialProfileUrl } from "@/lib/social-hosts";
 import type { OpeningHours } from "@/lib/types";
 import { getAnalysisProvider } from "@/server/analysis";
 import { analysesForLead } from "@/server/analysis-service";
@@ -368,10 +369,19 @@ function WebsiteValue({
 }) {
   if (website.kind === "linkable") {
     return (
-      <a href={website.href} target="_blank" rel="noopener noreferrer" className={`break-all ${LINK}`}>
-        {website.href.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-        <span className="sr-only"> (opens in a new tab)</span>
-      </a>
+      <>
+        <a href={website.href} target="_blank" rel="noopener noreferrer" className={`break-all ${LINK}`}>
+          {website.href.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+        {/* Same story as the Businesses card and the score: a social or
+            directory page is not a website of their own. */}
+        {isSocialProfileUrl(raw) ? (
+          <span className="block text-xs text-amber-800 dark:text-amber-300">
+            {websiteBadgeLabel(raw)}
+          </span>
+        ) : null}
+      </>
     );
   }
   if (website.kind === "unlinkable") {
