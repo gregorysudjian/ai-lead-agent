@@ -349,3 +349,79 @@ that isn't still one click away. Page heights at desktop width, before → after
   - A click anywhere on a business card opens it, while Add and Maps still get
     their own clicks.
   - All 2,103 tests pass.
+
+---
+
+## Google Maps check — 12 September, afternoon
+
+**Your request:** "our data of businesses are too much … businesses that might not
+be real or don't even have a google map. Check every business and make sure it
+has a valid google map location."
+
+**Your answers:** use the Google Places API · hide failing businesses but keep
+them in the database · remove failing leads from the list.
+
+### Result
+
+| | Businesses | What happens |
+|---|---|---|
+| Found on Google Maps at our address | 1,939 | shown |
+| Similar place found, not sure it's the same | 224 | shown (kept on purpose) |
+| Not found on Google Maps | 579 | **hidden**, kept in the database |
+| Permanently closed on Google Maps | 79 | **hidden**, kept in the database |
+
+- The Businesses page now shows **2,163** businesses (was 2,821). A line at
+  the bottom says how many are hidden and why, and each hidden business's
+  own page says "Not found on Google Maps" or "Closed on Google Maps".
+- **Leads:** 11 of 12 pass. **Verdure Chic** is permanently closed on Google
+  Maps, so it was **removed from your leads**. It isn't deleted: its page
+  says why and has a **"Put back on my list"** button, and its research and
+  demos are kept.
+- **Cost: $0.** 3,845 lookups this month, under the 4,500 cap the code
+  enforces (Google's free amount is 5,000). Every lookup is counted in the
+  database *before* it is made.
+
+### How a business is judged
+
+Google always answers with *something* — ask for a salon that closed and it
+returns the one next door. So a result only counts if **the name matches**
+(on its distinctive words; every salon shares "salon" and "coiffure") **and it
+is where we have it**, with more distance allowed the closer the names agree.
+Anything not found gets a second, name-only search, because a query with a
+street address sometimes returns the address itself instead of the shop.
+When it can't decide (for example the same name at another address, where
+our address may be old), it answers "uncertain" and **keeps the business
+visible**.
+
+I checked the matching by hand on samples and fixed three things along the way:
+- a salon with the same name 800 m up the street ("MTL Tattoo");
+- the city word being part of the name ("Yumi Lashes Montréal" /
+  "YUMI Lashes MTL");
+- neighbouring door numbers (3339 vs 3337 Jean-Talon).
+
+Among the hidden, many list a website of their own. I looked at a sample:
+Google really has nothing at that address. These are chains that left
+(Concept Elite, Spa Eastman) or salons that closed, and the website is just
+old data.
+
+### One step left for you (1 minute)
+
+My first migration had a mistake: a pattern Postgres refuses (`{10,300}`; its
+limit is 255). It only failed once a real Google place ID was saved, so the
+verdicts were stored **without** place IDs. The place IDs are kept in the
+run's report file on this computer.
+1. Run [`supabase/migrations/20260914000100_fix_google_place_id_check.sql`](supabase/migrations/20260914000100_fix_google_place_id_check.sql)
+   in the Supabase SQL editor.
+2. Tell me, and I'll copy the place IDs in (no Google lookups needed). The
+   "Google Maps" links will then open each business's exact listing instead
+   of a search.
+
+A new test now rejects any such pattern in a migration.
+
+### Doing it again
+
+`scripts/catalog-google-check.mts` checks every business that hasn't been
+checked yet (new ones from the weekly refresh, for example):
+`npx tsx --conditions=react-server --env-file=.env.local scripts/catalog-google-check.mts --commit`.
+Add `--leads --remove-leads` to include your leads. The monthly cap stops it
+before it could cost anything.

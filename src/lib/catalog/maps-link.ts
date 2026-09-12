@@ -21,13 +21,18 @@ import type { ProviderSnapshot } from "../types";
  * listing itself rather than a pin. Coordinates are deliberately NOT used --
  * a bare coordinate query drops a pin and skips the listing, which is the
  * part worth seeing.
+ *
+ * With Google's place id -- known once the Google Maps check has matched the
+ * business -- the same link opens that exact listing rather than a search.
  */
 export function googleMapsSearchUrl(
   provider: Pick<ProviderSnapshot, "name" | "address" | "city">,
+  placeId: string | null = null,
 ): string {
   const parts = [provider.name, provider.address, provider.city, "QC"].filter(
     (part): part is string => typeof part === "string" && part.trim().length > 0,
   );
   const query = parts.map((part) => part.trim()).join(", ");
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  const base = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  return placeId === null ? base : `${base}&query_place_id=${encodeURIComponent(placeId)}`;
 }

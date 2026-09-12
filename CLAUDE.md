@@ -340,10 +340,40 @@ hours, and place ID -> flag the ones with no website.
   Montreal coordinates stays out. Its trades (`lib/catalog/trades.ts`) are a
   subset of the category registry, not a second registry.
 
-  Google Maps appears only as a link (`googleMapsSearchUrl`) -- a keyless Maps
-  URL a human opens to check reviews and photos. Nothing from Google is
-  fetched into or stored in the catalog, paid API or not: its terms forbid
-  warehousing names, phones and websites, and scraping Maps is rule 2.
+  Google Maps appears as a link (`googleMapsSearchUrl`) -- a keyless Maps
+  URL a human opens to check reviews and photos -- and in ONE approved check.
+  Google's names, phones, websites, ratings and coordinates are never stored
+  in the catalog: its terms forbid warehousing them, and scraping Maps is
+  rule 2.
+
+- **The Google Maps check hides businesses Google cannot find; it stores only
+  a place id.** The operator asked (2026-09-12) for every catalog business to
+  have a real Google Maps listing. `scripts/catalog-google-check.mts`, run by
+  hand, asks Google Places Text Search for each business near where we have it
+  and `judgeGoogleMatch` decides: the NAME must agree (on its distinctive
+  words -- every salon shares "salon") and the POSITION must agree, with more
+  distance allowed the closer the names match, because Google always answers
+  with something and the salon next door is not ours. A business Google does
+  not find -- after a second, name-only search, since a query with a street
+  address sometimes returns the address itself -- is `not_found`; a matched
+  place Google marks permanently closed is `closed`; both are hidden from
+  search, never deleted. Anything suggestive but undecided, including the
+  same name at another address (our address may be stale), is `uncertain` and
+  stays visible: a check that cannot decide is not a reason to hide. The
+  verdict is ours; from Google only the matched place id is kept, which its
+  terms allow indefinitely, and it makes the Maps link open the exact listing.
+  "Not found" is worded as narrowly as it is known -- one lookup found no
+  matching place -- never "fake" or "closed".
+
+  Cost is guarded in the database, not in memory: every call is written to
+  `google_api_calls` BEFORE it is made, and the script stops at a monthly cap
+  under Google's free allowance, across runs and machines. A lead whose
+  business fails the check is REMOVED from the list (`LeadRepository.markRemoved`),
+  never deleted -- every table of work for a lead cascades from it -- and can be
+  put back from its page. Postgres caps a regular expression's repetition count
+  at 255 and compiles a CHECK's pattern only when a non-null value arrives, so
+  `{10,300}` applies cleanly and fails on the first real write; a migration
+  test now rejects any count above 255.
 
 - **The pipeline is `Business -> Lead -> BusinessProfile -> Analysis -> DemoSite`.**
   Research happens once and everything downstream should eventually read the

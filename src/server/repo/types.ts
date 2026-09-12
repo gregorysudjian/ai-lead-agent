@@ -30,10 +30,16 @@ export interface UpsertSummary {
 }
 
 export interface LeadRepository {
-  /** Every stored lead. Ordering is the store's own; callers must not rely on it. */
+  /**
+   * Every lead on the operator's list: removed leads are left out. Ordering is
+   * the store's own; callers must not rely on it.
+   */
   list(): Promise<Lead[]>;
 
-  /** Look up one lead by OUR internal id. Returns null when absent. */
+  /**
+   * Look up one lead by OUR internal id, removed or not -- its page, research
+   * and demos stay reachable. Returns null when absent.
+   */
   findById(id: string): Promise<Lead | null>;
 
   /**
@@ -57,6 +63,18 @@ export interface LeadRepository {
    * provider data or rewrite an id.
    */
   updateStatus(id: string, status: LeadStatus): Promise<Lead | null>;
+
+  /**
+   * Take a lead off the list, keeping it and everything made for it.
+   *
+   * Never a delete: every table of research, analyses, demos and outreach
+   * cascades from leads, so deleting one would erase what was prepared for a
+   * real business. Returns the lead as stored, or null for an unknown id.
+   */
+  markRemoved(id: string, reason: string): Promise<Lead | null>;
+
+  /** Put a removed lead back on the list. Returns null for an unknown id. */
+  restore(id: string): Promise<Lead | null>;
 }
 
 /**

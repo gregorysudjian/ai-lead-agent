@@ -156,4 +156,20 @@ export interface Lead {
   updatedAt: string;
   /** Refreshable cache of the latest discovery result. */
   provider: ProviderSnapshot;
+  /**
+   * Present when the operator's lead list no longer includes this lead.
+   *
+   * A lead is MARKED removed rather than deleted: deleting would take every
+   * record hanging off it (analyses, demos, outreach and the rest) with it,
+   * and those are what was prepared for, or shown to, a real business. A
+   * removed lead is left out of `LeadRepository.list()`; `findById` still
+   * finds it.
+   */
+  removal?: LeadRemoval;
+}
+
+export interface LeadRemoval {
+  removedAt: string;
+  /** Why, in words a person reads, e.g. "Not found on Google Maps". */
+  reason: string;
 }

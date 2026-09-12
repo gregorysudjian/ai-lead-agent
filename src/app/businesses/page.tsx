@@ -171,6 +171,13 @@ export default async function BusinessesPage({
               the data lists none, not that the business has none &mdash; the Google Maps link is
               there to check. Priority orders your review; it predicts nothing.
             </p>
+            {summary.hiddenByGoogle > 0 ? (
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                {n(summary.hiddenByGoogle)} more {summary.hiddenByGoogle === 1 ? "business is" : "businesses are"}{" "}
+                hidden because a Google Maps check found no matching place, or found it permanently
+                closed. They stay in the database, and each one&rsquo;s page says so.
+              </p>
+            ) : null}
             <OvertureAttribution />
           </div>
         </>

@@ -1,4 +1,12 @@
-import type { CatalogBusiness, Coordinates, IngestRun, IngestRunState } from "@/lib/catalog/types";
+import {
+  GOOGLE_CHECK_VERDICTS,
+  type CatalogBusiness,
+  type Coordinates,
+  type GoogleCheck,
+  type GoogleCheckVerdict,
+  type IngestRun,
+  type IngestRunState,
+} from "@/lib/catalog/types";
 
 import { dedupeColumnsFor, LeadRowMappingError, toProviderSnapshot } from "./supabase-mapping";
 
@@ -28,6 +36,9 @@ export interface BusinessRow {
   first_seen_release: string;
   last_seen_release: string;
   lead_id: string | null;
+  google_place_id: string | null;
+  google_check: string | null;
+  google_checked_at: string | null;
 }
 
 export interface IngestRunRow {
@@ -117,6 +128,32 @@ function coordinates(latitude: unknown, longitude: unknown): Coordinates | null 
   return { latitude: lat, longitude: lon };
 }
 
+/**
+ * The three Google check columns -> one value, or null when never checked.
+ *
+ * All three are read together: a verdict without a time, or a place id with
+ * no verdict, is corruption. Rows from before the check existed have none of
+ * the columns set (or none of the keys at all) and read as unchecked.
+ */
+function googleCheck(row: Record<string, unknown>): GoogleCheck | null {
+  const verdict = row.google_check ?? null;
+  const checkedAt = row.google_checked_at ?? null;
+  const placeId = row.google_place_id ?? null;
+  if (verdict === null && checkedAt === null) {
+    if (placeId !== null) fail("google_place_id", "is set on a business that was never checked");
+    return null;
+  }
+  if (typeof verdict !== "string" || !GOOGLE_CHECK_VERDICTS.includes(verdict as GoogleCheckVerdict)) {
+    fail("google_check", "is not a known verdict");
+  }
+  if (placeId !== null && typeof placeId !== "string") fail("google_place_id", "must be a string or null");
+  return {
+    verdict: verdict as GoogleCheckVerdict,
+    placeId: placeId as string | null,
+    checkedAt: timestamp(checkedAt, "google_checked_at"),
+  };
+}
+
 /** Database row -> catalog business. Throws on anything malformed. */
 export function rowToCatalogBusiness(value: unknown): CatalogBusiness {
   if (typeof value !== "object" || value === null) fail("row", "must be an object");
@@ -153,6 +190,7 @@ export function rowToCatalogBusiness(value: unknown): CatalogBusiness {
     firstSeenRelease: str(row.first_seen_release, "first_seen_release"),
     lastSeenRelease: str(row.last_seen_release, "last_seen_release"),
     leadId: nullableStr(row.lead_id, "lead_id"),
+    googleCheck: googleCheck(row),
     provider,
   };
 }
@@ -171,6 +209,9 @@ export function catalogBusinessToRow(business: CatalogBusiness): BusinessRow {
     first_seen_release: business.firstSeenRelease,
     last_seen_release: business.lastSeenRelease,
     lead_id: business.leadId,
+    google_place_id: business.googleCheck?.placeId ?? null,
+    google_check: business.googleCheck?.verdict ?? null,
+    google_checked_at: business.googleCheck?.checkedAt ?? null,
   };
 }
 

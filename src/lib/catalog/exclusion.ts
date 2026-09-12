@@ -1,4 +1,5 @@
 import type { ProviderSnapshot } from "../types";
+import type { GoogleCheck } from "./types";
 
 /**
  * Records the catalog should not offer, and why.
@@ -121,9 +122,25 @@ export function catalogExclusion(provider: Pick<ProviderSnapshot, "name" | "webs
 }
 
 /**
+ * Whether the Google Maps check hides this business: Google returned no
+ * matching place, or its matching place is permanently closed. "uncertain"
+ * and unchecked businesses stay: a check that could not decide is not a
+ * reason to hide anything.
+ */
+export function hiddenByGoogleCheck(check: GoogleCheck | null | undefined): boolean {
+  return check?.verdict === "not_found" || check?.verdict === "closed";
+}
+
+/**
  * Whether search should offer this business. A lead is always offered: the
  * operator chose it, and hiding their own choice from them would be wrong.
+ * (A lead the operator REMOVES is unlinked, so this no longer protects it.)
  */
-export function isOfferedInCatalog(business: { leadId: string | null; provider: Pick<ProviderSnapshot, "name" | "website"> }): boolean {
-  return business.leadId !== null || catalogExclusion(business.provider) === null;
+export function isOfferedInCatalog(business: {
+  leadId: string | null;
+  googleCheck?: GoogleCheck | null;
+  provider: Pick<ProviderSnapshot, "name" | "website">;
+}): boolean {
+  if (business.leadId !== null) return true;
+  return catalogExclusion(business.provider) === null && !hiddenByGoogleCheck(business.googleCheck);
 }

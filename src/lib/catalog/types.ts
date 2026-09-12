@@ -27,6 +27,34 @@ export interface Coordinates {
   longitude: number;
 }
 
+/**
+ * What checking a business against Google Maps concluded.
+ *
+ *   verified   Google has a matching place, close by, not permanently closed.
+ *   not_found  Google returned no place that matches. NOT "does not exist":
+ *              it is what one lookup found, said as narrowly as that.
+ *   closed     Google's matching place is marked permanently closed.
+ *   uncertain  Something similar came back, but not close enough in name or
+ *              position to call it a match either way. Kept visible.
+ */
+export const GOOGLE_CHECK_VERDICTS = ["verified", "not_found", "closed", "uncertain"] as const;
+export type GoogleCheckVerdict = (typeof GOOGLE_CHECK_VERDICTS)[number];
+
+/**
+ * The result of the Google Maps check, owned by us.
+ *
+ * The only thing kept FROM Google is `placeId`, which Google's terms allow to
+ * be stored indefinitely; it makes the Maps link open the exact listing.
+ * Google's name, address, coordinates and ratings are compared during the
+ * check and never stored.
+ */
+export interface GoogleCheck {
+  verdict: GoogleCheckVerdict;
+  /** Google's place id for the matched place; null when nothing matched. */
+  placeId: string | null;
+  checkedAt: string;
+}
+
 /** A business in the catalog. */
 export interface CatalogBusiness {
   /** Our identifier. Never changes, never derived from a provider id. */
@@ -49,6 +77,11 @@ export interface CatalogBusiness {
   lastSeenRelease: string;
   /** The lead this business became, when the operator chose it. */
   leadId: string | null;
+  /**
+   * The latest Google Maps check, or null when it has never been checked.
+   * Ours, so a refresh keeps it: a new release does not un-check a business.
+   */
+  googleCheck: GoogleCheck | null;
   provider: ProviderSnapshot;
 }
 

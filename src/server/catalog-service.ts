@@ -103,7 +103,10 @@ export async function addBusinessToLeads(businessId: string): Promise<AddToLeads
   // The snapshot goes in unchanged: a catalog row IS a provider snapshot plus
   // our own fields, which is why the table mirrors public.leads.
   const summary = await leads.upsertDiscovered([business.provider]);
-  const lead = summary.leads[0];
+  let lead = summary.leads[0];
+  // Adding a business whose lead was once removed puts that lead back, with
+  // everything made for it, rather than leaving it off the list.
+  if (lead.removal) lead = (await leads.restore(lead.id)) ?? lead;
 
   try {
     const linked = await catalog.linkLead(business.id, lead.id);
@@ -121,4 +124,33 @@ export async function addBusinessToLeads(businessId: string): Promise<AddToLeads
     console.error(`[catalog] lead ${lead.id} created but not linked to business ${business.id}:`, error);
     return { status: summary.createdIds.includes(lead.id) ? "added" : "already", leadId: lead.id };
   }
+}
+
+/**
+ * Put a removed lead back on the list, and its catalog business back in step.
+ *
+ * Removal unlinked the business (so search could hide it); restoring links it
+ * again when the business is still unlinked -- found by the provider identity
+ * the two share. Returns false for an unknown lead.
+ */
+export async function restoreLead(leadId: string): Promise<boolean> {
+  const leads = getLeadRepository();
+  const catalog = getCatalogRepository();
+
+  const lead = await leads.restore(leadId);
+  if (lead === null) return false;
+
+  const { source, externalId } = lead.provider;
+  const business = (await catalogRows()).find(
+    (row) => row.provider.source === source && row.provider.externalId === externalId,
+  );
+  if (business && business.leadId === null) {
+    await catalog.linkLead(business.id, lead.id).catch((error: unknown) => {
+      // The lead is back on the list either way; only its "In your leads"
+      // mark in search is missing, and adding it again repairs that.
+      console.error(`[catalog] restored lead ${lead.id} could not be relinked:`, error);
+    });
+  }
+  invalidate();
+  return true;
 }

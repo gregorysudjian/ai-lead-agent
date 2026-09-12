@@ -2,7 +2,7 @@ import "server-only";
 
 import { getSupabaseClient } from "@/server/supabase/client";
 
-import type { CatalogTableGateway } from "./catalog-gateway";
+import type { CatalogTableGateway, GoogleCheckColumns } from "./catalog-gateway";
 import type { BusinessRow, IngestRunRow } from "./catalog-mapping";
 import { CatalogRepositoryError } from "./catalog-types";
 
@@ -95,6 +95,20 @@ export class SupabaseCatalogTableGateway implements CatalogTableGateway {
       .is("lead_id", null);
 
     if (error) throw toRepositoryError(error, "linkLead");
+  }
+
+  async clearLead(leadId: string): Promise<void> {
+    const { error } = await getSupabaseClient()
+      .from(BUSINESSES)
+      .update({ lead_id: null })
+      .eq("lead_id", leadId);
+
+    if (error) throw toRepositoryError(error, "unlinkLead");
+  }
+
+  async setGoogleCheck(id: string, patch: GoogleCheckColumns): Promise<void> {
+    const { error } = await getSupabaseClient().from(BUSINESSES).update(patch).eq("id", id);
+    if (error) throw toRepositoryError(error, "recordGoogleCheck");
   }
 
   async insertRun(row: IngestRunRow): Promise<void> {

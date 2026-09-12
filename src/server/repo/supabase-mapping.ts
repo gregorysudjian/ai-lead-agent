@@ -33,6 +33,9 @@ export interface LeadRow {
   provider_external_id: string;
   normalized_name: string;
   normalized_address: string | null;
+  /** Both null (or absent, on rows read before the column existed) = active. */
+  removed_at?: string | null;
+  removed_reason?: string | null;
 }
 
 /** Thrown when a database row cannot be trusted as a Lead. */
@@ -194,13 +197,27 @@ export function rowToLead(row: LeadRow): Lead {
   const provider = toProviderSnapshot(row.provider);
   assertDedupeColumnsMatch(row, provider);
 
-  return {
+  const lead: Lead = {
     id: requireString(row.id, "id"),
     status: row.status,
     createdAt: requireString(row.created_at, "created_at"),
     updatedAt: requireString(row.updated_at, "updated_at"),
     provider,
   };
+
+  // Removal is both columns or neither; the database enforces the pair too.
+  const removedAt = row.removed_at ?? null;
+  const reason = row.removed_reason ?? null;
+  if ((removedAt === null) !== (reason === null)) {
+    throw new LeadRowMappingError("Lead row has only half of a removal.");
+  }
+  if (removedAt !== null && reason !== null) {
+    lead.removal = {
+      removedAt: requireString(removedAt, "removed_at"),
+      reason: requireString(reason, "removed_reason"),
+    };
+  }
+  return lead;
 }
 
 /**
@@ -260,6 +277,13 @@ export function leadToRow(lead: Lead): LeadRow {
 export interface LeadRefreshPatch extends DedupeColumns {
   updated_at: string;
   provider: DiscoveredBusiness;
+}
+
+/** The columns written when a lead is removed from, or restored to, the list. */
+export interface LeadRemovalPatch {
+  removed_at: string | null;
+  removed_reason: string | null;
+  updated_at: string;
 }
 
 export function refreshPatchFor(

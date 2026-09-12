@@ -137,12 +137,14 @@ function refreshLead(existing: Lead, business: DiscoveredBusiness, now: string):
     createdAt: existing.createdAt,
     updatedAt: now,
     provider: business,
+    // Ours, like status: a rediscovery does not put a removed lead back.
+    ...(existing.removal ? { removal: existing.removal } : {}),
   };
 }
 
 class JsonLeadRepository implements LeadRepository {
   async list(): Promise<Lead[]> {
-    return withLock(async () => (await readStore()).leads);
+    return withLock(async () => (await readStore()).leads.filter((lead) => lead.removal === undefined));
   }
 
   async findById(id: string): Promise<Lead | null> {
@@ -211,6 +213,39 @@ class JsonLeadRepository implements LeadRepository {
       store.leads[index] = updated;
       await writeStore(store);
       return updated;
+    });
+  }
+
+  async markRemoved(id: string, reason: string): Promise<Lead | null> {
+    const trimmed = reason.trim();
+    if (trimmed.length === 0 || trimmed.length > 500) {
+      throw new LeadRepositoryError("A removal needs a reason of 1 to 500 characters.");
+    }
+    const now = new Date().toISOString();
+    return this.rewrite(id, (lead) => ({
+      ...lead,
+      updatedAt: now,
+      removal: { removedAt: now, reason: trimmed },
+    }));
+  }
+
+  async restore(id: string): Promise<Lead | null> {
+    return this.rewrite(id, (lead) => {
+      const restored: Lead = { ...lead, updatedAt: new Date().toISOString() };
+      delete restored.removal;
+      return restored;
+    });
+  }
+
+  /** Rewrite one lead in place: the read-modify-write each narrow update shares. */
+  private rewrite(id: string, change: (lead: Lead) => Lead): Promise<Lead | null> {
+    return withLock(async () => {
+      const store = await readStore();
+      const index = store.leads.findIndex((lead) => lead.id === id);
+      if (index === -1) return null;
+      store.leads[index] = change(store.leads[index]);
+      await writeStore(store);
+      return store.leads[index];
     });
   }
 }

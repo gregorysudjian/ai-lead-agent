@@ -7,7 +7,7 @@ import {
   type LeadStatusPatch,
   type LeadTableGateway,
 } from "./supabase-gateway";
-import type { DedupeColumns, LeadRefreshPatch, LeadRow } from "./supabase-mapping";
+import type { DedupeColumns, LeadRefreshPatch, LeadRemovalPatch, LeadRow } from "./supabase-mapping";
 import { LeadRepositoryError } from "./types";
 
 const TABLE = "leads";
@@ -99,7 +99,7 @@ export class SupabaseLeadTableGateway implements LeadTableGateway {
 
   async updateRow(
     id: string,
-    patch: LeadRefreshPatch | LeadStatusPatch,
+    patch: LeadRefreshPatch | LeadStatusPatch | LeadRemovalPatch,
   ): Promise<LeadRow | null> {
     const { data, error } = await getSupabaseClient()
       .from(TABLE)

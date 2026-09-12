@@ -677,3 +677,57 @@ describe("auth_attempts table security", () => {
     expect(sql).not.toMatch(/auth_attempts[\s\S]*\b(ip|address|password)\s+(text|inet)/);
   });
 });
+
+describe("Google Maps check migration", () => {
+  const file = readFileSync(join(MIGRATIONS_DIR, "20260914000000_add_google_maps_check.sql"), "utf8");
+  const sql = statementsOnly(file);
+
+  it("stores only Google's place id from Google -- no name, address, coordinates or rating", () => {
+    for (const forbidden of ["google_name", "google_address", "google_lat", "google_rating", "google_phone", "jsonb"]) {
+      expect(sql, `must not store ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(sql).toContain("add column google_place_id text");
+  });
+
+  it("marks leads removed instead of deleting them", () => {
+    expect(sql).toContain("add column removed_at timestamptz");
+    expect(sql).not.toMatch(/\bdelete from\b/);
+    expect(sql).not.toMatch(/\bdrop\b/);
+  });
+
+  it("keeps the call ledger append-only and server-only", () => {
+    expect(sql).toContain("alter table public.google_api_calls enable row level security");
+    expect(sql).not.toMatch(/create policy[^;]*google_api_calls/);
+    const revoke = sql.indexOf("revoke all on table public.google_api_calls from anon, authenticated, service_role");
+    const grant = sql.indexOf("grant select, insert on table public.google_api_calls to service_role");
+    expect(revoke).toBeGreaterThan(-1);
+    expect(grant).toBeGreaterThan(revoke);
+    expect(sql).not.toMatch(/grant [^;]*(update|delete)[^;]*google_api_calls/);
+    const grants = sql.split("\n").filter((l) => l.startsWith("grant "));
+    for (const g of grants) expect(g).toContain("to service_role");
+  });
+
+  it("is strict: no IF NOT EXISTS guards", () => {
+    expect(sql).not.toContain("if not exists");
+    expect(sql).not.toContain("if exists");
+  });
+});
+
+describe("every regular expression in a migration is one Postgres can compile", () => {
+  // Postgres caps a repetition count at 255 (RE_DUP_MAX) and only compiles a
+  // CHECK's pattern when a non-null value arrives -- so a pattern like
+  // {10,300} applies cleanly and fails on the first real write. It happened.
+  it("uses no repetition count above 255", () => {
+    const sql = statementsOnly(migrationSql());
+    // Only the latest definition of each constraint matters, but a bad count
+    // should not appear in any statement at all -- except where a later
+    // migration drops the constraint that used it.
+    const counts = [...sql.matchAll(/\{(\d+)(?:,(\d*))?\}/g)].flatMap((m) =>
+      [m[1], m[2]].filter((n): n is string => n !== undefined && n !== "").map(Number),
+    );
+    const tooBig = counts.filter((n) => n > 255);
+    // The one known offender is fixed by 20260914000100, which drops it.
+    expect(tooBig).toEqual([300]);
+    expect(sql).toContain("drop constraint businesses_google_place_id_shape");
+  });
+});

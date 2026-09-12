@@ -144,7 +144,7 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
 
         {/* The site preview lives on the business's page, one click in. */}
         <a
-          href={googleMapsSearchUrl(provider)}
+          href={googleMapsSearchUrl(provider, business.googleCheck?.placeId ?? null)}
           target="_blank"
           rel="noopener noreferrer"
           className={`${ABOVE} inline-flex items-center gap-1 text-xs ${LINK}`}

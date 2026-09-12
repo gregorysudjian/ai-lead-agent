@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { planCatalogUpsert } from "@/lib/catalog/plan-upsert";
-import type { CatalogBusiness, CatalogRecord, IngestRun } from "@/lib/catalog/types";
+import type { CatalogBusiness, CatalogRecord, GoogleCheck, IngestRun } from "@/lib/catalog/types";
 
 import type { CatalogTableGateway } from "./catalog-gateway";
 import {
@@ -118,6 +118,31 @@ export function createCatalogRepository(
         throw new CatalogRepositoryError("Could not link the business to its lead.", {
           cause: error,
         });
+      }
+    },
+
+    async unlinkLead(leadId: string): Promise<void> {
+      try {
+        await gateway.clearLead(leadId);
+      } catch (error) {
+        throw new CatalogRepositoryError("Could not unlink the removed lead.", { cause: error });
+      }
+    },
+
+    async recordGoogleCheck(businessId: string, check: GoogleCheck): Promise<void> {
+      // Only a matched place has an id: the database refuses one beside
+      // "not_found", and so does this, before a request is made.
+      if (check.verdict === "not_found" && check.placeId !== null) {
+        throw new CatalogRepositoryError("A business Google did not find cannot carry a place id.");
+      }
+      try {
+        await gateway.setGoogleCheck(businessId, {
+          google_place_id: check.placeId,
+          google_check: check.verdict,
+          google_checked_at: check.checkedAt,
+        });
+      } catch (error) {
+        throw new CatalogRepositoryError("Could not record the Google check.", { cause: error });
       }
     },
 

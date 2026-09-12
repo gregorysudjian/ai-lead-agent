@@ -12,11 +12,19 @@
  * There is no general `update(business)`. A refresh replaces provider data and
  * preserves ours by construction; `linkLead` sets a link that is not already
  * set, and nothing can repoint one. There is no delete at all: the catalog
- * keeps every business it has recorded, and a lead removed elsewhere clears
- * its link through the foreign key rather than through this interface.
+ * keeps every business it has recorded. A lead the operator removes is
+ * unlinked with `unlinkLead`, so its business returns to being something
+ * that can be found and added again. `recordGoogleCheck` writes only the
+ * three Google check columns.
  */
 import type { CatalogConflict } from "@/lib/catalog/plan-upsert";
-import type { CatalogBusiness, CatalogRecord, IngestRun, IngestRunState } from "@/lib/catalog/types";
+import type {
+  CatalogBusiness,
+  CatalogRecord,
+  GoogleCheck,
+  IngestRun,
+  IngestRunState,
+} from "@/lib/catalog/types";
 
 export interface CatalogRefreshSummary {
   added: number;
@@ -71,6 +79,12 @@ export interface CatalogRepository {
    * it first -- or null when no business has that id.
    */
   linkLead(businessId: string, leadId: string): Promise<CatalogBusiness | null>;
+
+  /** Clear the link to a lead the operator removed. A no-op when none links to it. */
+  unlinkLead(leadId: string): Promise<void>;
+
+  /** Store the result of checking one business against Google Maps. */
+  recordGoogleCheck(businessId: string, check: GoogleCheck): Promise<void>;
 
   openRun(input: OpenRunInput): Promise<IngestRun>;
   updateRun(id: string, progress: IngestRunProgress): Promise<void>;

@@ -7,7 +7,7 @@
  * against an in-memory fake with no network, no credentials and no mocking of
  * the Supabase query builder.
  */
-import type { DedupeColumns, LeadRefreshPatch, LeadRow } from "./supabase-mapping";
+import type { DedupeColumns, LeadRefreshPatch, LeadRemovalPatch, LeadRow } from "./supabase-mapping";
 
 /**
  * A unique index rejected the write.
@@ -47,12 +47,12 @@ export interface LeadTableGateway {
   /**
    * Apply a partial update. Returns the updated row, or null if absent.
    *
-   * The patch is typed as one of the two updates this repository performs, so
+   * The patch is typed as one of the updates this repository performs, so
    * no caller can invent an arbitrary column write -- there is no path here to
    * overwrite an id or a created_at.
    */
   updateRow(
     id: string,
-    patch: LeadRefreshPatch | LeadStatusPatch,
+    patch: LeadRefreshPatch | LeadStatusPatch | LeadRemovalPatch,
   ): Promise<LeadRow | null>;
 }

@@ -56,7 +56,7 @@ export function createSupabaseLeadRepository(
   return {
     async list(): Promise<Lead[]> {
       try {
-        return (await gateway.listRows()).map(rowToLead);
+        return (await gateway.listRows()).map(rowToLead).filter((lead) => lead.removal === undefined);
       } catch (error) {
         throw asRepositoryError(error, "Could not read leads from the database.");
       }
@@ -80,6 +80,37 @@ export function createSupabaseLeadRepository(
         return updated ? rowToLead(updated) : null;
       } catch (error) {
         throw asRepositoryError(error, "Could not update the lead.");
+      }
+    },
+
+    async markRemoved(id: string, reason: string): Promise<Lead | null> {
+      const trimmed = reason.trim();
+      if (trimmed.length === 0 || trimmed.length > 500) {
+        throw new LeadRepositoryError("A removal needs a reason of 1 to 500 characters.");
+      }
+      try {
+        const timestamp = now().toISOString();
+        const updated = await gateway.updateRow(id, {
+          removed_at: timestamp,
+          removed_reason: trimmed,
+          updated_at: timestamp,
+        });
+        return updated ? rowToLead(updated) : null;
+      } catch (error) {
+        throw asRepositoryError(error, "Could not remove the lead.");
+      }
+    },
+
+    async restore(id: string): Promise<Lead | null> {
+      try {
+        const updated = await gateway.updateRow(id, {
+          removed_at: null,
+          removed_reason: null,
+          updated_at: now().toISOString(),
+        });
+        return updated ? rowToLead(updated) : null;
+      } catch (error) {
+        throw asRepositoryError(error, "Could not restore the lead.");
       }
     },
 
