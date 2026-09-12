@@ -12,6 +12,7 @@ import { DuckDBInstance } from "@duckdb/node-api";
 
 import type { CatalogArea } from "../../src/lib/catalog/area";
 import { catalogOvertureCategories, type FlatOvertureRow } from "../../src/lib/catalog/overture-records";
+import { parseReleaseListing } from "../../src/lib/catalog/releases";
 
 /** The release the catalog was first built from, and the fallback. */
 export const DEFAULT_RELEASE = "2026-08-19.0";
@@ -30,6 +31,18 @@ export function assertRelease(release: string): string {
     throw new Error(`"${release}" is not an Overture release name (expected e.g. 2026-08-19.0).`);
   }
   return release;
+}
+
+/**
+ * Every release name Overture has published, oldest first, from the public
+ * bucket's listing. No credentials; one small request.
+ */
+export async function listReleases(): Promise<string[]> {
+  const response = await fetch(
+    "https://overturemaps-us-west-2.s3.amazonaws.com/?list-type=2&prefix=release/&delimiter=/",
+  );
+  if (!response.ok) throw new Error(`Could not list Overture releases (HTTP ${response.status}).`);
+  return parseReleaseListing(await response.text());
 }
 
 export function placesPath(release: string): string {

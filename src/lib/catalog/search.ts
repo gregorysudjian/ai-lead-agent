@@ -5,6 +5,7 @@ import { isUsableText, scoreSnapshot, type LeadScore } from "../scoring";
 import { isSocialProfileUrl } from "../social-hosts";
 import type { ProviderSnapshot } from "../types";
 import type { CatalogArea } from "./area";
+import { isOfferedInCatalog } from "./exclusion";
 import { CATALOG_TRADE_KEYS, catalogTradeForLabel } from "./trades";
 import type { CatalogBusiness } from "./types";
 
@@ -322,7 +323,9 @@ export function searchCatalog(
 ): CatalogSearchResult {
   const pageSize = options.pageSize ?? PAGE_SIZE;
   const releases = catalogReleases(businesses);
-  const scored = scoreAll(businesses, releases);
+  // Chains, pharmacies and broken names are hidden, never deleted -- and never
+  // when the operator already made one a lead. See `exclusion.ts`.
+  const scored = scoreAll(businesses.filter(isOfferedInCatalog), releases);
 
   const matching = scored.filter((item) => matches(item, query)).sort(ORDERINGS[query.sort]);
 
