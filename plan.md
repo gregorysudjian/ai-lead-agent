@@ -249,14 +249,18 @@ page is unreachable.
   odd (Fade2Brooklyn, Salon H4H, WNTD, Au 2e) are kept, and tested.
 - **Freshness** was already shown ("Updated … · Overture Maps release …"
   and the "New this month" tile); it gets a cleaner place in Part 3.
-- **One thing I could not do:** GitHub refused to let me add the weekly
-  schedule file. Adding automation files needs a "workflow" permission your
-  saved GitHub login doesn't have, and granting it needs you in a browser. The
-  file is ready at [`docs/setup/catalog-refresh.yml`](docs/setup/catalog-refresh.yml).
-  **To turn it on (1 minute):** on GitHub, *Add file → Create new file*, name
-  it `.github/workflows/catalog-refresh.yml`, paste that file's contents
-  (without the first 4 comment lines), *Commit*. Or tell me in the morning and
-  I'll do it with you.
+- **The weekly schedule is on** (12 Sept, morning). GitHub wouldn't let me add
+  the schedule file, because automation files need a "workflow" permission my
+  saved login doesn't have. So you added
+  [`.github/workflows/catalog-refresh.yml`](.github/workflows/catalog-refresh.yml)
+  on GitHub yourself.
+  - Its first test run passed in 19 seconds: *"Loaded release: 2026-08-19.0
+    (2821 businesses listed) · Newest published: 2026-08-19.0 · Up to date:
+    nothing newer to load."*
+  - It now runs every Monday at 05:17 Montreal time. You can also start it by
+    hand under **Actions → Refresh business list → Run workflow**.
+  - A change to this file has to be made on GitHub the same way, until the
+    saved login is given the permission.
 
 ### Part 2 — the live site is hardened · done, one migration for you
 
@@ -272,6 +276,8 @@ page is unreachable.
     one signs in.
   - Migration: `supabase/migrations/20260913000000_create_auth_attempts.sql`
     (RLS on, no policies, the server may only insert, read and delete).
+    **Applied by you on 12 Sept**; the table is confirmed readable by the
+    server, so the shared limit is now in force.
 - **`PGRST303` explained and fixed.** The full error is *"JWT issued at
   future"*. Supabase's gateway turns the secret key into a short-lived token
   for each request, and its clock sometimes runs slightly ahead of the
