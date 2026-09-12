@@ -222,3 +222,38 @@ page is unreachable.
 ## Results
 
 *Filled in as I go, newest last.*
+
+### Part 1 — the business list updates itself · done, one step left for you
+
+- **GitHub secrets** `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are stored,
+  encrypted, on the repository.
+- **Finding new releases** (`src/lib/catalog/releases.ts`, 10 tests): reads
+  Overture's public release list, picks the newest one not yet loaded, never
+  goes backwards.
+- **One refresh command** (`scripts/catalog-refresh.mts`): check → read the
+  release → safety check → load, with a summary GitHub shows on each run.
+  Default is a dry run; `--commit` loads.
+  - Tonight's run: *"Loaded 2026-08-19.0 (2,821 listed) · newest published
+    2026-08-19.0 · up to date."* A forced dry run of the same release read
+    4,878 places in 10 seconds, built 2,825 businesses and would add 0 and
+    refresh 2,821. The whole pipeline works end to end.
+  - **Safety stop**: a release with under 80% of today's list stops the run
+    and fails the job (GitHub then emails you) instead of marking real
+    businesses as gone.
+- **Junk cleaned out** (`src/lib/catalog/exclusion.ts`, 9 tests): hidden in
+  search and never loaded again. On the real catalog it hides **18 of
+  2,839**: 13 pharmacies (Uniprix and its "Clinique Santé … Pharmacie
+  affiliée" branches), 3 chain stores (2 Sephora, Bath & Body Works), 2
+  chiropractors, 2 broken names (`6r5dxckulcvbol/.`, `�Bricassoo�`). None is
+  one of your leads, and a lead is never hidden. Real names that merely look
+  odd (Fade2Brooklyn, Salon H4H, WNTD, Au 2e) are kept, and tested.
+- **Freshness** was already shown ("Updated … · Overture Maps release …"
+  and the "New this month" tile); it gets a cleaner place in Part 3.
+- **One thing I could not do:** GitHub refused to let me add the weekly
+  schedule file. Adding automation files needs a "workflow" permission your
+  saved GitHub login doesn't have, and granting it needs you in a browser. The
+  file is ready at [`docs/setup/catalog-refresh.yml`](docs/setup/catalog-refresh.yml).
+  **To turn it on (1 minute):** on GitHub, *Add file → Create new file*, name
+  it `.github/workflows/catalog-refresh.yml`, paste that file's contents
+  (without the first 4 comment lines), *Commit*. Or tell me in the morning and
+  I'll do it with you.
