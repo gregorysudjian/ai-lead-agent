@@ -1,5 +1,6 @@
 import { mapOvertureCategory, mappedOvertureCategories } from "../overture/categories";
 import { normalizeOverturePlace } from "../overture/normalize";
+import { catalogExclusion, type ExclusionReason } from "./exclusion";
 import { placeLocality, withinBbox, type CatalogArea } from "./area";
 import { CATALOG_TRADE_KEYS } from "./trades";
 import type { CatalogRecord } from "./types";
@@ -42,6 +43,8 @@ export interface CatalogRecordsResult {
   unusable: number;
   /** Rows sharing a provider id with an earlier row. */
   duplicateIds: number;
+  /** Rows the catalog does not offer (see `exclusion.ts`), by reason. */
+  excluded: Partial<Record<ExclusionReason, number>>;
 }
 
 /**
@@ -73,6 +76,7 @@ export function buildCatalogRecords(
   const seenIds = new Set<string>();
   let unusable = 0;
   let duplicateIds = 0;
+  const excluded: Partial<Record<ExclusionReason, number>> = {};
 
   for (const row of rows) {
     if (row.category === null || !collected.has(row.category.trim().toLowerCase())) {
@@ -104,6 +108,13 @@ export function buildCatalogRecords(
       continue;
     }
 
+    // A chain, a pharmacy or a broken name never enters the catalog.
+    const exclusion = catalogExclusion(business);
+    if (exclusion !== null) {
+      excluded[exclusion] = (excluded[exclusion] ?? 0) + 1;
+      continue;
+    }
+
     if (seenIds.has(business.externalId)) {
       duplicateIds += 1;
       continue;
@@ -127,5 +138,5 @@ export function buildCatalogRecords(
     });
   }
 
-  return { records, outsideArea, unusable, duplicateIds };
+  return { records, outsideArea, unusable, duplicateIds, excluded };
 }

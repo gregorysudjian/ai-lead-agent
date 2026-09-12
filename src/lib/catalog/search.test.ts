@@ -265,3 +265,21 @@ describe("the Google Maps link", () => {
     expect(decodeURIComponent(url.split("query=")[1])).toBe("Encre Noire, Westmount, QC");
   });
 });
+
+describe("hiding what the catalog does not offer", () => {
+  it("hides chains, pharmacies and broken names, but never a lead", () => {
+    const salon = biz({ name: "Salon Lumière" });
+    const pharmacy = biz({ name: "Uniprix Clinique Maria Deich (Pharmacie affiliée)", category: "Beauty salon" });
+    const chainLead = biz({ name: "SEPHORA", category: "Beauty salon" }, { leadId: "lead-1" });
+    const junk = biz({ name: "6r5dxckulcvbol/.", category: "Beauty salon" });
+
+    const result = searchCatalog([salon, pharmacy, chainLead, junk], q());
+    const shown = result.results.map((item) => item.business.provider.name);
+
+    expect(shown).toContain("Salon Lumière");
+    expect(shown).toContain("SEPHORA");
+    expect(shown).not.toContain("6r5dxckulcvbol/.");
+    expect(shown.some((name) => name.startsWith("Uniprix"))).toBe(false);
+    expect(result.summary.total).toBe(2);
+  });
+});

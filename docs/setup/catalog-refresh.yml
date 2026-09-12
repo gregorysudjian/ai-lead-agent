@@ -1,0 +1,70 @@
+# TO TURN ON: this file belongs at .github/workflows/catalog-refresh.yml.
+# It is kept here because pushing workflow files needs a GitHub permission
+# ("workflow" scope) the saved login did not have. See plan.md, Results.
+
+name: Refresh business list
+
+# Keeps the business catalog up to date with Overture Maps, without anyone
+# having to remember. Weekly is cheap: when Overture has published nothing new
+# (most weeks) the job checks one small listing and stops in seconds.
+#
+# Why here and not on Vercel: loading a release reads Overture's public
+# dataset for a while, far past a Vercel function's time limit, and GitHub
+# Actions is free for a public repository.
+#
+# The job writes only the business catalog. It never creates or changes a
+# lead and never contacts anyone. See scripts/catalog-refresh.mts.
+on:
+  schedule:
+    # Mondays, 09:17 UTC (05:17 in Montreal). Off the hour, when GitHub's
+    # scheduler is least crowded.
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run shows what would change; commit loads it"
+        type: choice
+        options: [dry-run, commit]
+        default: dry-run
+      release:
+        description: "A specific Overture release, e.g. 2026-08-19.0 (optional; default is the newest)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Never two refreshes at once: the second waits for the first.
+concurrency:
+  group: catalog-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      LEAD_REPOSITORY: supabase
+      # Inputs reach the shell through the environment, never pasted into the
+      # script text; the refresh validates the release name itself.
+      MODE: ${{ github.event_name == 'schedule' && 'commit' || inputs.mode }}
+      RELEASE: ${{ inputs.release }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Refresh the business list
+        run: |
+          args=()
+          if [ "$MODE" = "commit" ]; then args+=(--commit); fi
+          if [ -n "$RELEASE" ]; then args+=("--release=$RELEASE"); fi
+          npx tsx --conditions=react-server scripts/catalog-refresh.mts "${args[@]}"

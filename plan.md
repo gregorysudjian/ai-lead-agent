@@ -209,6 +209,16 @@ page is unreachable.
 
 ---
 
+## Your answers before sleeping
+
+- **GitHub secrets:** yes, add `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as
+  encrypted Actions secrets.
+- **Going live:** yes, each change goes live as it's finished, after the full
+  check passes.
+- **"SOON" menu items** (AI Analysis, Outreach): hide them for now.
+
+---
+
 ## Results
 
 *Filled in as I go, newest last.*

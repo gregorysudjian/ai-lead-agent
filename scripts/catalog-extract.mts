@@ -39,7 +39,7 @@ const rows = await queryAreaPlaces(area, release, minConfidence);
 console.log(`  ${rows.length} places in the box, in a catalog trade  (${Math.round((Date.now() - started) / 1000)}s)`);
 
 const generatedAt = new Date().toISOString();
-const { records, outsideArea, unusable, duplicateIds } = buildCatalogRecords(rows, area, generatedAt);
+const { records, outsideArea, unusable, duplicateIds, excluded } = buildCatalogRecords(rows, area, generatedAt);
 
 const tally = (key: (r: (typeof records)[number]) => string) => {
   const counts = new Map<string, number>();
@@ -58,6 +58,7 @@ const report = {
   outsideArea: [...outsideArea.values()].reduce((sum, n) => sum + n, 0),
   unusable,
   duplicateIds,
+  excluded,
   noWebsiteListed: records.filter((r) => r.business.website === null).length,
   withPhone: records.filter((r) => r.business.phone !== null).length,
   withLocation: records.filter((r) => r.location !== null).length,
