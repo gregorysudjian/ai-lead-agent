@@ -19,7 +19,16 @@ import { AddToLeadsButton } from "./add-to-leads-button";
  * Every statement is about what the provider LISTED. "No website listed" is
  * never "no website", and a business the latest release dropped reads "no
  * longer listed", never "closed" -- CLAUDE.md rule 7, on every card.
+ *
+ * The whole card opens the business's page: the name's link is stretched over
+ * the card with an absolutely positioned pseudo-element, and the few controls
+ * that do something else (the phone, the website, Add, Maps) sit above it.
+ * One real link, so a screen reader hears the name once, not a card-sized
+ * blob of text.
  */
+
+/** Lifts a control above the stretched card link so it stays clickable. */
+const ABOVE = "relative z-10";
 
 function WebsiteLine({ website }: { website: string | null }) {
   const rendering = classifyWebsite(website);
@@ -36,7 +45,7 @@ function WebsiteLine({ website }: { website: string | null }) {
       target="_blank"
       rel="noopener noreferrer nofollow"
       title={rendering.href}
-      className={`inline-flex rounded-full hover:opacity-80 ${FOCUS_RING}`}
+      className={`${ABOVE} inline-flex rounded-full hover:opacity-80 ${FOCUS_RING}`}
     >
       {badge}
       <span className="sr-only"> {rendering.href} (opens in a new tab)</span>
@@ -53,7 +62,7 @@ function PhoneLine({ phone }: { phone: string | null }) {
     return <span className="tabular-nums text-slate-700 dark:text-slate-300">{phone}</span>;
   }
   return (
-    <a href={dial} className={`tabular-nums ${LINK}`}>
+    <a href={dial} className={`${ABOVE} tabular-nums ${LINK}`}>
       {formatPhone(phone)}
     </a>
   );
@@ -66,7 +75,7 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
   return (
     <Card
       as="li"
-      className={`flex flex-col p-4 transition-shadow hover:shadow-md sm:p-5 ${isGone ? "opacity-70" : ""}`}
+      className={`group relative flex flex-col p-4 transition-shadow hover:border-slate-300 hover:shadow-md sm:p-5 dark:hover:border-slate-700 ${isGone ? "opacity-70" : ""}`}
     >
       <div className="flex-1">
         <div className="flex items-start justify-between gap-3">
@@ -84,11 +93,11 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
         </div>
 
         {/* The name opens the full record, where the Add decision is made
-            with everything in view. */}
-        <h3 className="mt-1 text-base leading-snug font-semibold tracking-tight break-words text-slate-900 dark:text-slate-50">
+            with everything in view -- and its link covers the whole card. */}
+        <h3 className="mt-1 text-base leading-snug font-semibold tracking-tight break-words text-slate-900 group-hover:text-indigo-700 dark:text-slate-50 dark:group-hover:text-indigo-300">
           <Link
             href={`/businesses/${business.id}`}
-            className={`rounded hover:text-indigo-700 hover:underline dark:hover:text-indigo-300 ${FOCUS_RING}`}
+            className={`rounded after:absolute after:inset-0 after:rounded-xl ${FOCUS_RING}`}
           >
             {provider.name}
           </Link>
@@ -107,11 +116,11 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
         </p>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         {business.leadId !== null ? (
           <Link
             href={`/leads/${business.leadId}`}
-            className={`inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60 ${FOCUS_RING}`}
+            className={`${ABOVE} inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60 ${FOCUS_RING}`}
           >
             <svg
               aria-hidden="true"
@@ -128,31 +137,22 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
             <span className="sr-only"> : open the lead for {provider.name}</span>
           </Link>
         ) : (
-          <AddToLeadsButton businessId={business.id} businessName={provider.name} />
+          <span className={ABOVE}>
+            <AddToLeadsButton businessId={business.id} businessName={provider.name} />
+          </span>
         )}
 
-        <div className="flex items-center gap-4">
-          <Link href={`/businesses/${business.id}`} className={`text-sm font-medium ${LINK}`}>
-            Details
-            <span className="sr-only"> for {provider.name}</span>
-          </Link>
-          {/* The lab renders the site generation WOULD produce, in memory:
-              nothing is saved, and no paid provider can be reached from it. */}
-          <Link href={`/demos/lab?business=${business.id}`} className={`text-sm ${LINK}`}>
-            Preview site
-            <span className="sr-only"> for {provider.name}</span>
-          </Link>
-          <a
-            href={googleMapsSearchUrl(provider)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`inline-flex items-center gap-1 text-sm ${LINK}`}
-          >
-            Google Maps
-            <span aria-hidden="true">↗</span>
-            <span className="sr-only"> for {provider.name} (opens in a new tab)</span>
-          </a>
-        </div>
+        {/* The site preview lives on the business's page, one click in. */}
+        <a
+          href={googleMapsSearchUrl(provider)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${ABOVE} inline-flex items-center gap-1 text-xs ${LINK}`}
+        >
+          Google Maps
+          <span aria-hidden="true">↗</span>
+          <span className="sr-only"> for {provider.name} (opens in a new tab)</span>
+        </a>
       </div>
     </Card>
   );

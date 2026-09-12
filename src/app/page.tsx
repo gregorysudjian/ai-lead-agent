@@ -2,11 +2,8 @@ import Form from "next/form";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import {
-  CategoryBreakdown,
-  LeadSummary,
-  PriorityDistribution,
-} from "@/components/lead-summary";
+import { PriorityBadge } from "@/components/lead-row";
+import { LeadCounts, PriorityDistribution } from "@/components/lead-summary";
 import { SystemStatus } from "@/components/system-status";
 import {
   BUTTON_PRIMARY,
@@ -20,31 +17,35 @@ import {
   PageHeader,
   SectionHeading,
   Skeleton,
-  StatTile,
 } from "@/components/ui/primitives";
 import { Timestamp } from "@/components/ui/timestamp";
 import { catalogHref, DEFAULT_QUERY } from "@/lib/catalog/search";
 import { CATALOG_TRADE_KEYS, TRADE_PLURALS } from "@/lib/catalog/trades";
+import { rankLeads } from "@/lib/scoring";
 import { requireSession } from "@/server/auth";
 import { catalogPage } from "@/server/catalog-service";
 import { loadLeads } from "@/server/leads-page-data";
 
 /**
- * Dashboard.
+ * Dashboard: what to do next, then where to find more.
  *
- * Two halves, deliberately in this order. The business catalog -- everything
- * on the island we might approach -- and then the leads: the businesses the
- * operator actually chose. Searching never adds a lead; that was the old
- * behaviour, and it is what this page used to get wrong.
+ * The page opens on the work -- the new leads, highest priority first -- and
+ * then the way into the catalog. The catalog's full numbers live on the
+ * Businesses page; here they are one line. Which stores and providers this
+ * instance is wired to is a footer: worth seeing, never the first thing.
  *
  * Each half streams in behind its own Suspense boundary, so the page shell
  * paints at once and a slow or failing store takes down only its own half.
+ * Searching never adds a lead; a lead is only ever an explicit Add.
  *
  * `force-dynamic` because both halves read stores.
  */
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Dashboard" };
+
+/** How many new leads "Next up" lists before pointing at the full list. */
+const NEXT_UP_LIMIT = 5;
 
 const n = (value: number) => value.toLocaleString("en-CA");
 
@@ -53,36 +54,124 @@ export default async function DashboardPage() {
   await requireSession();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        subtitle="Local hair and beauty businesses in Montreal, and the ones you have chosen to approach."
+        subtitle="Hair and beauty businesses in Montreal, and the ones you chose to approach."
       />
 
-      <SystemStatus />
+      <Suspense fallback={<LeadsOverviewSkeleton />}>
+        <LeadsOverview />
+      </Suspense>
 
       <Suspense fallback={<CatalogOverviewSkeleton />}>
         <CatalogOverview />
       </Suspense>
 
-      <section aria-labelledby="leads-heading" className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 id="leads-heading" className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Your leads
-          </h2>
-          <Link href="/leads" className={`text-sm ${LINK}`}>
-            Open the lead list →
-          </Link>
-        </div>
-        <Suspense fallback={<LeadsOverviewSkeleton />}>
-          <LeadsOverview />
-        </Suspense>
-      </section>
+      <footer className="border-t border-slate-200 pt-4 dark:border-slate-800">
+        <SystemStatus />
+      </footer>
     </div>
   );
 }
 
-/** The catalog's entry point: a search box, the trades, and the headline numbers. */
+/** The work: new leads worth opening first, and the lead list at a glance. */
+async function LeadsOverview() {
+  const { leads, loadFailed } = await loadLeads("dashboard");
+
+  if (loadFailed) {
+    return (
+      <ErrorPanel
+        title="Could not load stored leads."
+        detail="The lead store did not respond. Check the server logs for details."
+      />
+    );
+  }
+
+  if (leads.length === 0) {
+    return (
+      <EmptyState
+        title="No leads yet"
+        description="Find a business below and choose Add to leads. Nothing is contacted automatically — every lead is reviewed by you."
+      />
+    );
+  }
+
+  const fresh = rankLeads(leads.filter((lead) => lead.status === "new"));
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Card as="section" className="p-5 lg:col-span-2">
+        <SectionHeading
+          title="Next up"
+          hint={
+            fresh.length > 0
+              ? "Your new leads, highest priority first."
+              : "Every lead has been reviewed."
+          }
+        />
+        {fresh.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+            Nothing waiting. Find more businesses below.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+            {fresh.slice(0, NEXT_UP_LIMIT).map(({ lead, score }) => (
+              <li key={lead.id}>
+                <Link
+                  href={`/leads/${lead.id}`}
+                  className={`group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 ${FOCUS_RING}`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-900 group-hover:text-indigo-700 dark:text-slate-100 dark:group-hover:text-indigo-300">
+                      {lead.provider.name}
+                    </span>
+                    <span className="block truncate text-xs text-slate-600 dark:text-slate-400">
+                      {lead.provider.category} · {lead.provider.city}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <PriorityBadge score={score} />
+                    <span aria-hidden="true" className="text-slate-400">
+                      &rarr;
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {fresh.length > NEXT_UP_LIMIT ? (
+          <p className="mt-3 text-sm">
+            <Link href="/leads" className={LINK}>
+              All {fresh.length} new leads &rarr;
+            </Link>
+          </p>
+        ) : null}
+      </Card>
+
+      <Card as="section" className="p-5">
+        <div className="flex items-baseline justify-between gap-2">
+          <SectionHeading title={`Your leads (${leads.length})`} />
+          <Link href="/leads" className={`text-sm ${LINK}`}>
+            Open &rarr;
+          </Link>
+        </div>
+        <div className="mt-4">
+          <LeadCounts leads={leads} />
+        </div>
+        <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <h3 className="text-xs font-medium text-slate-600 dark:text-slate-400">Priority</h3>
+          <div className="mt-2">
+            <PriorityDistribution leads={leads} />
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/** The catalog's entry point: a search box, the trades, and one line of numbers. */
 async function CatalogOverview() {
   let page;
   try {
@@ -102,24 +191,17 @@ async function CatalogOverview() {
     releases.latest !== null && releases.baseline !== null && releases.latest !== releases.baseline;
 
   return (
-    <Card as="section" className="p-5 sm:p-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <SectionHeading
-          title="Find businesses"
-          hint="Every hair and beauty business on the island of Montreal, kept up to date from Overture Maps. Adding one to your leads is always your choice."
-        />
-        {page.lastRefresh ? (
-          <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
-            Updated <Timestamp iso={page.lastRefresh.finishedAt ?? page.lastRefresh.startedAt} />
-          </p>
-        ) : null}
-      </div>
+    <Card as="section" className="p-5">
+      <SectionHeading
+        title="Find businesses"
+        hint="Every hair and beauty business on the island, from Overture Maps. Adding one to your leads is always your choice."
+      />
 
       {summary.total === 0 ? (
         <div className="mt-4">
           <EmptyState
             title="The business database is empty"
-            description="Run the catalog extract and load (see the README). After that it refreshes itself every month."
+            description="Run the catalog extract and load (see the README). After that it keeps itself up to date."
           />
         </div>
       ) : (
@@ -149,7 +231,7 @@ async function CatalogOverview() {
               <li key={key}>
                 <Link
                   href={catalogHref(DEFAULT_QUERY, { trade: key })}
-                  className={`inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 ${FOCUS_RING}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-3 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 ${FOCUS_RING}`}
                 >
                   {TRADE_PLURALS[key]}
                   <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
@@ -160,30 +242,23 @@ async function CatalogOverview() {
             ))}
           </ul>
 
-          <dl className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="On the island" value={n(summary.current)} />
-            <StatTile
-              label="No website listed"
-              value={n(summary.noWebsite)}
-              tone="amber"
-              hint="Or only a social page"
-            />
-            <StatTile
-              label="New this month"
-              value={hasHistory ? n(summary.newInLatest) : "—"}
-              hint={hasHistory ? undefined : "After the next update"}
-            />
-            <StatTile label="In your leads" value={n(summary.inLeads)} tone="emerald" />
-          </dl>
-
-          <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-slate-600 dark:text-slate-400">
+            <span>{n(summary.current)} businesses on the island ·</span>
             <Link href={catalogHref(DEFAULT_QUERY, { noWebsite: true, leads: "hide" })} className={LINK}>
-              Businesses with no website listed, not yet in your leads →
+              {n(summary.noWebsite)} with no website listed
             </Link>
             {hasHistory && summary.newInLatest > 0 ? (
-              <Link href={catalogHref(DEFAULT_QUERY, { fresh: true })} className={LINK}>
-                {n(summary.newInLatest)} new this month →
-              </Link>
+              <>
+                <span>·</span>
+                <Link href={catalogHref(DEFAULT_QUERY, { fresh: true })} className={LINK}>
+                  {n(summary.newInLatest)} new this month
+                </Link>
+              </>
+            ) : null}
+            {page.lastRefresh ? (
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                · updated <Timestamp iso={page.lastRefresh.finishedAt ?? page.lastRefresh.startedAt} />
+              </span>
             ) : null}
           </p>
         </>
@@ -192,65 +267,13 @@ async function CatalogOverview() {
   );
 }
 
-/** The leads half: only businesses the operator chose. */
-async function LeadsOverview() {
-  const { leads, loadFailed } = await loadLeads("dashboard");
-
-  if (loadFailed) {
-    return (
-      <ErrorPanel
-        title="Could not load stored leads."
-        detail="The lead store did not respond. Check the server logs for details."
-      />
-    );
-  }
-
-  if (leads.length === 0) {
-    return (
-      <EmptyState
-        title="No leads yet"
-        description="Find a business above and choose Add to leads. Nothing is contacted automatically — every lead is reviewed by you."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <LeadSummary leads={leads} />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
-          <SectionHeading
-            title="Priority distribution"
-            hint="Derived from the current provider snapshots. Never stored."
-          />
-          <div className="mt-4">
-            <PriorityDistribution leads={leads} />
-          </div>
-        </Card>
-
-        <Card className="p-5">
-          <SectionHeading title="Leads by category" hint="Top categories among your leads." />
-          <div className="mt-4">
-            <CategoryBreakdown leads={leads} />
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
 function CatalogOverviewSkeleton() {
   return (
     <LoadingRegion label="Loading the business database…">
-      <Card className="space-y-4 p-6">
+      <Card className="space-y-4 p-5">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-10" />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, tile) => (
-            <Skeleton key={tile} className="h-[5.5rem]" />
-          ))}
-        </div>
+        <Skeleton className="h-4 w-72" />
       </Card>
     </LoadingRegion>
   );
@@ -258,12 +281,11 @@ function CatalogOverviewSkeleton() {
 
 function LeadsOverviewSkeleton() {
   return (
-    <LoadingRegion label="Loading lead totals…">
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }, (_, tile) => (
-          <Skeleton key={tile} className="h-[5.5rem]" />
-        ))}
-      </dl>
+    <LoadingRegion label="Loading your leads…">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Skeleton className="h-64 lg:col-span-2" />
+        <Skeleton className="h-64" />
+      </div>
     </LoadingRegion>
   );
 }

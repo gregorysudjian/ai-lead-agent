@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 
 import { DIRECTIONS } from "@/lib/demo-design/directions";
 import { DEMO_THEME_LABELS, type DemoSite } from "@/lib/demo-site";
+import { formatTimestamp } from "@/lib/format";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, LINK, SectionHeading } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
@@ -98,7 +99,7 @@ export function DemoPanel({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <SectionHeading
           title="Demo website"
-          hint="A proposed site built from the analysis. Internal preview only — nothing is published or sent."
+          hint="A proposed site built from the strategy. A private preview until you share it."
         />
         <div className="flex shrink-0 items-center gap-2">
           <Badge
@@ -129,7 +130,7 @@ export function DemoPanel({
             title={
               latestAnalysis === null
                 ? "Run an analysis before generating a demo site"
-                : undefined
+                : `Built from the strategy of ${formatTimestamp(latestAnalysis.createdAt)}, using ${generator.name} (${generator.model})`
             }
             className={BUTTON_PRIMARY}
           >
@@ -157,17 +158,10 @@ export function DemoPanel({
       </div>
 
       {latestAnalysis === null ? (
-        <p className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">
-          Analysis required first. A demo site is built from an analysis, so run one in the
-          panel above before generating.
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+          Write the strategy above first: the demo is built from it.
         </p>
-      ) : (
-        <p className="mt-4 text-xs text-slate-600 dark:text-slate-400">
-          A new demo would be built from the analysis of{" "}
-          <Timestamp iso={latestAnalysis.createdAt} />, using {generator.name} (
-          {generator.model}).
-        </p>
-      )}
+      ) : null}
 
       {latestDemo ? (
         <div className="mt-5 rounded-lg border border-slate-200 p-4 dark:border-slate-800">

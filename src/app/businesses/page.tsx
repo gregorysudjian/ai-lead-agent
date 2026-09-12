@@ -9,7 +9,6 @@ import {
   EmptyState,
   ErrorPanel,
   PageHeader,
-  StatTile,
 } from "@/components/ui/primitives";
 import { Timestamp } from "@/components/ui/timestamp";
 import { municipalityLabels } from "@/lib/catalog/area";
@@ -114,23 +113,8 @@ export default async function BusinessesPage({
         />
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="On the island" value={n(summary.current)} hint="Hair & beauty" />
-            <StatTile
-              label="No website listed"
-              value={n(summary.noWebsite)}
-              tone="amber"
-              hint="Or only a social page"
-            />
-            <StatTile
-              label="New this month"
-              value={hasHistory ? n(summary.newInLatest) : "—"}
-              tone="neutral"
-              hint={hasHistory ? `Since ${releases.baseline}` : "Shown after the next update"}
-            />
-            <StatTile label="In your leads" value={n(summary.inLeads)} tone="emerald" />
-          </dl>
-
+          {/* No stat tiles: every number they showed is one filter away
+              below, with the count on the filter itself. */}
           <CatalogToolbar
             query={query}
             tradeCounts={result.tradeCounts}
@@ -171,7 +155,7 @@ export default async function BusinessesPage({
                 }
               />
             ) : (
-              <ul className="grid gap-4 md:grid-cols-2">
+              <ul className="grid gap-3 md:grid-cols-2">
                 {result.results.map((item) => (
                   <BusinessCard key={item.business.id} item={item} />
                 ))}

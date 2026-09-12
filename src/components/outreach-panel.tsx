@@ -12,6 +12,7 @@ import {
   type OutreachRecord,
   type OutreachStatus,
 } from "@/lib/outreach";
+import { formatPhone } from "@/lib/phone";
 
 import {
   Badge,
@@ -118,7 +119,7 @@ export function OutreachPanel({
     <Card as="section" className="p-5">
       <SectionHeading
         title="Outreach"
-        hint="Everything up to the point of contact. Nothing is sent by this app — you send it, then record what happened."
+        hint="This app never sends anything: you reach out yourself, then record what happened here."
       />
 
       <ContactSheetView sheet={sheet} />
@@ -194,12 +195,8 @@ function ContactSheetView({ sheet }: { sheet: ContactSheet }) {
         </p>
       ) : null}
 
-      {sheet.noWebsiteFound ? (
-        // Precisely worded. We looked and did not find one; that is all we know.
-        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-          Research found no website for this business. That is not proof they have none.
-        </p>
-      ) : null}
+      {/* "No website found" is said once, in the research panel above, in
+          the researcher's own words -- not again here. */}
     </div>
   );
 }
@@ -222,7 +219,9 @@ function ContactPointRow({ point }: { point: ContactPoint }) {
           {point.value}
         </a>
       ) : (
-        <span className="font-medium">{point.value}</span>
+        <span className="font-medium">
+          {point.channel === "phone" ? formatPhone(point.value) : point.value}
+        </span>
       )}
       <span className="text-xs text-slate-600 dark:text-slate-400">
         {point.origin === "website" ? "from their own site" : "from the discovery record"} ·{" "}

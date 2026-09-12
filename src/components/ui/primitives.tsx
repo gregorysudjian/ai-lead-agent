@@ -71,38 +71,6 @@ export function SectionHeading({
   );
 }
 
-/** Small stat tile for derived, non-persisted counts. */
-export function StatTile({
-  label,
-  value,
-  hint,
-  tone = "neutral",
-}: {
-  label: string;
-  value: number | string;
-  hint?: string;
-  tone?: "neutral" | "amber" | "rose" | "emerald";
-}) {
-  const accent = {
-    neutral: "text-slate-900 dark:text-slate-50",
-    amber: "text-amber-700 dark:text-amber-300",
-    rose: "text-rose-700 dark:text-rose-300",
-    emerald: "text-emerald-700 dark:text-emerald-300",
-  }[tone];
-
-  return (
-    <Card className="p-4">
-      <dt className="truncate text-xs font-medium text-slate-600 dark:text-slate-400">
-        {label}
-      </dt>
-      <dd className={`mt-1 text-2xl font-semibold tabular-nums ${accent}`}>{value}</dd>
-      {hint ? (
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p>
-      ) : null}
-    </Card>
-  );
-}
-
 export type BadgeTone = "slate" | "blue" | "emerald" | "amber" | "rose" | "indigo";
 
 const BADGE_TONES: Record<BadgeTone, string> = {
@@ -226,3 +194,44 @@ export const BUTTON_SECONDARY = `inline-flex items-center justify-center gap-2 r
 export const INPUT = `w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 ${FOCUS_RING}`;
 
 export const LINK = `text-indigo-700 underline underline-offset-2 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 ${FOCUS_RING}`;
+
+/**
+ * "Show more": secondary detail folded under one line, expanded in place.
+ *
+ * A native <details>, so it works without JavaScript, is keyboard and
+ * screen-reader accessible, and -- important here -- its content is still in
+ * the page. Folding is for calm, never for hiding: every honesty statement a
+ * panel makes stays in the markup, one click away.
+ */
+export function Disclosure({
+  summary,
+  children,
+  className = "",
+  defaultOpen = false,
+}: {
+  summary: ReactNode;
+  children: ReactNode;
+  className?: string;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details className={`group ${className}`} open={defaultOpen}>
+      <summary
+        className={`inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-sm font-medium text-indigo-700 select-none hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 [&::-webkit-details-marker]:hidden ${FOCUS_RING}`}
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 16 16"
+          className="h-3.5 w-3.5 transition-transform group-open:rotate-90"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m6 3.5 4.5 4.5L6 12.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {summary}
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
