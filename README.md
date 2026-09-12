@@ -8,6 +8,11 @@ demo sites.
 A human reviews and approves everything. **There is no send implementation and
 there never will be one** -- see [Hard rules](#hard-rules).
 
+**Live:** [ai-lead-agent-lac.vercel.app](https://ai-lead-agent-lac.vercel.app)
+(Next.js on Vercel, Supabase behind it). The dashboard sits behind a
+single-operator password because it holds real business records; every push
+to `main` deploys automatically.
+
 ---
 
 ## What it does
