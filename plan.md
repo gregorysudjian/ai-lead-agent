@@ -257,3 +257,32 @@ page is unreachable.
   it `.github/workflows/catalog-refresh.yml`, paste that file's contents
   (without the first 4 comment lines), *Commit*. Or tell me in the morning and
   I'll do it with you.
+
+### Part 2 — the live site is hardened · done, one migration for you
+
+- **A sign-in limit that holds on Vercel.** Failed attempts are counted in a
+  new Supabase table, `auth_attempts`: 8 failures from one visitor, or 40
+  from everyone, within 15 minutes pauses sign-in. It stores a keyed hash of
+  the visitor's address (never the address, never a password), clears a
+  visitor's count when they sign in, and prunes itself daily. The address is
+  read from Vercel's own `x-real-ip` header.
+  - **Until you run the migration**, and whenever Supabase is unreachable, it
+    falls back to the old in-memory limit, so it never locks you out. Tested
+    live tonight: a wrong password says "Incorrect password", and the right
+    one signs in.
+  - Migration: `supabase/migrations/20260913000000_create_auth_attempts.sql`
+    (RLS on, no policies, the server may only insert, read and delete).
+- **`PGRST303` explained and fixed.** The full error is *"JWT issued at
+  future"*. Supabase's gateway turns the secret key into a short-lived token
+  for each request, and its clock sometimes runs slightly ahead of the
+  database API's, which then refuses the token. Not our bug and not your key.
+  That exact response is now retried once after a second, in the one place
+  every Supabase request passes through (`src/server/supabase/clock-skew.ts`,
+  5 tests); every other error still fails immediately.
+- **Browser protections, checked on the live site:** no framing by other sites
+  (your design grid still works), no MIME guessing, a strict referrer policy
+  (none at all from share links, whose URL is the key), camera, microphone,
+  location, payment and USB refused, HTTPS enforced, and `noindex` on every
+  page including the login.
+- The live Businesses page now shows **2,821** businesses: the 18 junk entries
+  are hidden.
