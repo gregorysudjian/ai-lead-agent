@@ -153,14 +153,17 @@ export function resetRateLimits(): void {
 /**
  * Identify the caller of an unauthenticated request.
  *
- * Only used for the sign-in limit. `x-forwarded-for` is client-settable in
- * general; behind Vercel's proxy the left-most entry is the real client, and
- * an operator running this locally has no proxy at all. A spoofed value can
- * therefore dodge this limit -- which is why the value of the sign-in rule is
- * "slows down a script", not "stops an attacker". The password itself is the
- * control that matters.
+ * Only used for the sign-in limit. On Vercel, `x-real-ip` is set by Vercel's
+ * own edge from the connection, so it is preferred; `x-forwarded-for` is the
+ * fallback (its left-most entry is the client behind a proxy), and an operator
+ * running this locally has neither. Where a client can set these headers it
+ * can dodge a per-visitor count -- which is why the shared limit also caps
+ * failures site-wide, and why the password itself is the control that
+ * matters.
  */
 export function clientIdentity(request: { headers: Headers }): string {
+  const real = request.headers.get("x-real-ip")?.trim();
+  if (real) return real;
   const forwarded = request.headers.get("x-forwarded-for");
   const first = forwarded?.split(",")[0]?.trim();
   return first && first.length > 0 ? first : "unknown";

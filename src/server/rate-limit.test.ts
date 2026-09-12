@@ -175,3 +175,11 @@ describe("clientIdentity", () => {
     expect(a).toBe(b);
   });
 });
+
+describe("clientIdentity on Vercel", () => {
+  it("prefers the address Vercel's edge sets, then the forwarded chain", () => {
+    expect(clientIdentity({ headers: new Headers({ "x-real-ip": "203.0.113.9", "x-forwarded-for": "198.51.100.1" }) })).toBe("203.0.113.9");
+    expect(clientIdentity({ headers: new Headers({ "x-forwarded-for": "198.51.100.1, 10.0.0.1" }) })).toBe("198.51.100.1");
+    expect(clientIdentity({ headers: new Headers() })).toBe("unknown");
+  });
+});

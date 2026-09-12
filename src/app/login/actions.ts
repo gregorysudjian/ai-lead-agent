@@ -6,7 +6,16 @@ import { z } from "zod";
 
 import { safeInternalPath } from "@/lib/safe-redirect";
 import { createSession, destroySession, passwordMatches } from "@/server/auth";
+import {
+  checkSharedSignInLimit,
+  hashVisitor,
+  recordSignInOutcome,
+  supabaseAttemptStore,
+  type AttemptStore,
+} from "@/server/auth/sign-in-attempts";
+import { leadRepositoryName, sessionSecret } from "@/server/env";
 import { checkRateLimit, clientIdentity } from "@/server/rate-limit";
+import { getSupabaseClient } from "@/server/supabase/client";
 
 /**
  * Sign in and sign out.
@@ -15,6 +24,16 @@ import { checkRateLimit, clientIdentity } from "@/server/rate-limit";
  * JavaScript and so the password never travels through a URL or a client-side
  * fetch we would have to write by hand.
  */
+
+/** The shared failure count lives in Supabase when the app uses Supabase. */
+function attemptStore(): AttemptStore | null {
+  try {
+    return leadRepositoryName() === "supabase" ? supabaseAttemptStore(getSupabaseClient()) : null;
+  } catch (error) {
+    console.error("[signIn] no shared attempt store:", error);
+    return null;
+  }
+}
 
 const signInSchema = z.object({
   password: z.string().min(1, "Enter your password.").max(200),
@@ -41,13 +60,31 @@ export async function signIn(
   // The only unauthenticated entry point in the app, so the only one where a
   // limit is guarding against guessing rather than protecting a third party.
   // See `clientIdentity` for why this slows a script rather than stopping one.
-  const attempt = checkRateLimit("signIn", clientIdentity({ headers: await headers() }));
+  const address = clientIdentity({ headers: await headers() });
+  const attempt = checkRateLimit("signIn", address);
   if (!attempt.allowed) {
     return {
       error: `Too many sign-in attempts. Try again in ${Math.ceil(
         attempt.retryAfterSeconds / 60,
       )} minute(s).`,
     };
+  }
+
+  // The same limit, counted where every server can see it. See
+  // `sign-in-attempts.ts`: a missing or failing store never locks anyone out.
+  let visitor: string | null = null;
+  let store: AttemptStore | null = null;
+  try {
+    visitor = hashVisitor(address, sessionSecret());
+    store = attemptStore();
+  } catch (error) {
+    console.error("[signIn] shared attempt limit not configured:", error);
+  }
+  if (visitor !== null) {
+    const shared = await checkSharedSignInLimit(store, visitor);
+    if (!shared.allowed) {
+      return { error: `Too many sign-in attempts. Try again in ${shared.retryAfterMinutes} minutes.` };
+    }
   }
 
   let ok: boolean;
@@ -59,6 +96,8 @@ export async function signIn(
     console.error("[signIn] authentication is not configured:", error);
     return { error: "Sign-in is not configured. Check the server logs." };
   }
+
+  if (visitor !== null) await recordSignInOutcome(store, visitor, ok);
 
   if (!ok) {
     // One message for a wrong password, deliberately saying nothing about
