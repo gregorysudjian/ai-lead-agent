@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import type { LeadStatus } from "@/lib/types";
 
 import { BUTTON_SECONDARY } from "./ui/primitives";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "./viewer";
 
 /**
  * Toggles a lead between "new" and "reviewed".
@@ -27,6 +28,7 @@ export function StatusToggle({
   status: LeadStatus;
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   // Keeps the button disabled while the refreshed payload is still arriving.
@@ -63,7 +65,9 @@ export function StatusToggle({
       <button
         type="button"
         onClick={handleClick}
-        disabled={busy}
+        disabled={busy || guest}
+
+        title={guest ? GUEST_DISABLED_TITLE : undefined}
         aria-label={`Mark ${status === "new" ? "reviewed" : "new"}`}
         className={BUTTON_SECONDARY}
       >

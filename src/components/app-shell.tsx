@@ -6,6 +6,7 @@ import { useRef, useState, type ReactNode } from "react";
 
 import { SignOutButton } from "./sign-out-button";
 import { FOCUS_RING } from "./ui/primitives";
+import { useIsGuest } from "./viewer";
 
 /**
  * Dashboard shell: persistent sidebar on desktop, collapsible nav on mobile.
@@ -106,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
+  const guest = useIsGuest();
 
   /**
    * Escape closes the mobile menu and puts focus back where it came from.
@@ -192,6 +194,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           without it the browser scrolls to the target and leaves focus at the
           top of the document, so the next Tab lands back in the nav. */}
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
+        {guest ? (
+          <div
+            role="status"
+            className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900 sm:px-6 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+          >
+            <span className="font-medium">Guest view.</span> You can look at everything; buttons that
+            change data are turned off.
+          </div>
+        ) : null}
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</div>
       </main>
     </div>

@@ -118,6 +118,7 @@ describe("RATE_LIMITS", () => {
       "demo",
       // Unauthenticated surfaces, where the limit guards us rather than them.
       "signIn",
+      "guestSignIn",
       "sharedDemo",
     ];
     expect(Object.keys(RATE_LIMITS).sort()).toEqual([...expected].sort());
@@ -127,6 +128,7 @@ describe("RATE_LIMITS", () => {
     // The two routes reachable without a session. A public route added without
     // a limit is the kind of omission this catches.
     expect(RATE_LIMITS.signIn).toBeDefined();
+    expect(RATE_LIMITS.guestSignIn).toBeDefined();
     expect(RATE_LIMITS.sharedDemo).toBeDefined();
   });
 

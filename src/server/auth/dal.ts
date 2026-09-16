@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { apiAccess } from "./access";
 import { readSession } from "./session";
 import type { SessionPayload } from "./token";
 
@@ -68,10 +69,25 @@ export type ApiGuard =
  */
 export async function requireApiSession(): Promise<ApiGuard> {
   const session = await readSession();
-  if (session) return { ok: true, session };
 
-  return {
-    ok: false,
-    response: Response.json({ error: "Authentication required." }, { status: 401 }),
-  };
+  switch (apiAccess(session)) {
+    case "allowed":
+      return { ok: true, session: session as SessionPayload };
+    case "read-only":
+      // A guest reads pages and changes nothing. Every write in the app is a
+      // route handler, so refusing a guest here refuses every write. See
+      // `access.ts`.
+      return {
+        ok: false,
+        response: Response.json(
+          { error: "This is a read-only guest view. Nothing can be changed." },
+          { status: 403 },
+        ),
+      };
+    case "unauthenticated":
+      return {
+        ok: false,
+        response: Response.json({ error: "Authentication required." }, { status: 401 }),
+      };
+  }
 }

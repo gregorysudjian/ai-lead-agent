@@ -7,6 +7,7 @@ import { RECOMMENDED_SITE_TYPE_LABELS, type Analysis } from "@/lib/analysis";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, Disclosure, SectionHeading } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "./viewer";
 
 /**
  * Display names for analysers. Unknown names fall through to the raw value
@@ -45,6 +46,7 @@ export function AnalysisPanel({
   configuredProvider: { name: string; model: string };
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [error, setError] = useState<string | null>(null);
   const [isAnalysing, setIsAnalysing] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
@@ -100,7 +102,7 @@ export function AnalysisPanel({
           >
             {analyserLabel(configuredProvider.name)}
           </Badge>
-          <button type="button" onClick={handleAnalyse} disabled={busy} className={BUTTON_PRIMARY}>
+          <button type="button" onClick={handleAnalyse} disabled={busy || guest} title={guest ? GUEST_DISABLED_TITLE : undefined} className={BUTTON_PRIMARY}>
             {busy ? "Analyzing…" : analyses.length > 0 ? "Re-analyze" : "Analyze business"}
           </button>
         </div>

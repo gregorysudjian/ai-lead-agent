@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { safeInternalPath } from "@/lib/safe-redirect";
-import { createSession, destroySession, passwordMatches } from "@/server/auth";
+import { createSession, destroySession, GUEST_SUBJECT, passwordMatches } from "@/server/auth";
 import {
   checkSharedSignInLimit,
   hashVisitor,
@@ -13,7 +13,7 @@ import {
   supabaseAttemptStore,
   type AttemptStore,
 } from "@/server/auth/sign-in-attempts";
-import { leadRepositoryName, sessionSecret } from "@/server/env";
+import { guestAccessEnabled, leadRepositoryName, sessionSecret } from "@/server/env";
 import { checkRateLimit, clientIdentity } from "@/server/rate-limit";
 import { getSupabaseClient } from "@/server/supabase/client";
 
@@ -111,6 +111,33 @@ export async function signIn(
   // `next` came from a query string an attacker can write. Reduced to an
   // internal path, or dropped entirely. See `safeInternalPath`.
   redirect(safeInternalPath(parsed.data.next, "/"));
+}
+
+/**
+ * Sign in as a read-only guest: no password, every page, no changes.
+ *
+ * What makes this safe is not this action but `requireApiSession()`, which
+ * refuses a guest on every route handler -- and every write in the app is a
+ * route handler. See `server/auth/access.ts`.
+ */
+export async function signInAsGuest(): Promise<SignInState> {
+  if (!guestAccessEnabled()) {
+    return { error: "Guest access is turned off." };
+  }
+
+  const address = clientIdentity({ headers: await headers() });
+  const attempt = checkRateLimit("guestSignIn", address);
+  if (!attempt.allowed) {
+    return { error: "Too many guest sign-ins from here. Try again in a few minutes." };
+  }
+
+  try {
+    await createSession(GUEST_SUBJECT);
+  } catch (error) {
+    console.error("[signInAsGuest] could not create a session:", error);
+    return { error: "Sign-in is not configured. Check the server logs." };
+  }
+  redirect("/");
 }
 
 export async function signOut(): Promise<void> {

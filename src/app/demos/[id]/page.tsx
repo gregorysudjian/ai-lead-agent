@@ -9,7 +9,7 @@ import { DIRECTIONS } from "@/lib/demo-design/directions";
 import { DEMO_THEME_LABELS } from "@/lib/demo-site";
 import { sampleSectionLabels } from "@/lib/demo-sample-policy";
 import { Timestamp } from "@/components/ui/timestamp";
-import { requireSession } from "@/server/auth";
+import { isGuest, requireSession } from "@/server/auth";
 import { sharesForDemo } from "@/server/share-service";
 import { getDemoSiteRepository } from "@/server/repo";
 
@@ -62,7 +62,10 @@ export default async function DemoPreviewPage({
   const { lang } = await searchParams;
 
   // Authorization boundary. See `requireSession` in server/auth/dal.ts.
-  await requireSession();
+  const session = await requireSession();
+  // A share link IS access to a business's demo, so a read-only guest never
+  // sees one: the links are not even read for them.
+  const guest = isGuest(session);
 
   let demo;
   try {
@@ -88,10 +91,12 @@ export default async function DemoPreviewPage({
   // preview down with it: the demo is still viewable, there is just no way to
   // hand it out until the store comes back.
   let shares: Awaited<ReturnType<typeof sharesForDemo>> = [];
-  try {
-    shares = await sharesForDemo(demo.id);
-  } catch (error) {
-    console.error(`[demo ${id}] could not read share links:`, error);
+  if (!guest) {
+    try {
+      shares = await sharesForDemo(demo.id);
+    } catch (error) {
+      console.error(`[demo ${id}] could not read share links:`, error);
+    }
   }
 
   return (
@@ -125,7 +130,7 @@ export default async function DemoPreviewPage({
             <Link href="/demos" className="font-medium text-slate-300 underline underline-offset-2 hover:text-white">
               All demos
             </Link>
-            <SharePanel demoId={demo.id} shares={shares} />
+            {guest ? null : <SharePanel demoId={demo.id} shares={shares} />}
           </div>
         </div>
 

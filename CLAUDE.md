@@ -286,6 +286,19 @@ hours, and place ID -> flag the ones with no website.
   it to `PUBLIC_PREFIXES` in `proxy.ts` AND to the allow-list in
   `auth-coverage.test.ts`, which is the visible diff that makes it reviewable.
 
+- **A read-only guest sees every page and changes nothing.** The operator
+  asked (2026-09-16) for recruiters to open the live app without the
+  password. "Continue as guest" on the login page issues a real signed
+  session whose subject is `guest` (a day long, rate-limited, switched off by
+  `GUEST_ACCESS=off`). The lock is one fact kept true: every write is a route
+  handler, and `requireApiSession()` answers a guest with 403 before any
+  handler runs (`server/auth/access.ts`). Pages read the repository directly,
+  so a guest loses no page by that. `auth-coverage.test.ts` fails a new
+  Server Action outside the login page, because an action would be a write
+  path around the API guard. Disabled buttons (`useIsGuest`) are courtesy,
+  not the lock. A demo's share links are never read for a guest, because a
+  link IS access to that demo.
+
 - **Two discovery datasets, kept apart and kept honest.** OpenStreetMap is
   queried live per search through Overpass, which is shared community
   infrastructure and must never be region-tiled or crawled. Overture Maps is

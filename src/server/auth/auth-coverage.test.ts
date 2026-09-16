@@ -155,3 +155,46 @@ describe("proxy and the session module agree", () => {
     }
   });
 });
+
+/**
+ * A read-only guest changes nothing -- and the proof rests on one fact: every
+ * write in the app is a route handler, and every route handler refuses a
+ * guest in `requireApiSession()`. These assertions are what keep that fact
+ * true. A new Server Action would be a write path that never passes the API
+ * guard, so one appearing anywhere but the login page fails here.
+ */
+describe("a guest session can change nothing", () => {
+  const SRC = path.join(process.cwd(), "src");
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return sourceFiles(full);
+      return /\.(ts|tsx)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  it("the API guard refuses a guest", () => {
+    const dal = readFileSync(path.join(SRC, "server", "auth", "dal.ts"), "utf8");
+    expect(dal).toContain("switch (apiAccess(session))");
+    expect(dal).toContain('case "read-only":');
+    expect(dal).toContain("status: 403");
+  });
+
+  it("the only Server Actions are sign-in, guest sign-in and sign-out", () => {
+    const actionFiles = sourceFiles(SRC)
+      .filter((file) => /^["']use server["']/m.test(readFileSync(file, "utf8")))
+      .map((file) => path.relative(SRC, file).split(path.sep).join("/"));
+    expect(actionFiles).toEqual(["app/login/actions.ts"]);
+
+    const actions = readFileSync(path.join(SRC, "app", "login", "actions.ts"), "utf8");
+    const exported = [...actions.matchAll(/export async function (\w+)/g)].map((match) => match[1]);
+    expect(exported.sort()).toEqual(["signIn", "signInAsGuest", "signOut"]);
+  });
+
+  it("a guest never sees a demo's share links, which grant access by themselves", () => {
+    const demoPage = read("demos/[id]/page.tsx");
+    expect(demoPage).toContain("if (!guest) {");
+    expect(demoPage).toContain("{guest ? null : <SharePanel");
+  });
+});

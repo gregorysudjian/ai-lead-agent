@@ -24,6 +24,7 @@ import { classifyWebsite } from "@/lib/format";
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, Disclosure, LINK, SectionHeading } from "./ui/primitives";
 import type { BadgeTone } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
+import { useIsGuest } from "./viewer";
 
 /**
  * The research workspace for one lead.
@@ -78,6 +79,7 @@ export function ResearchPanel({
   researcher: { name: string; version: string };
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [error, setError] = useState<string | null>(null);
   const [isResearching, setIsResearching] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
@@ -134,7 +136,7 @@ export function ResearchPanel({
           <button
             type="button"
             onClick={handleResearch}
-            disabled={busy}
+            disabled={busy || guest}
             title={
               researcher.name === "website"
                 ? "Fetches robots.txt and the homepage of the website listed on this lead"

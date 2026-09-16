@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { BUTTON_PRIMARY } from "../ui/primitives";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "../viewer";
 
 /**
  * Make one catalog business a lead.
@@ -23,6 +24,7 @@ export function AddToLeadsButton({
   businessName: string;
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, startTransition] = useTransition();
@@ -50,7 +52,7 @@ export function AddToLeadsButton({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <button type="button" onClick={add} disabled={busy} className={`${BUTTON_PRIMARY} px-3 py-1.5`}>
+      <button type="button" onClick={add} disabled={busy || guest} title={guest ? GUEST_DISABLED_TITLE : undefined} className={`${BUTTON_PRIMARY} px-3 py-1.5`}>
         {busy ? (
           "Adding…"
         ) : (

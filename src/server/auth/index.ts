@@ -17,3 +17,5 @@ export {
 export { optionalSession, requireApiSession, requireSession, type ApiGuard } from "./dal";
 
 export { SESSION_DURATION_MS, type SessionPayload } from "./token";
+
+export { GUEST_SUBJECT, isGuest } from "./access";

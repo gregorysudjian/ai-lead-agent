@@ -407,3 +407,15 @@ export function authPassword(): string {
   }
   return password;
 }
+
+/**
+ * Whether the login page offers "Continue as guest" -- a read-only session
+ * for visitors such as recruiters (see `server/auth/access.ts`).
+ *
+ * On unless GUEST_ACCESS is exactly "off". A guest can change nothing, so the
+ * switch exists to close the door quickly, not because leaving it open is
+ * unsafe.
+ */
+export function guestAccessEnabled(): boolean {
+  return process.env.GUEST_ACCESS?.trim().toLowerCase() !== "off";
+}

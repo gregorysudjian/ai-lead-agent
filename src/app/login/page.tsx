@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 
 import { safeInternalPath } from "@/lib/safe-redirect";
 
+import { guestAccessEnabled } from "@/server/env";
+
+import { GuestButton } from "./guest-button";
 import { LoginForm } from "./login-form";
 
 /**
@@ -44,10 +47,16 @@ export default async function LoginPage({
           Sign in
         </h1>
         <p className="mt-1 mb-6 text-sm text-slate-600 dark:text-slate-400">
-          This tool holds lead records and draft outreach. It is for the operator only.
+          The operator signs in with the password.
         </p>
 
         <LoginForm next={target} />
+
+        {guestAccessEnabled() ? (
+          <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+            <GuestButton />
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -85,6 +85,12 @@ export const RATE_LIMITS = {
    * protecting a third party.
    */
   signIn: { limit: 8, windowMs: 10 * MINUTE },
+
+  /**
+   * "Continue as guest". Needs no secret, so this is not guarding a guess --
+   * it only stops one address minting sessions in a loop.
+   */
+  guestSignIn: { limit: 20, windowMs: 10 * MINUTE },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;
