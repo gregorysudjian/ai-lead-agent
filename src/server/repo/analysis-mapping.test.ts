@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Analysis, AnalysisDraft } from "@/lib/analysis";
+import { BUSINESS_SOURCES } from "@/lib/types";
 
 import {
   analysisToRow,
@@ -159,5 +160,21 @@ describe("draft validation before persistence", () => {
     ["assumptions not an array", { ...draft, assumptions: null }],
   ])("rejects an invalid draft: %s", (_label, bad) => {
     expect(() => assertValidDraft(bad as AnalysisDraft)).toThrow(AnalysisRowMappingError);
+  });
+});
+
+describe("every business source can be analysed", () => {
+  // Every source a lead can carry must pass, or every lead from that source
+  // fails at the moment its analysis is saved -- which is what happened to
+  // the whole Overture catalog when this list was a hand-written copy.
+  it.each(BUSINESS_SOURCES)("accepts facts from %s", (source) => {
+    const draft: AnalysisDraft = {
+      provider: { name: "mock", model: "m1" },
+      facts: { ...facts, source },
+      recommendations,
+      assumptions: ["A"],
+      limitations: ["L"],
+    };
+    expect(assertValidDraft(draft).facts.source).toBe(source);
   });
 });
