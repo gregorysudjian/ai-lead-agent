@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { BUTTON_SECONDARY } from "../ui/primitives";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "../viewer";
 
 /**
  * "Update to new design" for a demo generated before design genomes existed.
@@ -15,6 +16,7 @@ import { BUTTON_SECONDARY } from "../ui/primitives";
  */
 export function UpgradeDemoButton({ leadId, analysisId }: { leadId: string; analysisId: string }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNavigating, startTransition] = useTransition();
@@ -46,7 +48,7 @@ export function UpgradeDemoButton({ leadId, analysisId }: { leadId: string; anal
 
   return (
     <>
-      <button type="button" onClick={upgrade} disabled={busy} className={BUTTON_SECONDARY}>
+      <button type="button" onClick={upgrade} disabled={busy || guest} title={guest ? GUEST_DISABLED_TITLE : undefined} className={BUTTON_SECONDARY}>
         {busy ? "Updating…" : "Update to new design"}
       </button>
       {error ? (

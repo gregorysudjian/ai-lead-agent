@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Card, INPUT, FOCUS_RING } from "./ui/primitives";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "./viewer";
 
 /**
  * "Generate a website": pick a business, get a demo.
@@ -36,6 +37,7 @@ export function GenerateDemoButton({
   generator: { name: string; model: string };
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -97,10 +99,14 @@ export function GenerateDemoButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={candidates.length === 0}
+        disabled={candidates.length === 0 || guest}
         className={BUTTON_PRIMARY}
         title={
-          candidates.length === 0 ? "Find some businesses first" : "Generate a website"
+          guest
+            ? GUEST_DISABLED_TITLE
+            : candidates.length === 0
+              ? "Find some businesses first"
+              : "Generate a website"
         }
       >
         Generate a website
@@ -177,7 +183,9 @@ export function GenerateDemoButton({
               <button
                 type="button"
                 onClick={() => generate(candidate.id)}
-                disabled={busy}
+                disabled={busy || guest}
+
+                title={guest ? GUEST_DISABLED_TITLE : undefined}
                 className={`${BUTTON_SECONDARY} shrink-0`}
               >
                 {pendingId === candidate.id

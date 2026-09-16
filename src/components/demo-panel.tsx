@@ -10,6 +10,7 @@ import { formatTimestamp } from "@/lib/format";
 
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Badge, Card, LINK, SectionHeading } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
+import { useIsGuest } from "./viewer";
 
 /**
  * The demo-site workspace for one lead.
@@ -50,6 +51,7 @@ export function DemoPanel({
   generator: { name: string; model: string };
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
@@ -116,7 +118,7 @@ export function DemoPanel({
             <button
               type="button"
               onClick={() => handleGenerate(nextVariant)}
-              disabled={busy || latestAnalysis === null}
+              disabled={busy || latestAnalysis === null || guest}
               title="A new demo with the same words and a different design. The current one is kept."
               className={BUTTON_SECONDARY}
             >
@@ -126,7 +128,7 @@ export function DemoPanel({
           <button
             type="button"
             onClick={() => handleGenerate(currentVariant)}
-            disabled={busy || latestAnalysis === null}
+            disabled={busy || latestAnalysis === null || guest}
             title={
               latestAnalysis === null
                 ? "Run an analysis before generating a demo site"

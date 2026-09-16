@@ -5,7 +5,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { authPassword, sessionSecret } from "@/server/env";
 
+import { GUEST_SUBJECT } from "./access";
 import {
+  GUEST_SESSION_DURATION_MS,
   newSessionPayload,
   signSessionToken,
   verifySessionToken,
@@ -45,9 +47,15 @@ export function passwordMatches(candidate: string): boolean {
   return timingSafeEqual(expected, supplied);
 }
 
-/** Issue a session cookie for the operator. */
-export async function createSession(): Promise<void> {
-  const payload = newSessionPayload(OPERATOR_SUBJECT);
+/**
+ * Issue a session cookie: the operator's by default, or a read-only guest's.
+ * See `access.ts` for what a guest may do.
+ */
+export async function createSession(subject: string = OPERATOR_SUBJECT): Promise<void> {
+  const payload =
+    subject === GUEST_SUBJECT
+      ? newSessionPayload(subject, Date.now(), GUEST_SESSION_DURATION_MS)
+      : newSessionPayload(subject);
   const token = signSessionToken(payload, sessionSecret());
   const store = await cookies();
 

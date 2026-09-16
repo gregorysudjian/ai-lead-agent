@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { BUTTON_SECONDARY } from "./ui/primitives";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "./viewer";
 
 /**
  * Puts a removed lead back on the list.
@@ -13,6 +14,7 @@ import { BUTTON_SECONDARY } from "./ui/primitives";
  */
 export function RestoreLeadButton({ leadId }: { leadId: string }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
@@ -37,7 +39,7 @@ export function RestoreLeadButton({ leadId }: { leadId: string }) {
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <button type="button" onClick={handleClick} disabled={busy} className={BUTTON_SECONDARY}>
+      <button type="button" onClick={handleClick} disabled={busy || guest} title={guest ? GUEST_DISABLED_TITLE : undefined} className={BUTTON_SECONDARY}>
         {busy ? "Saving…" : "Put back on my list"}
       </button>
       {error ? (

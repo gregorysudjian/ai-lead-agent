@@ -28,6 +28,9 @@ export const MIN_SESSION_SECRET_LENGTH = 32;
 /** How long a freshly issued session lasts. */
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** A guest session is shorter: a visit, not a working week. */
+export const GUEST_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+
 export interface SessionPayload {
   /**
    * Format version. Bumping it invalidates every outstanding session, which
@@ -126,6 +129,10 @@ export function verifySessionToken(
 }
 
 /** Payload for a session starting now. */
-export function newSessionPayload(subject: string, now: number = Date.now()): SessionPayload {
-  return { v: CURRENT_VERSION, sub: subject, iat: now, exp: now + SESSION_DURATION_MS };
+export function newSessionPayload(
+  subject: string,
+  now: number = Date.now(),
+  durationMs: number = SESSION_DURATION_MS,
+): SessionPayload {
+  return { v: CURRENT_VERSION, sub: subject, iat: now, exp: now + durationMs };
 }

@@ -24,6 +24,7 @@ import {
   type BadgeTone,
 } from "./ui/primitives";
 import { Timestamp } from "./ui/timestamp";
+import { GUEST_DISABLED_TITLE, useIsGuest } from "./viewer";
 
 /**
  * Contact sheet and outreach drafts.
@@ -62,6 +63,7 @@ export function OutreachPanel({
   records: OutreachRecord[];
 }) {
   const router = useRouter();
+  const guest = useIsGuest();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -137,7 +139,9 @@ export function OutreachPanel({
                 key={channel}
                 type="button"
                 onClick={() => draft(channel)}
-                disabled={busy}
+                disabled={busy || guest}
+
+                title={guest ? GUEST_DISABLED_TITLE : undefined}
                 className={BUTTON_PRIMARY}
               >
                 {OUTREACH_CHANNEL_LABELS[channel]}
@@ -240,6 +244,7 @@ function RecordView({
   busy: boolean;
   onStatus: (status: OutreachStatus) => void;
 }) {
+  const guest = useIsGuest();
   return (
     <li className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex flex-wrap items-center gap-2">
@@ -290,7 +295,9 @@ function RecordView({
               key={status}
               type="button"
               onClick={() => onStatus(status)}
-              disabled={busy}
+              disabled={busy || guest}
+
+              title={guest ? GUEST_DISABLED_TITLE : undefined}
               className={BUTTON_SECONDARY}
             >
               {status === "sent" ? "I sent this" : `Mark ${status}`}
