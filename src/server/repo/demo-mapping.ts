@@ -35,7 +35,7 @@ import type {
 import { validateDemoDesign } from "@/lib/demo-design/genome";
 import type { DemoDesign } from "@/lib/demo-design/types";
 import { contentStructure, DEMO_LAYOUT_LABELS, DEMO_THEME_LABELS } from "@/lib/demo-site";
-import type { BusinessSource } from "@/lib/types";
+import { BUSINESS_SOURCES, type BusinessSource } from "@/lib/types";
 
 /** The `demo_sites` table shape. Database implementation detail. */
 export interface DemoSiteRow {
@@ -121,7 +121,10 @@ function nonEmptyList<T>(
   return items;
 }
 
-const SOURCES: readonly string[] = ["mock", "osm", "google"];
+// The one list of sources, never a copy: a hand-written "mock, osm, google"
+// here once made every business added from the Overture catalog fail at the
+// moment its analysis or demo was saved.
+const SOURCES: readonly string[] = BUSINESS_SOURCES;
 const CTA_ACTIONS: readonly string[] = ["call", "directions", "scroll"];
 
 /**

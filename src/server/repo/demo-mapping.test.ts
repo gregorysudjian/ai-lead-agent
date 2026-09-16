@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { designFor } from "@/lib/demo-design/genome";
 import type { DemoSite, DemoSiteSpec } from "@/lib/demo-site";
+import { BUSINESS_SOURCES } from "@/lib/types";
 
 import {
   assertValidDemoDraft,
@@ -430,5 +431,15 @@ describe("design and languages", () => {
     for (const bad of [fewer, confirmed]) {
       expect(() => rowToDemoSite({ ...row, spec: { ...stored, alternates: { fr: bad } } })).toThrow(/same structure/);
     }
+  });
+});
+
+describe("every business source can have a demo", () => {
+  // As for analyses: a hand-written copy of the source list once refused
+  // every demo for a business from the Overture catalog.
+  it.each(BUSINESS_SOURCES)("round-trips a demo for a business from %s", (source) => {
+    const original = demo();
+    original.spec = { ...original.spec, business: { ...original.spec.business, source } };
+    expect(rowToDemoSite(demoSiteToRow(original)).spec.business.source).toBe(source);
   });
 });

@@ -18,7 +18,7 @@ import type {
   RecommendedSiteType,
 } from "@/lib/analysis";
 import { RECOMMENDED_SITE_TYPE_LABELS } from "@/lib/analysis";
-import type { BusinessSource } from "@/lib/types";
+import { BUSINESS_SOURCES, type BusinessSource } from "@/lib/types";
 
 /** The `lead_analyses` table shape. Database implementation detail. */
 export interface AnalysisRow {
@@ -73,7 +73,10 @@ function stringList(value: unknown, field: string): string[] {
   });
 }
 
-const SOURCES: readonly string[] = ["mock", "osm", "google"];
+// The one list of sources, never a copy: a hand-written "mock, osm, google"
+// here once made every business added from the Overture catalog fail at the
+// moment its analysis or demo was saved.
+const SOURCES: readonly string[] = BUSINESS_SOURCES;
 
 function toFacts(value: unknown): AnalysisFacts {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
