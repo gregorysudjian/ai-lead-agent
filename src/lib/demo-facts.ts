@@ -9,6 +9,7 @@ import type { AnalysisRecommendations } from "./analysis";
 import type { BusinessProfile, ProfileField } from "./business-profile";
 import { resolveField } from "./business-profile";
 import type { DemoSiteBusiness, DemoSiteGeneratorInput } from "./demo-site";
+import { demoTradeFor } from "./demo-trade";
 import { formatOpeningHoursLines } from "./format";
 import { isUsableText } from "./scoring";
 import type { Lead } from "./types";
@@ -94,7 +95,9 @@ export function deriveDemoSiteBusiness(
 
   return {
     name: p.name,
-    category: p.category,
+    // The trade the page is WRITTEN FOR: the provider's category, unless the
+    // business's own name states a more specific one. See `demo-trade.ts`.
+    category: demoTradeFor(p.name, p.category),
     city: p.city,
     // Profile first, lead as the fallback. Both are facts a source gave us.
     phone: fromProfile(profile, "contact.phone") ?? listed(p.phone),

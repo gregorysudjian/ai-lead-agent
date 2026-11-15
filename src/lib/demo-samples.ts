@@ -257,6 +257,23 @@ function pickOne(pool: Pool, seed: string, field: string): string {
 }
 
 /**
+ * Like `pickOne`, but never a line the page already uses as a heading.
+ *
+ * Several trades list "In the salon" under both services and gallery, and a
+ * page headed "In the salon" twice reads as a template. The collision is
+ * decided on the ENGLISH pools and resolved by moving to the next INDEX, so
+ * both languages move together and still say the same thing.
+ */
+function pickDistinctIndex(englishPool: Pool, seed: string, field: string, taken: readonly string[]): number {
+  const start = stableHash(`${seed}|${field}`) % englishPool.length;
+  for (let step = 0; step < englishPool.length; step += 1) {
+    const index = (start + step) % englishPool.length;
+    if (!taken.includes(englishPool[index])) return index;
+  }
+  return start;
+}
+
+/**
  * `count` entries of a list, chosen by the seed, kept in the list's order --
  * so "Cuts" still comes before "Colour" whichever four a salon shows.
  */
@@ -286,7 +303,14 @@ export function samplesFor(
   serviceCount = 4,
 ): CategorySamples {
   const pools = poolsFor(category, locale);
+  const english = poolsFor(category, "en");
   const key = categoryKey(category);
+  const servicesAt = stableHash(`${seed}|servicesHeading`) % english.servicesHeading.length;
+  const aboutAt = pickDistinctIndex(english.aboutHeading, seed, "aboutHeading", [english.servicesHeading[servicesAt]]);
+  const galleryAt = pickDistinctIndex(english.galleryHeading, seed, "galleryHeading", [
+    english.servicesHeading[servicesAt],
+    english.aboutHeading[aboutAt],
+  ]);
   return {
     eyebrow: pickOne(pools.eyebrow, seed, "eyebrow"),
     headline: pickOne(pools.headline, seed, "headline"),
@@ -294,10 +318,10 @@ export function samplesFor(
     servicesHeading: pickOne(pools.servicesHeading, seed, "servicesHeading"),
     servicesIntro: pickOne(pools.servicesIntro, seed, "servicesIntro"),
     services: pickSome(pools.services, serviceCount, seed, "services").map((s) => ({ ...s })),
-    aboutHeading: pickOne(pools.aboutHeading, seed, "aboutHeading"),
+    aboutHeading: pools.aboutHeading[aboutAt],
     aboutBody: pickOne(pools.aboutBody, seed, "aboutBody"),
     aboutPoints: pickSome(pools.aboutPoints, 3, seed, "aboutPoints"),
-    galleryHeading: pickOne(pools.galleryHeading, seed, "galleryHeading"),
+    galleryHeading: pools.galleryHeading[galleryAt],
     galleryBody: pickOne(pools.galleryBody, seed, "galleryBody"),
     galleryLabels: [...pools.galleryLabels],
     hours: [...(key === null ? GENERIC_HOURS : HOURS[key])],

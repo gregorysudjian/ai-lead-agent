@@ -148,7 +148,7 @@ export default async function DemoPreviewPage({
           {sampleSections.length > 0 ? (
             <p className="mt-1.5 text-[11px] leading-relaxed text-amber-300/90">
               <span className="font-semibold">Sample content:</span>{" "}
-              {sampleSections.join(", ")}. These sections show what the finished page
+              {sampleSections.join(" · ")} — these sections show what the finished page
               would say, written from what is typical for a {business.category.toLowerCase()}{" "}
               rather than from anything we know about this business. Confirm every line
               with the owner before using it.

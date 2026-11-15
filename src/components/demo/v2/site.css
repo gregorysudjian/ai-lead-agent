@@ -217,6 +217,11 @@
   backdrop-filter: blur(6px);
 }
 .dx-photo-label[data-end] { left: auto; right: 1rem; }
+/* The stack hero lays the name card over the frame's bottom-right corner on
+   wide screens, so the caption sits clear above it there. */
+@media (min-width: 1024px) {
+  .dx-photo-label[data-end] { bottom: 9.5rem; }
+}
 .dx[data-direction="deco"] .dx-photo { border-radius: 999px 999px var(--dx-r) var(--dx-r); }
 .dx[data-direction="retro-poster"] .dx-photo {
   box-shadow: 0 0 0 6px var(--dx-surface), 0 0 0 7px var(--dx-line);
@@ -280,6 +285,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Room for an accent on a capital: with a line-height of 1 the clipped box
+     cut the acute off "DORÉ". Padding sits inside the clip. */
+  padding-block: 0.3em;
 }
 /* A long name gets two smaller lines rather than an ellipsis: a logo that
    cuts the business's own name off mid-word looks broken. */

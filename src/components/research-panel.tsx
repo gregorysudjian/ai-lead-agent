@@ -399,7 +399,9 @@ function sourceFor(profile: BusinessProfile, sourceId: string) {
 }
 
 function ObservationValue({ observation, isUrl }: { observation: Observation; isUrl: boolean }) {
-  const text = String(observation.value);
+  // A boolean is an answer to the field's own question ("Website responded"),
+  // so it reads as Yes/No rather than as a programmer's true/false.
+  const text = typeof observation.value === "boolean" ? (observation.value ? "Yes" : "No") : String(observation.value);
 
   if (isUrl) {
     // Same allowlist the lead page applies: only an absolute http(s) URL is

@@ -1,3 +1,4 @@
+import { addressNamesCity } from "@/lib/demo-city";
 import type { DemoDesign } from "@/lib/demo-design/types";
 import type { DemoSiteBusiness, DemoSiteContent } from "@/lib/demo-site";
 import { formatPhone, phoneHref } from "@/lib/phone";
@@ -224,7 +225,7 @@ export function Footer(props: ChromeProps) {
             </li>
           ) : null}
           {business.address ? <li>{business.address}</li> : null}
-          <li>{business.city}</li>
+          {addressNamesCity(business.address, business.city) ? null : <li>{business.city}</li>}
         </ul>
       </div>
     </div>
@@ -246,7 +247,7 @@ export function Footer(props: ChromeProps) {
           {columns}
           {baseline}
         </div>
-        <p aria-hidden="true" className="dx-display dx-reveal mt-10 w-full overflow-hidden px-2 text-center leading-[0.8] whitespace-nowrap" style={{ fontSize: `clamp(3rem, ${Math.max(6, Math.min(22, 150 / Math.max(brand.length, 1)))}vw, 18rem)`, color: "var(--dx-invert-accent)" }}>
+        <p aria-hidden="true" className="dx-display dx-reveal mt-6 w-full overflow-hidden px-2 pt-[0.22em] text-center leading-[0.8] whitespace-nowrap" style={{ fontSize: `clamp(3rem, ${Math.max(6, Math.min(22, 150 / Math.max(brand.length, 1)))}vw, 18rem)`, color: "var(--dx-invert-accent)" }}>
           {brand}
         </p>
       </footer>

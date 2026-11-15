@@ -196,3 +196,47 @@ describe("French typography survives rendering", () => {
     expect(html).toContain("changement\u00a0?");
   });
 });
+
+describe("facts are written for the page's language", () => {
+  const design = designFor({ name: "Crisp", category: "Barber shop", address: "1188 Rue Ontario Est, Montréal" }, 0);
+  const b = business("Crisp", "Barber shop", {
+    city: "Montreal",
+    address: "1188 Rue Ontario Est, Montréal",
+    openingHours: ["Tuesday to Wednesday   11:00 - 19:00", "Saturday   10:00 - 17:00"],
+    source: "osm",
+  });
+
+  it("spells the city in French on the French page and never prints it twice", async () => {
+    const html = render(b, await contentFor(b), design, "fr");
+    // (The copy in this helper is the English set; the FACTS are what the
+    // renderer spells, and the footer baseline is one of them.)
+    expect(html).toContain("Crisp — Montréal");
+    expect(html).not.toContain("Crisp — Montreal");
+    // The address already ends with the city, so no separate city line.
+    expect(html).not.toMatch(/Montréal<\/(dd|p|li)>\s*<(span|p|li)[^>]*>Montréal</);
+  });
+
+  it("writes real opening hours in French on the French page", async () => {
+    const html = render(b, await contentFor(b), design, "fr");
+    expect(html).not.toContain("Tuesday");
+    expect(html).not.toContain("Saturday");
+    expect(html).toMatch(/Mardi au mercredi\s+11 h – 19 h/);
+    expect(html).toMatch(/Samedi\s+10 h – 17 h/);
+  });
+
+  it("keeps the stored spelling and English hours on the English page", async () => {
+    const html = render(b, await contentFor(b), design, "en");
+    expect(html).toContain("Tuesday to Wednesday");
+    expect(html).toContain("Montreal");
+  });
+
+  it("closes the badge ring exactly", async () => {
+    for (const name of ["Crisp", "Salon Barbier Chez Mostafa", "6000 Henri Bourassa est centre d’achat Bourassa porte 3 local 110"]) {
+      for (let variant = 0; variant < 8; variant += 1) {
+        const nb = business(name, "Barber shop");
+        const html = render(nb, await contentFor(nb), designFor({ name, category: "Barber shop", address: nb.address }, variant));
+        for (const ring of html.matchAll(/<textPath[^>]*>/g)) expect(ring[0]).toContain('textLength="236"');
+      }
+    }
+  });
+});

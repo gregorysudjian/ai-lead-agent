@@ -251,6 +251,23 @@ hours, and place ID -> flag the ones with no website.
   write with identical structure (`DemoSiteProvider.locales`); the
   Claude-backed one lists English only.
 
+- **A demo is written for the trade the business's own name states, and its
+  facts are spelled for the page's language.** Providers file loosely: Overture
+  puts hairdressers under its catch-all "beauty salon" and OpenStreetMap tags
+  barbershops `hairdresser`, so "Coiffure Xena" got a page about lashes and
+  "G&G Barbershop" one about balayage. `demoTradeFor` (`lib/demo-trade.ts`)
+  lets a trade word in the NAME outrank the filing, in two directions only --
+  beauty salon to a specific trade, hair salon to barber -- and a name with
+  two trades decides nothing. It changes what a DEMO is written for; the lead,
+  the catalog, filters and priority keep the provider's category. Facts the
+  renderer prints are localized there, not stored twice: the city through
+  `localizedCity` ("Montréal" on a French page whatever the provider stored),
+  parsed opening hours through `localizeHoursLine` (only a line in exactly the
+  stored shape -- hours in a business's own words are never half-translated),
+  and the city line is dropped when the address already names it. A page never
+  repeats a heading: the collision is decided on the English pools and
+  resolved by index, so both languages move together.
+
 - **Demo motion is CSS, optional and finite.** Everything that moves sits
   inside `prefers-reduced-motion: no-preference`; scroll-driven effects sit
   inside `@supports (animation-timeline: view())` and rest in their final,
@@ -326,6 +343,14 @@ hours, and place ID -> flag the ones with no website.
   restaurant produces a demo about the wrong business. The exclusions are data,
   not comments: `it_service_and_computer_repair` contains "repair" and is not a
   garage.
+
+  Overture's schema is not ours and does change: the 2026-09-23 release
+  replaced `categories.primary` with `taxonomy.primary` (and renamed `spas` to
+  `spa`), and the weekly refresh failed every Monday for seven weeks unseen.
+  Only the newest few releases stay hosted, so the reader follows the current
+  schema rather than supporting old ones. A scheduled job that fails silently
+  is not running: check the Actions tab when "updated" on the dashboard is
+  more than a month old.
 
   The bulk reader's bounding box PRUNES; the address codes DECIDE. A box alone
   sweeps in the neighbouring state, codes alone force a full scan of 7GB.

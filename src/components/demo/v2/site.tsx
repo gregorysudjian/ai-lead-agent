@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { localizedCity } from "@/lib/demo-city";
 import { brandName, monogram } from "@/lib/demo-design/brand";
 import { categoryLabel } from "@/lib/demo-samples";
 import type { DemoDesign } from "@/lib/demo-design/types";
@@ -36,7 +37,10 @@ export interface DemoSiteV2Props {
   langHref: string | null;
 }
 
-export function DemoSiteV2({ business, content, design, locale, langHref }: DemoSiteV2Props) {
+export function DemoSiteV2({ business: stored, content, design, locale, langHref }: DemoSiteV2Props) {
+  // The city is spelled for the page's language ("Montréal" in French) once,
+  // here, so the hero, badge, marquee, contact block and footer all agree.
+  const business = { ...stored, city: localizedCity(stored.city, locale) };
   const words = WORDS[locale];
   const brand = brandName(business.name);
   const mark = monogram(business.name);

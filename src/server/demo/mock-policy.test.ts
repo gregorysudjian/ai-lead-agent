@@ -545,7 +545,8 @@ describe("French copy holds the same line", () => {
 
   it("is written in French", async () => {
     const content = await mockDemoSiteProvider.generate(fr({ category: "Barber shop", addressListed: true, phoneListed: true }));
-    expect(content.tagline).toBe("Barbier à Montreal");
+    // The provider stored "Montreal"; a French page writes the French name.
+    expect(content.tagline).toBe("Barbier à Montréal");
     expect(content.navigation.map((n) => n.label)).toContain("À propos");
     const hero = content.sections[0];
     if (hero.kind !== "hero") throw new Error("unreachable");

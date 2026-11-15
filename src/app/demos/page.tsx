@@ -112,7 +112,7 @@ export default async function DemosPage() {
             const { business, design } = demo.spec;
             const olderVersions = group.versions.length - 1;
             return (
-              <Card as="li" key={demo.id} className="flex flex-col p-5">
+              <Card as="li" key={demo.id} className="flex min-w-0 flex-col p-5">
                 <DesignStrip name={business.name} design={design} />
 
                 <div className="mt-4 flex items-start justify-between gap-3">

@@ -43,8 +43,8 @@ await db.run("INSTALL httpfs; LOAD httpfs;");
 await db.run("SET s3_region='us-west-2';");
 
 const categoryFilter = `(
-  categories.primary IN (${mappedOvertureCategories().map((c) => `'${c}'`).join(", ")})
-  OR categories.primary LIKE '%_restaurant'
+  taxonomy.primary IN (${mappedOvertureCategories().map((c) => `'${c}'`).join(", ")})
+  OR taxonomy.primary LIKE '%_restaurant'
 )`;
 
 interface Row {

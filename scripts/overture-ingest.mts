@@ -103,8 +103,8 @@ const membership = subdivision
  * thousand rows and reading three hundred thousand.
  */
 const categoryFilter = `(
-  categories.primary IN (${mappedOvertureCategories().map((c) => `'${c}'`).join(", ")})
-  OR categories.primary LIKE '%_restaurant'
+  taxonomy.primary IN (${mappedOvertureCategories().map((c) => `'${c}'`).join(", ")})
+  OR taxonomy.primary LIKE '%_restaurant'
 )`;
 
 /**
@@ -122,7 +122,7 @@ const sql = `
   SELECT
     id,
     names.primary            AS name,
-    categories.primary       AS category,
+    taxonomy.primary       AS category,
     confidence,
     websites[1]              AS website,
     phones[1]                AS phone,

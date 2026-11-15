@@ -49,6 +49,8 @@ const EXACT: Readonly<Record<string, string>> = {
   // Beauty. `spas` and `day_spa` are the same shop by another name.
   beauty_salon: "beauty-salon",
   spas: "beauty-salon",
+  // The same node after Overture's 2026-09 taxonomy rename (plural dropped).
+  spa: "beauty-salon",
   day_spa: "beauty-salon",
   // Esthetics services Overture files separately. Each is performed in a
   // salon chair by the same kind of small business, and pitched the same way.

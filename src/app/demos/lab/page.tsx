@@ -107,7 +107,7 @@ export default async function DemoLabPage({ searchParams }: { searchParams: Prom
         </div>
         {samples.length > 0 ? (
           <p className="mx-auto w-full max-w-7xl px-4 pb-3 text-[11px] leading-relaxed text-amber-300/90 sm:px-6">
-            <span className="font-semibold">Sample content:</span> {samples.join(", ")}. Written from
+            <span className="font-semibold">Sample content:</span> {samples.join(" · ")} — written from
             what is typical for the trade, not from anything we know about this business.
           </p>
         ) : null}

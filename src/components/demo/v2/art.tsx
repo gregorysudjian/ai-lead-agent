@@ -335,6 +335,11 @@ export function TileArt({
   );
 }
 
+/** Circumference of the badge's text circle (r = 38), a hair short so the join shows no overlap. */
+const RING_LENGTH = 236;
+/** Roughly how many uppercase characters fill that circle at full size. */
+const RING_CAPACITY = 42;
+
 /**
  * A rotating ring of text around a monogram -- the business's own name, its
  * trade and its district, set on a circle. All three are facts we hold.
@@ -355,15 +360,25 @@ export function Badge({
   // The size is part of the id: a page can carry two badges with the same text
   // (a monogram hero and a split about section) and ids must stay unique.
   const id = `dx-b-${Math.abs(hashText(text)).toString(36)}-${size}`;
-  const ring = `${text} · `.repeat(Math.max(1, Math.ceil(46 / (text.length + 3))));
+  // The ring must close exactly: a repeat that runs past the end of the
+  // circle is cut mid-word ("MO"), and one that stops short leaves a gap. So
+  // the text is repeated a whole number of times and `textLength` spreads it
+  // over the full circumference; a name too long for the circle at full size
+  // is set smaller rather than squeezed.
+  const unit = text.length + 3;
+  const repeats = Math.max(1, Math.round(RING_CAPACITY / unit));
+  const ring = `${text} · `.repeat(repeats);
+  const fontSize = 7.2 * Math.min(1, (RING_CAPACITY + 4) / (repeats * unit));
   return (
     <div aria-hidden="true" className={`relative ${className}`} style={{ width: size, height: size }}>
       <svg className="dx-spin absolute inset-0 h-full w-full" viewBox="0 0 100 100">
         <defs>
           <path id={id} d="M50 50 m-38 0 a38 38 0 1 1 76 0 a38 38 0 1 1 -76 0" />
         </defs>
-        <text fill={palette.accentText} fontSize="7.2" letterSpacing="1.4" style={{ textTransform: "uppercase", fontFamily: "var(--dx-body)" }}>
-          <textPath href={`#${id}`}>{ring}</textPath>
+        <text fill={palette.accentText} fontSize={fontSize.toFixed(2)} letterSpacing="1.4" style={{ textTransform: "uppercase", fontFamily: "var(--dx-body)" }}>
+          <textPath href={`#${id}`} textLength={RING_LENGTH} lengthAdjust="spacing">
+            {ring}
+          </textPath>
         </text>
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">

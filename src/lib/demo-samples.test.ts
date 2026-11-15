@@ -166,3 +166,28 @@ describe("French copy is safe to fill in", () => {
     expect(poolsFor("Locksmith", "fr")).toBe(GENERIC_FR);
   });
 });
+
+describe("a page never repeats a heading", () => {
+  const SEEDS = Array.from({ length: 120 }, (_, i) => `Business ${i} — Salon ${i * 7}`);
+
+  it.each(Object.keys(POOLS_EN))("%s: services, about and gallery headings differ", (key) => {
+    for (const seed of SEEDS) {
+      for (const locale of ["en", "fr"] as const) {
+        const s = samplesFor(key, locale, seed);
+        const headings = [s.servicesHeading, s.aboutHeading, s.galleryHeading];
+        expect(new Set(headings).size, `${key} / ${seed} / ${locale}: ${headings.join(" | ")}`).toBe(3);
+      }
+    }
+  });
+
+  it("moves both languages to the same pool entry", () => {
+    for (const key of Object.keys(POOLS_EN)) {
+      for (const seed of SEEDS) {
+        const en = samplesFor(key, "en", seed);
+        const fr = samplesFor(key, "fr", seed);
+        expect(POOLS_FR[key].galleryHeading.indexOf(fr.galleryHeading)).toBe(POOLS_EN[key].galleryHeading.indexOf(en.galleryHeading));
+        expect(POOLS_FR[key].aboutHeading.indexOf(fr.aboutHeading)).toBe(POOLS_EN[key].aboutHeading.indexOf(en.aboutHeading));
+      }
+    }
+  });
+});

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import type { DemoDesign } from "@/lib/demo-design/types";
+import { addressNamesCity } from "@/lib/demo-city";
 import { sampleHoursFor } from "@/lib/demo-samples";
 import type { DemoSection, DemoSiteBusiness } from "@/lib/demo-site";
 import { classifyWebsite } from "@/lib/format";
@@ -9,7 +10,7 @@ import { formatPhone, phoneHref } from "@/lib/phone";
 import { Icon, iconForService } from "../icons";
 import { Badge, MarkDivider, TileArt } from "./art";
 import { Cta, fitGiant, Heading, PhotoSlot, SampleTag, SectionLabel } from "./parts";
-import { localizeScheduleLine, type Locale, type Words } from "./words";
+import { localizeHoursLine, localizeScheduleLine, type Locale, type Words } from "./words";
 
 /**
  * Every section after the hero, each with the treatments the genome can pick.
@@ -363,7 +364,7 @@ function Schedule({ business, locale, words }: { business: DemoSiteBusiness; loc
     return (
       <ul className="space-y-1 tabular-nums">
         {business.openingHours.map((line) => (
-          <li key={line}>{line}</li>
+          <li key={line}>{localizeHoursLine(line, locale)}</li>
         ))}
       </ul>
     );
@@ -443,7 +444,7 @@ export function Contact({
             <div className="dx-reveal">
               <p className="dx-label dx-muted">{words.address}</p>
               <p className="dx-display dx-h3 mt-3">{business.address ?? <span className="dx-muted">{words.toBeAdded}</span>}</p>
-              <p className="dx-muted mt-1">{business.city}</p>
+              {addressNamesCity(business.address, business.city) ? null : <p className="dx-muted mt-1">{business.city}</p>}
             </div>
             <div className="dx-reveal">
               <p className="dx-label dx-muted">{words.hours}</p>
@@ -473,7 +474,7 @@ export function Contact({
         <dt className="dx-label dx-muted">{words.address}</dt>
         <dd className="mt-2">
           {business.address ?? <span className="dx-muted">{words.toBeAdded}</span>}
-          <span className="dx-muted block">{business.city}</span>
+          {addressNamesCity(business.address, business.city) ? null : <span className="dx-muted block">{business.city}</span>}
         </dd>
       </div>
       <div className="dx-rule py-6">

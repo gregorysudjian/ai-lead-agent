@@ -28,7 +28,7 @@ export function DesignStrip({ name, design }: { name: string; design: DemoDesign
       style={{ background: palette.bg, color: palette.ink, boxShadow: `inset 0 0 0 1px ${palette.line}` }}
     >
       <span
-        className="truncate pr-24 text-2xl leading-none"
+        className="min-w-0 truncate pr-24 text-2xl leading-none"
         style={{
           fontFamily: `${displayFontVar(design.fonts.display)}, Georgia, serif`,
           textTransform: design.displayCase === "upper" ? "uppercase" : undefined,

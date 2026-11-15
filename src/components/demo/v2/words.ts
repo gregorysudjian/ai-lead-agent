@@ -136,3 +136,22 @@ export function localizeScheduleLine(line: string, locale: Locale): string {
     .replace(/\s-\s/g, " – ");
   return out.charAt(0).toUpperCase() + out.slice(1);
 }
+
+const DAY = "(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)";
+const WINDOW = String.raw`\d{1,2}:\d{2} - \d{1,2}:\d{2}`;
+const HOURS_LINE = new RegExp(String.raw`^${DAY}(?: (?:to|and) ${DAY})?\s+(?:closed|${WINDOW}(?:, ${WINDOW})*)$`, "i");
+
+/**
+ * A REAL opening-hours line, in the page's language.
+ *
+ * Hours parsed from a discovery record are stored in the same English shape
+ * as the sample schedule ("Monday to Saturday   07:00 - 18:30"), so on a
+ * French page they take the same rewrite -- a French page with an English
+ * timetable is the one block an owner reads closely. Hours a business
+ * published in its own words are a different matter: a line that is not
+ * exactly that shape is shown untouched rather than half-translated.
+ */
+export function localizeHoursLine(line: string, locale: Locale): string {
+  if (locale === "en") return line;
+  return HOURS_LINE.test(line.trim()) ? localizeScheduleLine(line.trim(), locale) : line;
+}

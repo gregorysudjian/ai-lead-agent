@@ -8,6 +8,7 @@ import type {
   DemoSiteGeneratorInput,
   DemoTheme,
 } from "@/lib/demo-site";
+import { localizedCity } from "@/lib/demo-city";
 import type { RecommendedSiteType } from "@/lib/analysis";
 import { brandName } from "@/lib/demo-design/brand";
 import { categoryLabel, fillSample, samplesFor, type CategorySamples } from "@/lib/demo-samples";
@@ -75,7 +76,7 @@ import { DemoSiteProviderError, type DemoSiteProvider } from "./types";
  */
 
 // v3: French, pools picked by name, the brand in copy.
-const MODEL = "deterministic-demo-rules-v3";
+const MODEL = "deterministic-demo-rules-v4";
 
 /** The generator's own lines, the ones that are not category copy. */
 const LINES: Record<
@@ -478,12 +479,15 @@ class MockDemoSiteProvider implements DemoSiteProvider {
     // brand is what the copy calls the business.
     const samples = samplesFor(input.category, locale, input.businessName, serviceCount(input.recommendedSiteType));
     const brand = brandName(input.businessName);
-    const fill = (template: string) => fillSample(template, { name: brand, city: input.city });
+    // Spelled for the page's language: "Montréal" in French, whatever the
+    // provider stored. The renderer does the same for the facts it prints.
+    const city = localizedCity(input.city, locale);
+    const fill = (template: string) => fillSample(template, { name: brand, city });
     const sections = sectionsFor(input, samples, fill);
 
     return {
       siteTitle: input.businessName,
-      tagline: lines.tagline(categoryLabel(input.category, locale), input.city),
+      tagline: lines.tagline(categoryLabel(input.category, locale), city),
       theme: themeFor(input),
       layout: layoutFor(input),
       navigation: sections

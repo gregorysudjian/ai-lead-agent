@@ -63,6 +63,12 @@ async function connect() {
  *
  * The box prunes the scan and the province code narrows it; neither decides
  * membership. That is `placeLocality`'s job, downstream.
+ *
+ * The trade is read from `taxonomy.primary`. Until the 2026-09-23 release it
+ * was `categories.primary`; Overture replaced that column with the taxonomy
+ * struct, kept the same trade names, and the weekly refresh failed every
+ * Monday for seven weeks before anyone looked. Overture hosts only its most
+ * recent releases, so there is no older file left to stay compatible with.
  */
 export async function queryAreaPlaces(
   area: CatalogArea,
@@ -89,7 +95,7 @@ export async function queryAreaPlaces(
       SELECT
         id,
         names.primary                     AS name,
-        categories.primary                AS category,
+        taxonomy.primary                  AS category,
         confidence,
         websites[1]                       AS website,
         phones[1]                         AS phone,
@@ -103,8 +109,19 @@ export async function queryAreaPlaces(
         AND addresses[1].country = '${country}'
         AND addresses[1].region = '${region}'
         AND confidence >= ${minConfidence}
-        AND categories.primary IN (${categories})
-    `);
+        AND taxonomy.primary IN (${categories})
+    `).catch((error: unknown) => {
+      // A binder error is DuckDB saying a column this query names is not in
+      // the files. That is Overture changing its schema, which it has done
+      // before -- say so, rather than leaving a stack trace about a "table".
+      if (/Binder Error/i.test(String(error))) {
+        throw new Error(
+          `Overture's places schema in release ${release} no longer has a column this reader uses. ` +
+            `Compare scripts/lib/overture.ts with the current schema. Original error: ${String(error)}`,
+        );
+      }
+      throw error;
+    });
     return reader.getRowObjects().map((row) => ({
       id: typeof row.id === "string" ? row.id : null,
       name: typeof row.name === "string" ? row.name : null,
