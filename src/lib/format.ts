@@ -51,6 +51,13 @@ export type WebsiteRendering =
   | { kind: "linkable"; href: string }
   | { kind: "unlinkable"; raw: string };
 
+/**
+ * A hostname and nothing else: dot-separated labels of letters, digits and
+ * inner hyphens, ending in an alphabetic top-level domain, with at most a
+ * trailing slash. No scheme, path, port, query or "@".
+ */
+const BARE_HOSTNAME = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\/?$/i;
+
 /** The only URL schemes we will ever turn into a clickable link. */
 const SAFE_PROTOCOLS = new Set(["http:", "https:"]);
 
@@ -62,9 +69,12 @@ const SAFE_PROTOCOLS = new Set(["http:", "https:"]);
  * scheme is checked against an allowlist -- anything not http/https is refused,
  * including schemes nobody has thought of yet.
  *
- * This never repairs a value. We do not prepend "https://" to something that
- * failed to parse: guessing what a malformed string meant could silently point
- * the user at a different host than the provider named.
+ * It repairs exactly one shape and nothing else: a BARE HOSTNAME
+ * ("www.glamort.com", optionally with a trailing slash). Prepending "https://"
+ * to that cannot point anywhere but the host the provider named, because there
+ * is nothing else in the string -- no path, port, credentials or scheme to
+ * misread. Anything less clean than that is not guessed at: a malformed string
+ * could mean a different host than the one it appears to name.
  */
 export function classifyWebsite(website: string | null): WebsiteRendering {
   if (website === null) return { kind: "none" };
@@ -75,7 +85,7 @@ export function classifyWebsite(website: string | null): WebsiteRendering {
   let parsed: URL;
   try {
     // Absolute URLs only -- no base argument, so a relative string throws.
-    parsed = new URL(raw);
+    parsed = new URL(BARE_HOSTNAME.test(raw) ? `https://${raw}` : raw);
   } catch {
     return { kind: "unlinkable", raw };
   }

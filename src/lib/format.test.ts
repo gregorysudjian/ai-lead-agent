@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  classifyWebsite,
   formatOpeningHours,
   formatOpeningHoursLines,
   hasProviderReputation,
@@ -122,5 +123,35 @@ describe("formatOpeningHours keeps every window", () => {
       { day: "tuesday", opens: "17:00", closes: "22:00" },
     ]);
     expect(rows.find((r) => r.day === "Tuesday")?.hours).toBe("11:00 - 14:30, 17:00 - 22:00");
+  });
+});
+
+describe("classifyWebsite", () => {
+  it("links an absolute http(s) URL as parsed", () => {
+    expect(classifyWebsite("https://salon.ca/booking")).toEqual({ kind: "linkable", href: "https://salon.ca/booking" });
+    expect(classifyWebsite(null)).toEqual({ kind: "none" });
+  });
+
+  it("links a bare hostname over https, since that cannot change the host", () => {
+    expect(classifyWebsite("www.glamort.com")).toEqual({ kind: "linkable", href: "https://www.glamort.com/" });
+    expect(classifyWebsite("xstattoo.ca/")).toEqual({ kind: "linkable", href: "https://xstattoo.ca/" });
+    expect(classifyWebsite(" Salon-Lumiere.QC.ca ")).toEqual({ kind: "linkable", href: "https://salon-lumiere.qc.ca/" });
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,<b>x</b>",
+    "www.glamort.com/page",
+    "evil.com@salon.ca",
+    "salon.ca:8080",
+    "localhost",
+    "salon",
+    "192.168.0.1",
+    "salon..ca",
+    "-salon.ca",
+    "salon.ca?x=1",
+    "www.glamort.com extra",
+  ])("never guesses at %s", (value) => {
+    expect(classifyWebsite(value).kind).toBe("unlinkable");
   });
 });
