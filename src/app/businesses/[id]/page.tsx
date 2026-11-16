@@ -44,7 +44,8 @@ const GOOGLE_CHECK_TEXT: Record<GoogleCheckVerdict, { label: string; tone: Badge
   uncertain: {
     label: "Google Maps: unsure",
     tone: "amber",
-    detail: "Google has something similar, but not clearly this business at this address. Kept in search.",
+    detail:
+      "Google lists a business by this name somewhere else, so the address here is probably out of date. Hidden from search; it stays in the database.",
   },
   not_found: {
     label: "Not found on Google Maps",
@@ -209,7 +210,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                 <Timestamp iso={business.googleCheck.checkedAt} />.
               </>
             ) : (
-              "Not checked yet."
+              "Not checked against Google Maps yet, so it is not in search yet."
             )}
           </p>
 

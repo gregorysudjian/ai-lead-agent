@@ -31,7 +31,7 @@ import { appendFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 
 import { resolveCatalogArea } from "../src/lib/catalog/area";
-import { isOfferedInCatalog } from "../src/lib/catalog/exclusion";
+import { catalogExclusion } from "../src/lib/catalog/exclusion";
 import { buildCatalogRecords } from "../src/lib/catalog/overture-records";
 import { planCatalogUpsert } from "../src/lib/catalog/plan-upsert";
 import { assessRefresh, nextReleaseToLoad, RELEASE_NAME } from "../src/lib/catalog/releases";
@@ -71,7 +71,10 @@ function writeSummary(title: string) {
 const catalog = getCatalogRepository();
 const all = await catalog.listAll();
 const loaded = catalogReleases(all).latest;
-const listedNow = all.filter((b) => b.lastSeenRelease === loaded && isOfferedInCatalog(b)).length;
+// What the loaded release supplied, NOT what search shows: search also hides
+// whatever the Google Maps check has not verified, and measuring a new
+// release against that smaller number would blunt the circuit breaker.
+const listedNow = all.filter((b) => b.lastSeenRelease === loaded && catalogExclusion(b.provider) === null).length;
 const available = await listReleases();
 const newest = available.at(-1) ?? null;
 

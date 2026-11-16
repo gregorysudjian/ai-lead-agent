@@ -33,7 +33,7 @@ function biz(
     firstSeenRelease: AUG,
     lastSeenRelease: AUG,
     leadId: null,
-    googleCheck: null,
+    googleCheck: { verdict: "verified", placeId: null, checkedAt: "2026-08-21T00:00:00.000Z" },
     provider: {
       externalId: `g${counter}`,
       source: "overture",
@@ -287,5 +287,48 @@ describe("hiding what the catalog does not offer", () => {
     expect(shown).not.toContain("6r5dxckulcvbol/.");
     expect(shown.some((name) => name.startsWith("Uniprix"))).toBe(false);
     expect(result.summary.total).toBe(2);
+  });
+});
+
+describe("only what the Google Maps check verified is offered", () => {
+  const at = "2026-11-15T00:00:00.000Z";
+  const check = (verdict: "verified" | "not_found" | "closed" | "uncertain", placeId: string | null = null) => ({
+    googleCheck: { verdict, placeId, checkedAt: at },
+  });
+
+  it("hides uncertain, failed and unchecked rows, and says how many of each", () => {
+    const rows = [
+      biz({ name: "Verified Salon" }, check("verified", "place-1")),
+      biz({ name: "Moved Salon" }, check("uncertain")),
+      biz({ name: "Gone Salon" }, check("not_found")),
+      biz({ name: "Closed Salon" }, check("closed")),
+      biz({ name: "New Salon" }, { googleCheck: null }),
+      // Junk by name is not "waiting for the check"; it is never offered.
+      biz({ name: "SEPHORA", category: "Beauty salon" }, { googleCheck: null }),
+    ];
+    const result = searchCatalog(rows, q());
+
+    expect(result.results.map((item) => item.business.provider.name)).toEqual(["Verified Salon"]);
+    expect(result.summary).toMatchObject({ hiddenByGoogle: 2, addressUnconfirmed: 1, awaitingCheck: 1, duplicateListings: 0 });
+  });
+
+  it("shows one row per Google listing, and the same one every time", () => {
+    const thin = biz({ name: "Atelier 7", phone: null }, check("verified", "place-7"));
+    const full = biz({ name: "Atelier7 Coiffure et Esthétique" }, check("verified", "place-7"));
+    const other = biz({ name: "Another Salon" }, check("verified", "place-8"));
+
+    for (const rows of [[thin, full, other], [other, full, thin]]) {
+      const result = searchCatalog(rows, q({ sort: "name" }));
+      expect(result.results.map((item) => item.business.provider.name)).toEqual(["Another Salon", "Atelier7 Coiffure et Esthétique"]);
+      expect(result.summary.duplicateListings).toBe(1);
+      expect(result.total).toBe(2);
+    }
+  });
+
+  it("keeps the operator's lead when its twin is the fuller record", () => {
+    const lead = biz({ name: "Atelier 7", phone: null }, { ...check("verified", "place-7"), leadId: "lead-1" });
+    const full = biz({ name: "Atelier7 Coiffure et Esthétique" }, check("verified", "place-7"));
+    const result = searchCatalog([full, lead], q());
+    expect(result.results.map((item) => item.business.provider.name)).toEqual(["Atelier 7"]);
   });
 });

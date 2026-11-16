@@ -48,6 +48,10 @@ const CHAIN_NAMES: readonly RegExp[] = [
   /\bwalmart\b/i,
   /\bcostco\b/i,
   /\bdollarama\b/i,
+  // Brand offices and in-store counters: a head office decides their website.
+  /\bbenefit\s+cosmetics\b/i,
+  /\bl['’]?\s?or[ée]al\b/i,
+  /\bbabor\b/i,
 ];
 
 /** Pharmacy chains and their clinic brands, by name. */
@@ -75,7 +79,16 @@ const EXCLUDED_WEBSITE_HOSTS: readonly [RegExp, ExclusionReason][] = [
 ];
 
 /** Trades that are not hair or beauty but get filed there. */
-const OTHER_TRADE_NAMES: readonly RegExp[] = [/\bchiropra(?:tique|ctic|ctor)\b/i];
+const OTHER_TRADE_NAMES: readonly RegExp[] = [
+  /\bchiropra(?:tique|ctic|ctor)\b/i,
+  // A school, a careers fair, a wholesaler: real, on Google Maps, and not a
+  // salon. Each pattern is a word such a business puts in its own name; an
+  // "académie" attached to a working salon is deliberately NOT here.
+  /^[ée]cole\b/i,
+  /\bcareer\s+cent(?:re|er)\b/i,
+  /\bemploi\s+et\s+formation\b/i,
+  /\b(?:distribution|fournitures)\b/i,
+];
 
 function websiteHost(website: string | null): string | null {
   if (website === null) return null;
@@ -122,13 +135,59 @@ export function catalogExclusion(provider: Pick<ProviderSnapshot, "name" | "webs
 }
 
 /**
- * Whether the Google Maps check hides this business: Google returned no
- * matching place, or its matching place is permanently closed. "uncertain"
- * and unchecked businesses stay: a check that could not decide is not a
- * reason to hide anything.
+ * Whether the Google Maps check FAILED this business: Google returned no
+ * matching place, or its matching place is permanently closed. This is what
+ * removes a lead from the list.
+ */
+export function failsGoogleCheck(check: GoogleCheck | null | undefined): boolean {
+  return check?.verdict === "not_found" || check?.verdict === "closed";
+}
+
+/**
+ * Whether search hides this business: anything the Google Maps check has not
+ * VERIFIED.
+ *
+ * The operator asked (2026-11-15) that search hold only businesses whose
+ * details are known to be right. Until then "uncertain" and unchecked rows
+ * stayed visible, on the reasoning that a check which cannot decide is no
+ * reason to hide. Looking at what "uncertain" actually was settled it: every
+ * one of 209 was a business Google lists under that name SOMEWHERE ELSE --
+ * 270 m to several kilometres from our address. The business may be real, but
+ * the address we would show, and build a demo around, is not where it is.
+ * An unchecked row is hidden for the same reason a not-found one is: nobody
+ * has confirmed it yet. Nothing is deleted, and each row's page says why.
  */
 export function hiddenByGoogleCheck(check: GoogleCheck | null | undefined): boolean {
-  return check?.verdict === "not_found" || check?.verdict === "closed";
+  return check?.verdict !== "verified";
+}
+
+/**
+ * Of several catalog rows the check matched to ONE Google place, which to show.
+ *
+ * Overture sometimes lists a business twice -- "Atelier 7" and "Atelier7
+ * Coiffure et Esthétique", one street number apart -- and both verify against
+ * the same listing. Showing both invites adding the same business twice. The
+ * operator's own choice (a lead) wins; then the fuller record; then the one
+ * recorded first; the id breaks ties so the answer never flips between
+ * requests. Pure and unstored: the hidden twin keeps its verdict.
+ */
+export function preferredForPlace<
+  T extends {
+    id: string;
+    leadId: string | null;
+    firstSeenAt: string;
+    provider: Pick<ProviderSnapshot, "phone" | "address" | "website">;
+  },
+>(rows: readonly T[]): T {
+  const fullness = (row: T) =>
+    (row.provider.phone ? 4 : 0) + (row.provider.address ? 2 : 0) + (row.provider.website ? 1 : 0);
+  return [...rows].sort(
+    (a, b) =>
+      Number(b.leadId !== null) - Number(a.leadId !== null) ||
+      fullness(b) - fullness(a) ||
+      a.firstSeenAt.localeCompare(b.firstSeenAt) ||
+      a.id.localeCompare(b.id),
+  )[0];
 }
 
 /**

@@ -396,8 +396,22 @@ hours, and place ID -> flag the ones with no website.
   address sometimes returns the address itself -- is `not_found`; a matched
   place Google marks permanently closed is `closed`; both are hidden from
   search, never deleted. Anything suggestive but undecided, including the
-  same name at another address (our address may be stale), is `uncertain` and
-  stays visible: a check that cannot decide is not a reason to hide. The
+  same name at another address (our address may be stale), is `uncertain`.
+
+  Search offers ONLY what the check verified. The operator asked (2026-11-15)
+  for every business in search to have correct details, and measuring settled
+  what "uncertain" meant: all 209 were businesses Google lists under that name
+  somewhere else, 270 m to several kilometres from our address -- so the
+  address we would show, and build a demo around, was wrong. Uncertain and
+  not-yet-checked rows are therefore hidden like failed ones
+  (`hiddenByGoogleCheck`), each row's page says why, and the list's footnote
+  counts every hidden kind. Only a FAILED check (`failsGoogleCheck`: not found
+  or closed) removes a lead. Two rows the check matched to one Google place
+  are one business listed twice: search shows one (`preferredForPlace`), a
+  pure choice that is never stored. A weekly refresh adds businesses that stay
+  out of search until the check is run by hand, and a refresh that changes a
+  checked business's name or address makes its verdict stale -- recheck those
+  (`--only`). The
   verdict is ours; from Google only the matched place id is kept, which its
   terms allow indefinitely, and it makes the Maps link open the exact listing.
   "Not found" is worded as narrowly as it is known -- one lookup found no

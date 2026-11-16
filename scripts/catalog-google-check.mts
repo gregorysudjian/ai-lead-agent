@@ -35,7 +35,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
-import { catalogExclusion, hiddenByGoogleCheck } from "../src/lib/catalog/exclusion";
+import { catalogExclusion, failsGoogleCheck } from "../src/lib/catalog/exclusion";
 import { distanceMetres, judgeGoogleMatch, nameSimilarity, type MatchOutcome } from "../src/lib/catalog/google-match";
 import { catalogReleases } from "../src/lib/catalog/search";
 import type { CatalogBusiness, GoogleCheck } from "../src/lib/catalog/types";
@@ -290,7 +290,7 @@ if (checkLeads) {
     leadVerdicts.push({ lead, verdict: outcome.verdict, reason });
   }
 }
-const failingLeads = leadVerdicts.filter((v) => hiddenByGoogleCheck({ verdict: v.verdict, placeId: null, checkedAt: "" }));
+const failingLeads = leadVerdicts.filter((v) => failsGoogleCheck({ verdict: v.verdict, placeId: null, checkedAt: "" }));
 
 if (removeLeads) {
   const day = new Date().toISOString().slice(0, 10);

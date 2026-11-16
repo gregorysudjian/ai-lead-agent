@@ -5,7 +5,7 @@ import { isUsableText, scoreSnapshot, type LeadScore } from "../scoring";
 import { isSocialProfileUrl } from "../social-hosts";
 import type { ProviderSnapshot } from "../types";
 import type { CatalogArea } from "./area";
-import { hiddenByGoogleCheck, isOfferedInCatalog } from "./exclusion";
+import { catalogExclusion, failsGoogleCheck, isOfferedInCatalog, preferredForPlace } from "./exclusion";
 import { CATALOG_TRADE_KEYS, catalogTradeForLabel } from "./trades";
 import type { CatalogBusiness } from "./types";
 
@@ -215,6 +215,22 @@ export interface ScoredBusiness {
   isGone: boolean;
 }
 
+/** One row per Google place: see `preferredForPlace`. */
+function onePerGooglePlace(businesses: readonly CatalogBusiness[]): { kept: CatalogBusiness[]; dropped: number } {
+  const byPlace = new Map<string, CatalogBusiness[]>();
+  for (const business of businesses) {
+    const placeId = business.googleCheck?.placeId;
+    if (placeId) byPlace.set(placeId, [...(byPlace.get(placeId) ?? []), business]);
+  }
+  const hidden = new Set<string>();
+  for (const group of byPlace.values()) {
+    if (group.length < 2) continue;
+    const keep = preferredForPlace(group);
+    for (const business of group) if (business.id !== keep.id) hidden.add(business.id);
+  }
+  return { kept: businesses.filter((business) => !hidden.has(business.id)), dropped: hidden.size };
+}
+
 function scoreAll(
   businesses: readonly CatalogBusiness[],
   releases: CatalogReleases,
@@ -305,6 +321,12 @@ export interface CatalogSummary {
    * page can say what it is not showing.
    */
   hiddenByGoogle: number;
+  /** Current rows Google lists under the same name somewhere else. Hidden. */
+  addressUnconfirmed: number;
+  /** Current rows the Google Maps check has not looked at yet. Hidden. */
+  awaitingCheck: number;
+  /** Rows hidden as a second record of a Google listing already shown. */
+  duplicateListings: number;
 }
 
 export interface CatalogSearchResult {
@@ -331,7 +353,8 @@ export function searchCatalog(
   const releases = catalogReleases(businesses);
   // Chains, pharmacies and broken names are hidden, never deleted -- and never
   // when the operator already made one a lead. See `exclusion.ts`.
-  const scored = scoreAll(businesses.filter(isOfferedInCatalog), releases);
+  const offered = onePerGooglePlace(businesses.filter(isOfferedInCatalog));
+  const scored = scoreAll(offered.kept, releases);
 
   const matching = scored.filter((item) => matches(item, query)).sort(ORDERINGS[query.sort]);
 
@@ -358,6 +381,14 @@ export function searchCatalog(
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "en"));
 
   const current = scored.filter((item) => !item.isGone);
+  /** In the latest release, a real business by name, and still not in search. */
+  const notOffered = businesses.filter(
+    (business) =>
+      business.lastSeenRelease === releases.latest &&
+      business.leadId === null &&
+      catalogExclusion(business.provider) === null &&
+      !isOfferedInCatalog(business),
+  );
   const summary: CatalogSummary = {
     total: scored.length,
     current: current.length,
@@ -365,12 +396,10 @@ export function searchCatalog(
     newInLatest: current.filter((item) => item.isNew).length,
     inLeads: scored.filter((item) => item.business.leadId !== null).length,
     gone: scored.length - current.length,
-    hiddenByGoogle: businesses.filter(
-      (business) =>
-        business.lastSeenRelease === releases.latest &&
-        business.leadId === null &&
-        hiddenByGoogleCheck(business.googleCheck),
-    ).length,
+    hiddenByGoogle: notOffered.filter((business) => failsGoogleCheck(business.googleCheck)).length,
+    addressUnconfirmed: notOffered.filter((business) => business.googleCheck?.verdict === "uncertain").length,
+    awaitingCheck: notOffered.filter((business) => business.googleCheck === null).length,
+    duplicateListings: offered.dropped,
   };
 
   return {
