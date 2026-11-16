@@ -64,3 +64,13 @@ jobs:
           if [ "$MODE" = "commit" ]; then args+=(--commit); fi
           if [ -n "$RELEASE" ]; then args+=("--release=$RELEASE"); fi
           npx tsx --conditions=react-server scripts/catalog-refresh.mts "${args[@]}"
+          
+      # Check new and changed businesses against Google Maps. Only rows with
+      # no verdict are looked up (a handful most weeks); the monthly cap is
+      # enforced in the database. This step never changes a lead.
+      - name: Check new businesses on Google Maps
+        if: env.MODE == 'commit'
+        env:
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: npx tsx --conditions=react-server scripts/catalog-google-check.mts --commit
+
