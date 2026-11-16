@@ -408,10 +408,13 @@ hours, and place ID -> flag the ones with no website.
   counts every hidden kind. Only a FAILED check (`failsGoogleCheck`: not found
   or closed) removes a lead. Two rows the check matched to one Google place
   are one business listed twice: search shows one (`preferredForPlace`), a
-  pure choice that is never stored. A weekly refresh adds businesses that stay
-  out of search until the check is run by hand, and a refresh that changes a
-  checked business's name or address makes its verdict stale -- recheck those
-  (`--only`). The
+  pure choice that is never stored. A verdict judges a name, an address and a
+  position, so a refresh that changes any of them clears it
+  (`verdictStillApplies`); cosmetic rewrites keep it. The Monday job runs the
+  check after a committed refresh, which looks up only rows with no verdict --
+  new businesses and cleared ones -- and never touches a lead. Until it has, a
+  business is not in search, and the dashboard says how many are waiting and
+  when no refresh has completed in 45 days (`lib/catalog/health.ts`). The
   verdict is ours; from Google only the matched place id is kept, which its
   terms allow indefinitely, and it makes the Maps link open the exact listing.
   "Not found" is worded as narrowly as it is known -- one lookup found no
