@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/primitives";
 import { Timestamp } from "@/components/ui/timestamp";
 import { catalogHref, DEFAULT_QUERY } from "@/lib/catalog/search";
+import { formatTimestamp } from "@/lib/format";
 import { CATALOG_TRADE_KEYS, TRADE_PLURALS } from "@/lib/catalog/trades";
 import { rankLeads } from "@/lib/scoring";
 import { requireSession } from "@/server/auth";
@@ -187,6 +188,20 @@ async function CatalogOverview() {
   }
 
   const { summary, tradeCounts, releases } = page.result;
+  // Upkeep that has stopped happening. Said here because a job failing on
+  // GitHub says nothing in the app: see `lib/catalog/health.ts`.
+  const notices = [
+    ...(page.refreshStalled && page.lastRefresh
+      ? [
+          `The weekly refresh has not loaded new business data since ${formatTimestamp(page.lastRefresh.finishedAt ?? page.lastRefresh.startedAt)}. Overture publishes about monthly, so the Monday job on GitHub is probably failing: check its Actions tab.`,
+        ]
+      : []),
+    ...(summary.awaitingCheck > 0
+      ? [
+          `${n(summary.awaitingCheck)} ${summary.awaitingCheck === 1 ? "business is" : "businesses are"} waiting for the Google Maps check and not in search yet. The Monday job runs it after each refresh; if this stays, the check step is failing.`,
+        ]
+      : []),
+  ];
   const hasHistory =
     releases.latest !== null && releases.baseline !== null && releases.latest !== releases.baseline;
 
@@ -196,6 +211,16 @@ async function CatalogOverview() {
         title="Find businesses"
         hint="Every hair and beauty business on the island, from Overture Maps. Adding one to your leads is always your choice."
       />
+
+      {notices.map((notice) => (
+        <p
+          key={notice}
+          role="status"
+          className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {notice}
+        </p>
+      ))}
 
       {summary.total === 0 ? (
         <div className="mt-4">

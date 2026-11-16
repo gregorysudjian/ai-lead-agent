@@ -1,6 +1,7 @@
 import "server-only";
 
 import { MONTREAL_ISLAND } from "@/lib/catalog/area";
+import { refreshLooksStalled } from "@/lib/catalog/health";
 import { searchCatalog, type CatalogQuery, type CatalogSearchResult } from "@/lib/catalog/search";
 import type { CatalogBusiness, IngestRun } from "@/lib/catalog/types";
 import { getCatalogRepository, getLeadRepository } from "@/server/repo";
@@ -46,6 +47,8 @@ export interface CatalogPage {
   lastRefresh: IngestRun | null;
   /** A refresh currently running, or one that failed after the last success. */
   attention: IngestRun | null;
+  /** No refresh has completed in longer than any normal gap. See `health.ts`. */
+  refreshStalled: boolean;
 }
 
 /**
@@ -71,7 +74,12 @@ export async function catalogPage(query: CatalogQuery): Promise<CatalogPage> {
   const newest = runs[0] ?? null;
   const attention = newest !== null && newest.state !== "complete" ? newest : null;
 
-  return { result: searchCatalog(businesses, query), lastRefresh, attention };
+  return {
+    result: searchCatalog(businesses, query),
+    lastRefresh,
+    attention,
+    refreshStalled: refreshLooksStalled(lastRefresh?.finishedAt ?? lastRefresh?.startedAt ?? null, Date.now()),
+  };
 }
 
 export type AddToLeadsResult =
