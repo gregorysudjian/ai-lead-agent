@@ -157,7 +157,7 @@ export default async function BusinessesPage({
             ) : (
               <ul className="grid gap-3 md:grid-cols-2">
                 {result.results.map((item) => (
-                  <BusinessCard key={item.business.id} item={item} />
+                  <BusinessCard key={item.business.id} item={item} listQuery={{ ...query, page: result.page }} />
                 ))}
               </ul>
             )}

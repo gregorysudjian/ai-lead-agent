@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { googleMapsSearchUrl } from "@/lib/catalog/maps-link";
-import type { ScoredBusiness } from "@/lib/catalog/search";
+import { toSearchParams, type CatalogQuery, type ScoredBusiness } from "@/lib/catalog/search";
 import { classifyWebsite, websiteBadgeLabel } from "@/lib/format";
 import { formatPhone, phoneHref } from "@/lib/phone";
 import { isSocialProfileUrl } from "@/lib/social-hosts";
@@ -68,7 +68,13 @@ function PhoneLine({ phone }: { phone: string | null }) {
   );
 }
 
-export function BusinessCard({ item }: { item: ScoredBusiness }) {
+/**
+ * `listQuery` is the search this card was shown in. It rides along on the
+ * link so the business page's "Back to businesses" returns to that exact list
+ * -- same filters, same page -- instead of the unfiltered first page.
+ */
+export function BusinessCard({ item, listQuery }: { item: ScoredBusiness; listQuery?: CatalogQuery }) {
+  const listParams = listQuery ? toSearchParams(listQuery).toString() : "";
   const { business, score, isNew, isGone } = item;
   const { provider } = business;
 
@@ -96,7 +102,7 @@ export function BusinessCard({ item }: { item: ScoredBusiness }) {
             with everything in view -- and its link covers the whole card. */}
         <h3 className="mt-1 text-base leading-snug font-semibold tracking-tight break-words text-slate-900 group-hover:text-indigo-700 dark:text-slate-50 dark:group-hover:text-indigo-300">
           <Link
-            href={`/businesses/${business.id}`}
+            href={`/businesses/${business.id}${listParams ? `?${listParams}` : ""}`}
             className={`rounded after:absolute after:inset-0 after:rounded-xl ${FOCUS_RING}`}
           >
             {provider.name}

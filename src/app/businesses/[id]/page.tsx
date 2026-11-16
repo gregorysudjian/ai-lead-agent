@@ -10,7 +10,7 @@ import { Timestamp } from "@/components/ui/timestamp";
 import { hiddenByGoogleCheck } from "@/lib/catalog/exclusion";
 import { googleMapsSearchUrl } from "@/lib/catalog/maps-link";
 import type { GoogleCheckVerdict } from "@/lib/catalog/types";
-import { catalogReleases } from "@/lib/catalog/search";
+import { catalogHref, catalogReleases, parseCatalogQuery } from "@/lib/catalog/search";
 import {
   classifyWebsite,
   displayOrNotListed,
@@ -23,6 +23,7 @@ import {
 import { formatPhone, phoneHref } from "@/lib/phone";
 import { MAX_SCORE, PRIORITY_LABELS, scoreSnapshot } from "@/lib/scoring";
 import { requireSession } from "@/server/auth";
+import { CATALOG_AREA } from "@/server/catalog-service";
 import { getCatalogRepository } from "@/server/repo";
 
 /**
@@ -73,10 +74,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: "Business" };
 }
 
-export default async function BusinessPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BusinessPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireSession();
 
   const { id } = await params;
+  // The list this business was opened from, carried on the link. Parsed by the
+  // list's own validator, so an edited URL can only ever produce a valid
+  // search; with no filters it is the plain list, as before.
+  const listQuery = parseCatalogQuery(await searchParams, CATALOG_AREA);
+  const backHref = catalogHref(listQuery, { page: listQuery.page });
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
   const catalog = getCatalogRepository();
@@ -95,7 +107,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
-      <Link href="/businesses" className={`text-sm ${LINK}`}>
+      <Link href={backHref} className={`text-sm ${LINK}`}>
         &larr; Back to businesses
       </Link>
 
